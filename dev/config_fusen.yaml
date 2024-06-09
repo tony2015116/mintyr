@@ -1,0 +1,23 @@
+flat_teaching.Rmd:
+  path: dev/flat_teaching.Rmd
+  state: active
+  R:
+  - R/combn_pair.R
+  - R/get_filename.R
+  - R/import_csv.R
+  - R/import_xlsx.R
+  - R/mintyr_example.R
+  - R/mintyr_examples.R
+  - R/nest_cv.R
+  - R/top_perc.R
+  - R/w2l_nest.R
+  - R/w2l_split.R
+  tests: []
+  vignettes: vignettes/get-started.Rmd
+  inflate:
+    flat_file: dev/flat_teaching.Rmd
+    vignette_name: Get started
+    open_vignette: true
+    check: true
+    document: true
+    overwrite: ask

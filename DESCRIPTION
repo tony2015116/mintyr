@@ -1,0 +1,32 @@
+Package: mintyr
+Title: Auxiliary Functions for Genome Selection Analysis Using R
+Version: 0.0.1
+Authors@R: c(
+    person("Guo Meng", , , "tony2015116@163.com", role = c("aut", "cre")),
+    person("Guo Meng", role = "cph")
+  )
+Description: Inspired by the `group_nest()` function in the tidyverse,
+    making it easier to perform batch analyses for genome selection in R.
+License: MIT + file LICENSE
+Imports: 
+    arrow,
+    data.table,
+    dplyr,
+    purrr,
+    readxl,
+    rlang,
+    rsample,
+    rstatix,
+    stats,
+    tools,
+    utils,
+    vroom
+Suggests: 
+    knitr,
+    rmarkdown
+VignetteBuilder: 
+    knitr
+Config/fusen/version: 0.5.2
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.3.1

@@ -18,7 +18,7 @@ home:
 navbar:
   left:
     - text: "Introduction"
-      href: articles/basic-usage.html
+      href: articles/get-started.html
     - text: "Functions"
       href: reference/index.html
     # - text: "Articles"

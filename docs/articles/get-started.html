@@ -63,7 +63,7 @@
     <div id="navbar" class="navbar-collapse collapse">
       <ul class="nav navbar-nav">
 <li>
-  <a href="../articles/basic-usage.html">Introduction</a>
+  <a href="../articles/get-started.html">Introduction</a>
 </li>
 <li>
   <a href="../reference/index.html">Functions</a>
@@ -134,7 +134,7 @@ Note: when you will use other flat templates, this part will be in a separate fi
 </h2>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/mintyr_example.html">mintyr_example</a></span><span class="op">(</span><span class="st">"csv_test1.csv"</span><span class="op">)</span></span>
-<span><span class="co">#&gt; [1] "C:/Users/Dell/AppData/Local/Temp/Rtmpw9ZJI2/temp_libpath41b06b8160a/mintyr/extdata/csv_test1.csv"</span></span></code></pre></div>
+<span><span class="co">#&gt; [1] "C:/Users/Dell/AppData/Local/Temp/Rtmpw9ZJI2/temp_libpath41b076e624d3/mintyr/extdata/csv_test1.csv"</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="mintyr_examples">mintyr_examples<a class="anchor" aria-label="anchor" href="#mintyr_examples"></a>
@@ -149,8 +149,8 @@ Note: when you will use other flat templates, this part will be in a separate fi
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">xlsx_files</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/mintyr_example.html">mintyr_example</a></span><span class="op">(</span><span class="fu"><a href="../reference/mintyr_examples.html">mintyr_examples</a></span><span class="op">(</span><span class="st">"xlsx_test"</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="va">xlsx_files</span></span>
-<span><span class="co">#&gt; [1] "C:/Users/Dell/AppData/Local/Temp/Rtmpw9ZJI2/temp_libpath41b06b8160a/mintyr/extdata/xlsx_test1.xlsx"</span></span>
-<span><span class="co">#&gt; [2] "C:/Users/Dell/AppData/Local/Temp/Rtmpw9ZJI2/temp_libpath41b06b8160a/mintyr/extdata/xlsx_test2.xlsx"</span></span>
+<span><span class="co">#&gt; [1] "C:/Users/Dell/AppData/Local/Temp/Rtmpw9ZJI2/temp_libpath41b076e624d3/mintyr/extdata/xlsx_test1.xlsx"</span></span>
+<span><span class="co">#&gt; [2] "C:/Users/Dell/AppData/Local/Temp/Rtmpw9ZJI2/temp_libpath41b076e624d3/mintyr/extdata/xlsx_test2.xlsx"</span></span>
 <span><span class="fu"><a href="../reference/import_xlsx.html">import_xlsx</a></span><span class="op">(</span><span class="va">xlsx_files</span><span class="op">)</span></span>
 <span><span class="co">#&gt;     excel_name sheet_name  col1   col2   col3</span></span>
 <span><span class="co">#&gt;         &lt;char&gt;     &lt;char&gt; &lt;num&gt; &lt;char&gt; &lt;lgcl&gt;</span></span>
@@ -190,8 +190,8 @@ This should be a reproducible and working example
 <div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">csv_files</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/mintyr_example.html">mintyr_example</a></span><span class="op">(</span><span class="fu"><a href="../reference/mintyr_examples.html">mintyr_examples</a></span><span class="op">(</span><span class="st">"csv_test"</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="va">csv_files</span></span>
-<span><span class="co">#&gt; [1] "C:/Users/Dell/AppData/Local/Temp/Rtmpw9ZJI2/temp_libpath41b06b8160a/mintyr/extdata/csv_test1.csv"</span></span>
-<span><span class="co">#&gt; [2] "C:/Users/Dell/AppData/Local/Temp/Rtmpw9ZJI2/temp_libpath41b06b8160a/mintyr/extdata/csv_test2.csv"</span></span>
+<span><span class="co">#&gt; [1] "C:/Users/Dell/AppData/Local/Temp/Rtmpw9ZJI2/temp_libpath41b076e624d3/mintyr/extdata/csv_test1.csv"</span></span>
+<span><span class="co">#&gt; [2] "C:/Users/Dell/AppData/Local/Temp/Rtmpw9ZJI2/temp_libpath41b076e624d3/mintyr/extdata/csv_test2.csv"</span></span>
 <span><span class="fu"><a href="../reference/import_csv.html">import_csv</a></span><span class="op">(</span><span class="va">csv_files</span><span class="op">)</span></span>
 <span><span class="co">#&gt;     col1   col2   col3</span></span>
 <span><span class="co">#&gt;    &lt;int&gt; &lt;char&gt; &lt;lgcl&gt;</span></span>
@@ -208,15 +208,15 @@ This should be a reproducible and working example
 <div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">xlsx_files</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/mintyr_example.html">mintyr_example</a></span><span class="op">(</span><span class="fu"><a href="../reference/mintyr_examples.html">mintyr_examples</a></span><span class="op">(</span><span class="st">"xlsx_test"</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="va">xlsx_files</span></span>
-<span><span class="co">#&gt; [1] "C:/Users/Dell/AppData/Local/Temp/Rtmpw9ZJI2/temp_libpath41b06b8160a/mintyr/extdata/xlsx_test1.xlsx"</span></span>
-<span><span class="co">#&gt; [2] "C:/Users/Dell/AppData/Local/Temp/Rtmpw9ZJI2/temp_libpath41b06b8160a/mintyr/extdata/xlsx_test2.xlsx"</span></span>
+<span><span class="co">#&gt; [1] "C:/Users/Dell/AppData/Local/Temp/Rtmpw9ZJI2/temp_libpath41b076e624d3/mintyr/extdata/xlsx_test1.xlsx"</span></span>
+<span><span class="co">#&gt; [2] "C:/Users/Dell/AppData/Local/Temp/Rtmpw9ZJI2/temp_libpath41b076e624d3/mintyr/extdata/xlsx_test2.xlsx"</span></span>
 <span><span class="fu"><a href="../reference/get_filename.html">get_filename</a></span><span class="op">(</span><span class="va">xlsx_files</span><span class="op">)</span></span>
 <span><span class="co">#&gt; [1] "xlsx_test1" "xlsx_test2"</span></span>
 <span><span class="fu"><a href="../reference/get_filename.html">get_filename</a></span><span class="op">(</span><span class="va">xlsx_files</span>, remove_extension <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span>
 <span><span class="co">#&gt; [1] "xlsx_test1.xlsx" "xlsx_test2.xlsx"</span></span>
 <span><span class="fu"><a href="../reference/get_filename.html">get_filename</a></span><span class="op">(</span><span class="va">xlsx_files</span>, remove_path <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span>
-<span><span class="co">#&gt; [1] "C:/Users/Dell/AppData/Local/Temp/Rtmpw9ZJI2/temp_libpath41b06b8160a/mintyr/extdata/xlsx_test1"</span></span>
-<span><span class="co">#&gt; [2] "C:/Users/Dell/AppData/Local/Temp/Rtmpw9ZJI2/temp_libpath41b06b8160a/mintyr/extdata/xlsx_test2"</span></span></code></pre></div>
+<span><span class="co">#&gt; [1] "C:/Users/Dell/AppData/Local/Temp/Rtmpw9ZJI2/temp_libpath41b076e624d3/mintyr/extdata/xlsx_test1"</span></span>
+<span><span class="co">#&gt; [2] "C:/Users/Dell/AppData/Local/Temp/Rtmpw9ZJI2/temp_libpath41b076e624d3/mintyr/extdata/xlsx_test2"</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="w2l_nest">w2l_nest<a class="anchor" aria-label="anchor" href="#w2l_nest"></a>

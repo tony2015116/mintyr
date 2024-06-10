@@ -5,6 +5,7 @@
 <!-- badges: start -->
 [![GitHub R package version](https://img.shields.io/github/r-package/v/tony2015116/mintyr)](#)
 [![GitHub last commit](https://img.shields.io/github/last-commit/tony2015116/mintyr)](#)
+[![R-CMD-check](https://github.com/tony2015116/mintyr/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/tony2015116/mintyr/actions/workflows/R-CMD-check.yaml)
 <!-- badges: end -->
 
 **mintyr** is an R package that enables automatic monitor the stations and pigs in the pig farm which using nedap pig performance test stations.`station_monitor()` can monitor the number of pigs within a testing station, total feed intake, total visit time, total visit frequency, and overall weight condition. `fid_monitor()` can monitor the feed intake and proportion of each pig within a single testing station.`table_monitor()` can monitor several informations in table fromat.`monitor_schedule()` packages the previous two functions into one that can be set to monitor on a regular basis.

@@ -8,6 +8,8 @@ Authors@R: c(
 Description: Inspired by the `group_nest()` function in the tidyverse,
     making it easier to perform batch analyses for genome selection in R.
 License: MIT + file LICENSE
+URL: https://github.com/tony2015116/mintyr, https://tony2015116.github.io/mintyr/
+BugReports: https://github.com/tony2015116/mintyr/issues
 Imports: 
     arrow,
     data.table,
@@ -30,5 +32,3 @@ Config/fusen/version: 0.5.2
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.1
-URL: https://github.com/tony2015116/mintyr
-BugReports: https://github.com/tony2015116/mintyr/issues

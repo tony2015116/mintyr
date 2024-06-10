@@ -1,4 +1,4 @@
-# pptsdm <a href='https://tony2015116.github.io/mintyr/'><img src='man/figures/logo.svg'  width="120" align="right" />
+# mintyr <a href='https://tony2015116.github.io/mintyr/'><img src='man/figures/logo.svg'  width="120" align="right" />
 <!--apple-touch-icon-120x120.png-->
 <!-- <picture><source srcset="reference/figures/apple-touch-icon-120x120.png" media="(prefers-color-scheme: dark)"></picture> -->
 
@@ -7,15 +7,15 @@
 [![GitHub last commit](https://img.shields.io/github/last-commit/tony2015116/mintyr)](#)
 <!-- badges: end -->
 
-**pptsdm** is an R package that enables automatic monitor the stations and pigs in the pig farm which using nedap pig performance test stations.`station_monitor()` can monitor the number of pigs within a testing station, total feed intake, total visit time, total visit frequency, and overall weight condition. `fid_monitor()` can monitor the feed intake and proportion of each pig within a single testing station.`table_monitor()` can monitor several informations in table fromat.`monitor_schedule()` packages the previous two functions into one that can be set to monitor on a regular basis.
+**mintyr** is an R package that enables automatic monitor the stations and pigs in the pig farm which using nedap pig performance test stations.`station_monitor()` can monitor the number of pigs within a testing station, total feed intake, total visit time, total visit frequency, and overall weight condition. `fid_monitor()` can monitor the feed intake and proportion of each pig within a single testing station.`table_monitor()` can monitor several informations in table fromat.`monitor_schedule()` packages the previous two functions into one that can be set to monitor on a regular basis.
 
 # Installation
 You can install the development version from GitHub with:
 ``` r
 # install.packages("devtools")
-devtools::install_github("tony2015116/pptsdm")
+devtools::install_github("tony2015116/mintyr")
 # install.packages("pak")
-pak::pak("tony2015116/pptsdm")
+pak::pak("tony2015116/mintyr")
 ```
 ## Example
 

@@ -2,9 +2,10 @@ url: https://tony2015116.github.io/mintyr/
 template:
   params:
     bootswatch: cosmo
+    dev_stats: true
 
-development:
-  mode: release
+# development:
+#   mode: release
 reference:
 - title: import functions
   desc: |

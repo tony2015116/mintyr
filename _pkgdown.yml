@@ -1,8 +1,11 @@
 url: https://tony2015116.github.io/mintyr/
+# template:
+#   params:
+#     bootswatch: cosmo
+#     dev_stats: true
 template:
-  params:
-    bootswatch: cosmo
-    dev_stats: true
+  bootswatch: cosmo
+  theme: arrow-dark
 
 # development:
 #   mode: release

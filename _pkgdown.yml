@@ -1,4 +1,38 @@
 url: https://tony2015116.github.io/mintyr/
 template:
-  bootstrap: 5
+  params:
+    bootswatch: cosmo
 
+development:
+  mode: release
+reference:
+- title: import functions
+  desc: |
+    import csv or xlsx
+  contents:
+  - '`import_csv`'
+  - '`import_xlsx`'
+- title: main functions
+  desc: |
+    main functions
+  contents:
+  - '`w2l_nest`'
+  - '`w2l_split`'
+  - '`nest_cv`'
+  - '`combn_pair`'
+- title: stat functions
+  desc: |
+    stat functions
+  contents:
+  - '`top_perc`'
+- title: other functions
+  desc: |
+    other functions
+  contents:
+  - '`get_filename`'
+- title: data example functions
+  desc: |
+    data example functions
+  contents:
+  - '`mintyr_example`'
+  - '`mintyr_examples`'

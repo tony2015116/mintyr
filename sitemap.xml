@@ -1,66 +1,24 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <url>
-    <loc>https://tony2015116.github.io/mintyr/404.html</loc>
-  </url>
-  <url>
-    <loc>https://tony2015116.github.io/mintyr/LICENSE-text.html</loc>
-  </url>
-  <url>
-    <loc>https://tony2015116.github.io/mintyr/LICENSE.html</loc>
-  </url>
-  <url>
-    <loc>https://tony2015116.github.io/mintyr/articles/get-started.html</loc>
-  </url>
-  <url>
-    <loc>https://tony2015116.github.io/mintyr/articles/index.html</loc>
-  </url>
-  <url>
-    <loc>https://tony2015116.github.io/mintyr/authors.html</loc>
-  </url>
-  <url>
-    <loc>https://tony2015116.github.io/mintyr/index.html</loc>
-  </url>
-  <url>
-    <loc>https://tony2015116.github.io/mintyr/news/index.html</loc>
-  </url>
-  <url>
-    <loc>https://tony2015116.github.io/mintyr/reference/combn_pair.html</loc>
-  </url>
-  <url>
-    <loc>https://tony2015116.github.io/mintyr/reference/fire.html</loc>
-  </url>
-  <url>
-    <loc>https://tony2015116.github.io/mintyr/reference/get_filename.html</loc>
-  </url>
-  <url>
-    <loc>https://tony2015116.github.io/mintyr/reference/import_csv.html</loc>
-  </url>
-  <url>
-    <loc>https://tony2015116.github.io/mintyr/reference/import_xlsx.html</loc>
-  </url>
-  <url>
-    <loc>https://tony2015116.github.io/mintyr/reference/index.html</loc>
-  </url>
-  <url>
-    <loc>https://tony2015116.github.io/mintyr/reference/mintyr_example.html</loc>
-  </url>
-  <url>
-    <loc>https://tony2015116.github.io/mintyr/reference/mintyr_examples.html</loc>
-  </url>
-  <url>
-    <loc>https://tony2015116.github.io/mintyr/reference/nedap.html</loc>
-  </url>
-  <url>
-    <loc>https://tony2015116.github.io/mintyr/reference/nest_cv.html</loc>
-  </url>
-  <url>
-    <loc>https://tony2015116.github.io/mintyr/reference/top_perc.html</loc>
-  </url>
-  <url>
-    <loc>https://tony2015116.github.io/mintyr/reference/w2l_nest.html</loc>
-  </url>
-  <url>
-    <loc>https://tony2015116.github.io/mintyr/reference/w2l_split.html</loc>
-  </url>
+<urlset xmlns = 'http://www.sitemaps.org/schemas/sitemap/0.9'>
+<url><loc>https://tony2015116.github.io/mintyr/404.html</loc></url>
+<url><loc>https://tony2015116.github.io/mintyr/LICENSE-text.html</loc></url>
+<url><loc>https://tony2015116.github.io/mintyr/LICENSE.html</loc></url>
+<url><loc>https://tony2015116.github.io/mintyr/articles/get-started.html</loc></url>
+<url><loc>https://tony2015116.github.io/mintyr/articles/index.html</loc></url>
+<url><loc>https://tony2015116.github.io/mintyr/authors.html</loc></url>
+<url><loc>https://tony2015116.github.io/mintyr/index.html</loc></url>
+<url><loc>https://tony2015116.github.io/mintyr/news/index.html</loc></url>
+<url><loc>https://tony2015116.github.io/mintyr/reference/combn_pair.html</loc></url>
+<url><loc>https://tony2015116.github.io/mintyr/reference/fire.html</loc></url>
+<url><loc>https://tony2015116.github.io/mintyr/reference/get_filename.html</loc></url>
+<url><loc>https://tony2015116.github.io/mintyr/reference/import_csv.html</loc></url>
+<url><loc>https://tony2015116.github.io/mintyr/reference/import_xlsx.html</loc></url>
+<url><loc>https://tony2015116.github.io/mintyr/reference/index.html</loc></url>
+<url><loc>https://tony2015116.github.io/mintyr/reference/mintyr_example.html</loc></url>
+<url><loc>https://tony2015116.github.io/mintyr/reference/mintyr_examples.html</loc></url>
+<url><loc>https://tony2015116.github.io/mintyr/reference/nedap.html</loc></url>
+<url><loc>https://tony2015116.github.io/mintyr/reference/nest_cv.html</loc></url>
+<url><loc>https://tony2015116.github.io/mintyr/reference/top_perc.html</loc></url>
+<url><loc>https://tony2015116.github.io/mintyr/reference/w2l_nest.html</loc></url>
+<url><loc>https://tony2015116.github.io/mintyr/reference/w2l_split.html</loc></url>
 </urlset>
+

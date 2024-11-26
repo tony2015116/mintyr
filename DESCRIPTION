@@ -1,16 +1,15 @@
 Package: mintyr
-Title: Auxiliary Functions for Genome Selection Analysis Using R
+Title: Tools Commonly Used In Personal Data Processing Work
 Version: 1.0.0
 Authors@R: c(
     person("Guo Meng", , , "tony2015116@163.com", role = c("aut", "cre")),
     person("Guo Meng", role = "cph")
   )
-Description: Inspired by the `group_nest()` function in the tidyverse,
-    making it easier to perform batch analyses for genome selection in R.
+Description: A Set of tools to understand packages structure. Use
+    Rmarkdown First method to build a package from a defined template.
+    Start your package with documentation. Everything can be set from a
+    Rmarkdown file in your project.
 License: MIT + file LICENSE
-URL: https://github.com/tony2015116/mintyr,
-    https://tony2015116.github.io/mintyr/
-BugReports: https://github.com/tony2015116/mintyr/issues
 Depends: 
     R (>= 2.10)
 Imports: 

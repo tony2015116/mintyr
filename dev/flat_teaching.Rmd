@@ -36,10 +36,10 @@ fusen::fill_description(
       person("Guo Meng", email = "tony2015116@163.com", role = c("aut", "cre")),
       person(given = "Guo Meng", role = "cph")
     )
-  )
+  ), overwrite = T
 )
 # Define License with use_*_license()
-usethis::use_mit_license("John Doe")
+usethis::use_mit_license("Guo Meng")
 ```
 
 # mintyr_example
@@ -349,20 +349,29 @@ get_filename(xlsx_files, remove_path = FALSE)
 # w2l_nest
     
 ```{r function-w2l_nest}
-#' Reshape Wide Data to Long and Nest by Specified Columns
+#' Reshape Wide Data to Long Format and Nest by Specified Columns
 #' 
-#' The `w2l_nest` function reshapes wide-format data to long-format and nests it by specified columns.
-#' It is designed to handle both data.frame and data.table objects and provides options for grouping the data.
+#' The `w2l_nest` function reshapes wide-format data into long-format and nests it by specified columns.
+#' It handles both `data.frame` and `data.table` objects and provides options for grouping and nesting the data.
 #' 
-#' @param data data.frame or data.table. The input data in wide format.
-#' @param cols2l numeric or character vector. Specifies the columns to reshape from wide to long format. Can be either numeric indices or column names.
-#' @param by character vector, optional. Specifies the columns to group by. Default is NULL.
+#' @param data A `data.frame` or `data.table`. The input data in wide format.
+#' @param cols2l A numeric or character vector. Specifies the columns to reshape from wide to long format.
+#'   Can be either numeric indices or column names.
+#' @param by An optional character vector. Specifies the columns to group by. Default is `NULL`.
+#' @param nest_type A character string, either `"dt"` or `"df"`. Specifies the type of object to nest in the
+#'   result: `"dt"` for `data.table`, `"df"` for `data.frame`. Default is `"dt"`.
 #'
-#' @return data.table. A data.table with nested data in long format, grouped by specified columns if provided.
+#' @return A `data.table` with nested data in long format, grouped by specified columns if provided.
+#' Each row contains a nested data table or data frame under the column `data`, depending on `nest_type`.
 #' \itemize{
-#'   \item If `by` is NULL, returns a data.table nested by 'name'.
-#'   \item If `by` is specified, returns a data.table nested by 'name' and the grouping variables.
+#'   \item If `by` is `NULL`, returns a `data.table` nested by `name`.
+#'   \item If `by` is specified, returns a `data.table` nested by `name` and the grouping variables.
 #' }
+#' 
+#' @details
+#' The function melts the specified wide columns into long format and nests the resulting data by the `name`
+#' column and any additional grouping variables specified in `by`. The nested data can be in the form of
+#' `data.table` or `data.frame` objects, controlled by the `nest_type` parameter.
 #' 
 #' @import data.table
 #' 
@@ -370,48 +379,74 @@ get_filename(xlsx_files, remove_path = FALSE)
 #' 
 #' @note
 #' \itemize{
-#'   \item The `cols2l` parameter should be either numeric indices or a character vector of column names.
-#'   \item Ensure all grouping variables specified in `by` are present in the data.
+#'   \item The `cols2l` parameter should be either numeric indices or a character vector of column names present in `data`.
+#'   \item Ensure all grouping variables specified in `by` are present in `data`.
 #'   \item The function converts `data.frame` to `data.table` if necessary.
+#'   \item The `nest_type` parameter controls whether nested data are `data.table` (`"dt"`) or `data.frame` (`"df"`) objects.
+#'   \item If `nest_type` is not `"dt"` or `"df"`, the function will stop with an error.
 #' }
-w2l_nest <- function(data, cols2l, by=NULL) {
+w2l_nest <- function(data, cols2l, by = NULL, nest_type = "dt") {
   . <- name <- NULL
+
   # Ensure the data is a data.table object
-  if (is.data.frame(data)) {
-    data <- data.table::as.data.table(data)  # Convert data.frame to data.table if necessary
-  } else if (!data.table::is.data.table(data)) {
-    stop("Data must be either a data.frame or a data.table.")  # Stop if data is not a data.table or data.frame
+  if (!data.table::is.data.table(data)) {
+    if (is.data.frame(data)) {
+      data <- data.table::as.data.table(data)  # Convert data.frame to data.table if necessary
+    } else {
+      stop("Data must be either a data.frame or a data.table.")  # Stop if data is not a data.table or data.frame
+    }
   }
 
   # Process grouping variables
-  if (!is.null(by) && !all(by %in% names(data))) {
-    stop("All grouping variables must be column names in the data: ", paste(by[!by %in% names(data)], collapse=", "))
-  }  # Check if all specified grouping variables are in the data, stop with message if not
+  if (!is.null(by)) {
+    missing_by_vars <- by[!by %in% names(data)]
+    if (length(missing_by_vars) > 0) {
+      stop("Grouping variables not present in data: ", paste(missing_by_vars, collapse=", "))
+    }
+  }
 
   # Check the validity of cols2l based on its type
   if (is.numeric(cols2l)) {
-    if (any(length(cols2l) < 1 | length(cols2l) > ncol(data))) {
-      stop("Numeric indices in cols2l are out of bounds.")  # Stop if numeric indices are out of bounds
+    if (any(cols2l < 1 | cols2l > ncol(data))) {
+      stop("Numeric indices in cols2l are out of bounds.")  # Corrected the condition
     }
   } else if (is.character(cols2l)) {
     if (!all(cols2l %in% names(data))) {
-      stop("Some columns specified in cols2l are not present in the data.")  # Stop if some specified column names do not exist
+      missing_cols <- cols2l[!cols2l %in% names(data)]
+      stop("Some columns specified in cols2l are not present in the data: ", paste(missing_cols, collapse=", "))
     }
   } else {
     stop("cols2l should be either numeric indices or character vector of column names.")  # Ensure cols2l is either numeric or character
   }
 
-  # Melt the data with or without grouping variables
-  melted_data <- data.table::melt(data, measure.vars = cols2l, variable.name = "name", value.name = "value")  # Melt the data using specified cols2l
+  # Melt the data
+  #id_vars <- setdiff(names(data), cols2l)  # Use all other columns as id variables
+  melted_data <- data.table::melt(
+    data,
+    #id.vars = id_vars,
+    measure.vars = cols2l,
+    variable.name = "name",
+    value.name = "value"
+  )  # Melt the data using specified cols2l
 
-  if (is.null(by) || length(by) == 0) {
-    # No grouping
-    return(melted_data[, .(data = list(.SD)), by = name])  # Return melted data without grouping, nested by 'name'
+  # Determine grouping variables for nesting
+  if (!is.null(by) && length(by) > 0) {
+    groupby <- c("name", by)
   } else {
-    # With grouping
-    groupby <- c("name", by)  # Combine 'name' and 'by' for grouping
-    return(melted_data[, .(data = list(.SD)), by = groupby])  # Return melted data with grouping, nested by 'name' and grouping variables
+    groupby <- "name"
   }
+
+  # # Nest the data based on nest_type
+  if (nest_type == "dt") {
+    result <- melted_data[, .(data = list(.SD)), by = groupby]
+  } else if (nest_type == "df") {
+    result <- melted_data[, .(data = list(as.data.frame(.SD))), by = groupby]
+  } else {
+    stop("Invalid nest_type provided. It must be either 'dt' or 'df'.")
+  }
+
+  # Return the result
+  return(result)
 }
 ```
   
@@ -423,15 +458,30 @@ w2l_nest(data = iris, cols2l = c("Sepal.Length", "Sepal.Width", "Petal.Length"),
 # w2l_split
     
 ```{r function-w2l_split}
-#' Convert Wide Data to Long Format and Split into List of Data Tables
+#' Reshape Wide Data to Long Format and Split into List
 #' 
-#' The `w2l_split` function reshapes wide-format data to long-format and splits it into a list of data tables,
-#' each corresponding to one of the specified columns.
+#' The `w2l_split` function reshapes wide-format data into long-format and splits it into a list
+#' by variable names and optional grouping columns. It handles both `data.frame` and `data.table` objects.
 #' 
-#' @param data data.frame or data.table. The input data in wide format.
-#' @param cols2l numeric or character vector. Specifies the columns to reshape from wide to long format. Can be either numeric indices or column names.
+#' @param data A `data.frame` or `data.table`. The input data in wide format.
+#' @param cols2l A numeric or character vector. Specifies the columns to reshape from wide to long format.
+#'   Can be either numeric indices or column names.
+#' @param by An optional character vector. Specifies additional columns to split by. Default is `NULL`.
+#' @param split_type A character string, either `"dt"` or `"df"`. Specifies the type of objects in the
+#'   resulting list: `"dt"` for `data.table`, `"df"` for `data.frame`. Default is `"dt"`.
 #'
-#' @return A list of data tables. Each data table in the list corresponds to one of the specified columns, reshaped into long format.
+#' @return A list of `data.table` or `data.frame` objects (depending on `split_type`), split by variable
+#' names and optional grouping columns.
+#' \itemize{
+#'   \item If `by` is `NULL`, returns a list split by variable names only.
+#'   \item If `by` is specified, returns a list split by both variable names and grouping variables.
+#' }
+#' 
+#' @details
+#' The function first melts the specified wide columns into long format and then splits the resulting data
+#' into a list based on the variable names and any additional grouping variables specified in `by`.
+#' The resulting list elements can be either `data.table` or `data.frame` objects, as specified by
+#' the `split_type` parameter.
 #' 
 #' @import data.table
 #' 
@@ -439,42 +489,79 @@ w2l_nest(data = iris, cols2l = c("Sepal.Length", "Sepal.Width", "Petal.Length"),
 #' 
 #' @note
 #' \itemize{
-#'   \item The `cols2l` parameter should be either numeric indices or a character vector of column names.
-#'   \item Ensure all specified columns in `cols2l` are present in the data.
-#'   \item The function converts `data.frame` to `data.table` if necessary.
+#'   \item The `cols2l` parameter should be either numeric indices or a character vector of column names present in `data`.
+#'   \item Ensure all grouping variables specified in `by` are present in `data`.
+#'   \item The function automatically converts `data.frame` to `data.table` for processing.
+#'   \item The `split_type` parameter determines the class of objects in the resulting list.
+#'   \item Non-specified columns are automatically used as ID variables in the reshaping process.
 #' }
-w2l_split <- function(data, cols2l) {
-  # Validate that data is present and either a data.frame or data.table
-  if (missing(data)) stop("data parameter is missing")
-
-  if (is.data.frame(data)) {
-    data <- as.data.table(data)  # Convert data.frame to data.table
-  } else if (!is.data.table(data)) {
-    stop("data must be a data.table or data.frame")
+w2l_split <- function(data, cols2l, by = NULL, split_type = "dt") {
+  # Verify that data is provided and is either a data.frame or data.table
+  if (!data.table::is.data.table(data)) {
+    if (is.data.frame(data)) {
+      data <- data.table::as.data.table(data)  # Convert data.frame to data.table
+    } else {
+      stop("data must be a data.frame or data.table.")
+    }
   }
 
-  # Validate that cols2l is provided and of correct type and values
-  if (missing(cols2l)) stop("cols2l parameter is missing")
+  # Verify that cols2l is provided and valid
+  if (missing(cols2l)) stop("cols2l parameter is missing.")
 
   if (is.numeric(cols2l)) {
-    if (any(length(cols2l) < 1 | length(cols2l) > ncol(data))) {
-      stop("Numeric indices in cols2l are out of bounds.")  # Check bounds for numeric indices
+    if (any(cols2l < 1 | cols2l > ncol(data))) {
+      stop("Numeric indices in cols2l are out of bounds.")  # Check if numeric indices are within data
     }
+    cols2l_names <- names(data)[cols2l]
   } else if (is.character(cols2l)) {
     if (!all(cols2l %in% names(data))) {
-      stop("Some columns specified in cols2l are not present in the data.")  # Check existence for character names
+      missing_cols <- cols2l[!cols2l %in% names(data)]
+      stop("Some columns specified in cols2l are not present in the data: ", paste(missing_cols, collapse = ", "))
     }
+    cols2l_names <- cols2l
   } else {
-    stop("cols2l should be either numeric indices or character vector of column names.")  # Enforce type restrictions
+    stop("cols2l should be either numeric indices or character vector of column names.")  # Ensure cols2l is valid
   }
 
-  # Convert the data from wide format to long format
-  dt_long <- melt(data, measure.vars = cols2l, variable.name = "variable", value.name = "value")
+  # Verify that 'by' parameter is valid
+  if (!is.null(by)) {
+    if (!all(by %in% names(data))) {
+      missing_by <- by[!by %in% names(data)]
+      stop("Some 'by' columns are not present in the data: ", paste(missing_by, collapse = ", "))
+    }
+  }
 
-  # Split the long-format data table into a list of data tables, grouped by the 'variable' column
-  dt_list <- split(dt_long, dt_long$variable, drop = TRUE)
+  # Convert data from wide format to long format
+  # Use columns not in cols2l as id.vars, ensure 'by' columns are included
+  id_vars <- setdiff(names(data), cols2l_names)
+  if (!is.null(by)) {
+    id_vars <- unique(c(id_vars, by))  # Ensure 'by' columns are included in id.vars
+  }
 
-  # Return the list of data.tables
+  dt_long <- data.table::melt(
+    data,
+    id.vars = id_vars,
+    measure.vars = cols2l_names,
+    variable.name = "variable",
+    value.name = "value"
+  )
+
+  # Define variables to split by
+  split_vars <- c("variable", by)
+
+  # Split the long-format data.table into a list based on 'variable' and 'by' columns
+  dt_list <- split(dt_long, by = split_vars, keep.by = F, drop = TRUE)
+
+  # Convert list elements to data.frame if split_type is 'df'
+  if (split_type == "dt") {
+    # List elements are already data.tables, no action needed
+  } else if (split_type == "df") {
+    dt_list <- lapply(dt_list, as.data.frame)  # Convert each data.table to data.frame
+  } else {
+    stop("Invalid split_type provided. It must be either 'dt' or 'df'.")
+  }
+
+  # Return the result list
   return(dt_list)
 }
 ```

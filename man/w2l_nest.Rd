@@ -2,33 +2,45 @@
 % Please edit documentation in R/w2l_nest.R
 \name{w2l_nest}
 \alias{w2l_nest}
-\title{Reshape Wide Data to Long and Nest by Specified Columns}
+\title{Reshape Wide Data to Long Format and Nest by Specified Columns}
 \usage{
-w2l_nest(data, cols2l, by = NULL)
+w2l_nest(data, cols2l, by = NULL, nest_type = "dt")
 }
 \arguments{
-\item{data}{data.frame or data.table. The input data in wide format.}
+\item{data}{A \code{data.frame} or \code{data.table}. The input data in wide format.}
 
-\item{cols2l}{numeric or character vector. Specifies the columns to reshape from wide to long format. Can be either numeric indices or column names.}
+\item{cols2l}{A numeric or character vector. Specifies the columns to reshape from wide to long format.
+Can be either numeric indices or column names.}
 
-\item{by}{character vector, optional. Specifies the columns to group by. Default is NULL.}
+\item{by}{An optional character vector. Specifies the columns to group by. Default is \code{NULL}.}
+
+\item{nest_type}{A character string, either \code{"dt"} or \code{"df"}. Specifies the type of object to nest in the
+result: \code{"dt"} for \code{data.table}, \code{"df"} for \code{data.frame}. Default is \code{"dt"}.}
 }
 \value{
-data.table. A data.table with nested data in long format, grouped by specified columns if provided.
+A \code{data.table} with nested data in long format, grouped by specified columns if provided.
+Each row contains a nested data table or data frame under the column \code{data}, depending on \code{nest_type}.
 \itemize{
-\item If \code{by} is NULL, returns a data.table nested by 'name'.
-\item If \code{by} is specified, returns a data.table nested by 'name' and the grouping variables.
+\item If \code{by} is \code{NULL}, returns a \code{data.table} nested by \code{name}.
+\item If \code{by} is specified, returns a \code{data.table} nested by \code{name} and the grouping variables.
 }
 }
 \description{
-The \code{w2l_nest} function reshapes wide-format data to long-format and nests it by specified columns.
-It is designed to handle both data.frame and data.table objects and provides options for grouping the data.
+The \code{w2l_nest} function reshapes wide-format data into long-format and nests it by specified columns.
+It handles both \code{data.frame} and \code{data.table} objects and provides options for grouping and nesting the data.
+}
+\details{
+The function melts the specified wide columns into long format and nests the resulting data by the \code{name}
+column and any additional grouping variables specified in \code{by}. The nested data can be in the form of
+\code{data.table} or \code{data.frame} objects, controlled by the \code{nest_type} parameter.
 }
 \note{
 \itemize{
-\item The \code{cols2l} parameter should be either numeric indices or a character vector of column names.
-\item Ensure all grouping variables specified in \code{by} are present in the data.
+\item The \code{cols2l} parameter should be either numeric indices or a character vector of column names present in \code{data}.
+\item Ensure all grouping variables specified in \code{by} are present in \code{data}.
 \item The function converts \code{data.frame} to \code{data.table} if necessary.
+\item The \code{nest_type} parameter controls whether nested data are \code{data.table} (\code{"dt"}) or \code{data.frame} (\code{"df"}) objects.
+\item If \code{nest_type} is not \code{"dt"} or \code{"df"}, the function will stop with an error.
 }
 }
 \examples{

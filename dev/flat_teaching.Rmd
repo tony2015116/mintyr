@@ -42,6 +42,513 @@ fusen::fill_description(
 usethis::use_mit_license("Guo Meng")
 ```
 
+
+# convert_nested
+    
+```{r function-convert_nested}
+#' Convert Nested Columns Between Data Frame and Data Table
+#'
+#' @description
+#' This function converts a data frame or data table, transforming nested columns 
+#' to either data frame or data table format while preserving the original data structure.
+#'
+#' @param data A data frame or data table containing nested columns
+#' @param to A character string specifying the target format. 
+#'   Options are "df" (data frame) or "dt" (data table). Defaults to "df".
+#' @param nested_cols A character vector of column names containing nested data. 
+#'   If NULL, the function automatically detects list columns.
+#'
+#' @details
+#' The function performs the following operations:
+#' \itemize{
+#'   \item Automatically detects nested columns if not explicitly specified
+#'   \item Converts the entire data structure to the target format (data frame or data table)
+#'   \item Converts nested columns within the specified columns to the target format
+#'   \item Creates a copy of the input data to avoid modifying the original
+#' }
+#'
+#' @return A data frame or data table with nested columns converted to the specified format
+#'
+#' @note
+#' - The function preserves the original data structure
+#' - Nested columns are converted individually
+#' - Automatic detection of nested columns is based on list-type columns
+#' 
+#' @importFrom data.table as.data.table copy
+#' @export
+convert_nested <- function(data, to = c("df", "dt"), nested_cols = NULL) {
+  to <- match.arg(to)
+
+  # Automatically detect nested columns (list columns) if not specified
+  if (is.null(nested_cols)) {
+    nested_cols <- names(data)[sapply(data, is.list)]
+  }
+
+  if (to == "df") {
+    # If data is data.table, convert to data.frame and copy to avoid modifying original data
+    if (inherits(data, "data.table")) {
+      data <- as.data.frame(copy(data))
+    } else if (!inherits(data, "data.frame")) {
+      data <- as.data.frame(data)
+    }
+    # Convert each element of nested columns to data.frame
+    for (col in nested_cols) {
+      data[[col]] <- lapply(data[[col]], function(x) {
+        if (inherits(x, "data.table")) {
+          as.data.frame(copy(x))
+        } else if (!inherits(x, "data.frame")) {
+          as.data.frame(x)
+        } else {
+          x
+        }
+      })
+    }
+  } else if (to == "dt") {
+    # If data is not data.table, convert to data.table and copy to avoid modifying original data
+    if (!inherits(data, "data.table")) {
+      data <- as.data.table(copy(data))
+    }
+    # Convert each element of nested columns to data.table
+    for (col in nested_cols) {
+      data[[col]] <- lapply(data[[col]], function(x) {
+        if (!inherits(x, "data.table")) {
+          as.data.table(copy(x))
+        } else {
+          x
+        }
+      })
+    }
+  }
+
+  return(data)
+}
+```
+  
+```{r example-convert_nested}
+# Convert a data frame with nested columns to data table
+df_nest1 <- iris |> 
+  dplyr::group_nest(Species)
+df_nest2 <- iris |>
+  dplyr::group_nest(Species) |>
+  dplyr::mutate(data2 = purrr::map(data, dplyr::mutate, c=2))
+# Convert a data table with specific nested columns to data frame
+convert_nested(df_nest1, to = "dt", nested_cols = c("data"))
+convert_nested(df_nest2, to = "dt", nested_cols = c("data", "data2"))
+# Convert a data table with nested columns to data frame
+dt_nest <- mintyr::w2l_nest(data = iris, cols2l = 1:2, by = "Species")
+convert_nested(dt_nest, to = "dt", nested_cols = c("data"))
+```
+  
+  
+# get_path_segment
+    
+```{r function-get_path_segment}
+#' Extract Specific Segments from File Paths
+#'
+#' The `get_path_segment` function extracts specific segments from file paths provided as character strings. Segments can be extracted from either the beginning or the end of the path, depending on the value of `n`.
+#'
+#' @param paths A non-empty character vector containing file paths, where each path is a string with segments separated by forward slashes (`/`). This parameter cannot be empty.
+#' @param n An integer specifying which segment to extract from each path. If `n` is positive, the function extracts the `n`-th segment from the beginning of the path. If `n` is negative, the function extracts the `n`-th segment from the end of the path. `n` cannot be zero.
+#'
+#' @return A character vector of the extracted segments. If a path does not have the requested segment, `NA_character_` is returned for that path.
+#'
+#' @details
+#' The function operates as follows:
+#' \enumerate{
+#'   \item Validates that `paths` is a non-empty character vector and that `n` is a non-zero numeric value.
+#'   \item Splits each path in `paths` into segments based on the forward slash (`/`) delimiter.
+#'   \item Extracts the specified segment from each set of path segments:
+#'   \itemize{
+#'     \item If `n > 0`, the function extracts the `n`-th segment counting from the start of the path.
+#'     \item If `n < 0`, the function extracts the `n`-th segment counting from the end of the path.
+#'   }
+#'   \item If a path does not contain the specified segment, `NA_character_` is returned for that path.
+#' }
+#'
+#' @note
+#' - The `paths` parameter must be a non-empty character vector.
+#' - The `n` parameter must be a non-zero numeric value.
+#' - If `n` is zero, the function will raise an error.
+#' - The function handles empty strings and paths with consecutive slashes appropriately.
+#'  
+#' @export
+get_path_segment <- function(paths, n = 1) {
+  # Check if paths parameter is provided
+  if (missing(paths)) stop("Parameter 'paths' cannot be empty")
+
+  # Validate paths is a character vector
+  if (!is.character(paths)) stop("'paths' must be character")
+
+  # Return empty character vector if paths is empty
+  if (length(paths) == 0) return(character(0))
+
+  # Validate n is numeric
+  if (!is.numeric(n)) stop("'n' must be numeric")
+
+  # Prevent zero index
+  if (n == 0) stop("'n' cannot be 0")
+
+  # Split paths into segments
+  segments <- strsplit(paths, "/")
+
+  # Extract specific path segments
+  result <- sapply(segments, function(x) {
+    if (n > 0) {
+      # Positive index: count from the beginning
+      # Return segment if index exists, otherwise return NA
+      if (length(x) >= n) x[n] else NA_character_
+    } else {
+      # Negative index: count from the end
+      # Convert negative index to positive position
+      pos <- length(x) + n + 1
+
+      # Return segment if position is valid, otherwise return NA
+      if (pos > 0 && pos <= length(x)) x[pos] else NA_character_
+    }
+  })
+
+  return(result)
+}
+```
+  
+```{r example-get_path_segment}
+# Example usage demonstrations
+paths <- c("/home/user/documents", "/var/log/system", "/usr/local/bin")
+# Positive index example
+get_path_segment(paths, 2)
+# Negative index example
+get_path_segment(paths, -2)
+```
+  
+
+# nest_export
+    
+```{r function-nest_export}
+#' Export Nested Data Frames to Files Based on Grouping Columns
+#'
+#' The `nest_export` function exports nested data frames or data tables stored within a column of a data table (`nest_dt`) to files. It expands the nested data, groups it by specified columns (`group_cols`), and writes the data to files within directories reflecting the groupings. The files can be saved as tab-separated (`.txt`) or comma-separated (`.csv`) values.
+#'
+#' @param nest_dt A `data.frame` or `data.table` containing at least one nested column of data frames or data tables. This is the input data from which nested data will be exported.
+#' @param group_cols A non-empty character vector specifying the columns in `nest_dt` to use for grouping when exporting. Directories will be created based on combinations of these groupings.
+#' @param nest_col A single character string specifying the name of the column in `nest_dt` that contains the nested data frames or data tables to be exported. This name also serves as the base filename for the exported files.
+#' @param export_path A single character string specifying the base directory path where the files will be exported. If the directory does not exist, it will be created. Defaults to `tempdir()`.
+#' @param file_type A character string specifying the type of file to export: either `"txt"` for tab-separated values or `"csv"` for comma-separated values. Defaults to `"txt"`. Case-insensitive.
+#'
+#' @return An integer representing the total number of files exported successfully.
+#'
+#' @details
+#' The function performs the following steps:
+#' \enumerate{
+#'   \item Validates the input parameters, ensuring that `nest_col` and `group_cols` are provided and exist within `nest_dt`. It checks that `file_type` is either `"txt"` or `"csv"`.
+#'   \item Identifies the nested column specified by `nest_col` and expands it by unnesting the data frames or data tables it contains.
+#'   \item Groups the expanded data by the columns specified in `group_cols`.
+#'   \item For each group, constructs a directory path based on the grouping values under `export_path` and writes the data to a file named after `nest_col`, using the specified `file_type`.
+#'   \item Utilizes multiple threads when writing files for efficiency, using `data.table::fwrite`.
+#' }
+#'
+#' @import data.table
+#' @export
+#' 
+#' @note
+#' \itemize{
+#'   \item The `nest_dt` must contain at least one nested column of data frames or data tables.
+#'   \item The `group_cols` must be a non-empty character vector corresponding to columns in `nest_dt`.
+#'   \item The `nest_col` must be a single character string corresponding to a column name in `nest_dt`.
+#'   \item If `export_path` does not exist, the function will create it.
+#'   \item The function leverages multi-threading via `data.table::fwrite` for faster file writing.
+#'   \item The original `nest_dt` is not modified; a modified copy is used internally.
+#'   \item If an error occurs during the export process, the function stops and returns an error message.
+#' }
+nest_export <- function(nest_dt, group_cols = NULL, nest_col = NULL, export_path = tempdir(), file_type = "txt") {
+  # Validate that nest_col is provided
+  # Ensures that the nested column parameter is not null
+  # Throws an error if no nested column is specified
+  if (is.null(nest_col)) {
+    stop("nest_col must be specified")
+  }
+
+  # Use nest_col as the base filename for exported files
+  # This allows the nested column name to directly determine the output file name
+  basename <- nest_col
+
+  # Validate that input data table is not empty
+  if (nrow(nest_dt) == 0) {
+    stop("The input nest_dt cannot be empty")
+  }
+
+  # Validate file type
+  file_type <- tolower(file_type)
+  if (!(file_type %in% c("txt", "csv"))) {
+    stop("file_type must be either 'txt' or 'csv'")
+  }
+
+  # Identify columns containing nested data frames or data tables
+  nested_cols <- names(nest_dt)[sapply(nest_dt, function(x) {
+    # Check if the column is a list and all elements are data frames or data tables
+    is.list(x) && all(sapply(x, function(y) {
+      inherits(y, c("data.frame", "data.table"))
+    }))
+  })]
+
+  # Ensure at least one nested column exists
+  if (length(nested_cols) == 0) {
+    stop("The input nest_dt must contain at least one nested column of data.frames or data.tables")
+  }
+
+  # Use the first nested column if no specific column is specified
+  if (is.null(nest_col)) {
+    nest_col <- nested_cols[1]
+    message("Using first nested column: ", nest_col)
+  }
+
+  # Validate group columns
+  # Check that group columns are specified and not empty
+  if (is.null(group_cols) || length(group_cols) == 0) {
+    stop("group_cols must be a non-empty character vector")
+  }
+
+  # Ensure group columns are character type
+  if (!is.character(group_cols)) {
+    stop("group_cols must be a character vector")
+  }
+
+  # Validate nest column
+  # Ensure nest column is a single character string
+  if (!is.character(nest_col) || length(nest_col) != 1) {
+    stop("nest_col must be a single character string")
+  }
+
+  # Validate export path
+  # Ensure export path is a single character string
+  if (!is.character(export_path) || length(export_path) != 1) {
+    stop("export_path must be a single character string")
+  }
+
+  # Validate basename
+  if (!is.character(basename) || length(basename) != 1) {
+    stop("basename must be a single character string")
+  }
+
+  # Check if all specified columns exist in the input data table
+  missing_cols <- setdiff(c(group_cols, nest_col), names(nest_dt))
+  if (length(missing_cols) > 0) {
+    stop("The following columns are missing: ",
+         paste(missing_cols, collapse = ", "))
+  }
+
+  # Remove any existing key to ensure consistent processing
+  setkey(nest_dt, NULL)
+
+  # Create export directory if it doesn't exist
+  dir.create(export_path, showWarnings = FALSE, recursive = TRUE)
+
+  # Main export process with error handling
+  tryCatch({
+    # Expand nested data by unnesting the specified column
+    expanded_dt <- nest_dt[, {
+      # Process each nested element
+      processed_nests <- lapply(get(nest_col), function(x) {
+        # Convert to data.table if not already
+        x_dt <- if (!is.data.table(x)) as.data.table(x) else x
+
+        # Set row names to ensure compatibility
+        setattr(x_dt, "row.names", .set_row_names(nrow(x_dt)))
+        x_dt
+      })
+
+      # Combine processed nested data
+      data.table::rbindlist(processed_nests)
+    }, by = group_cols]
+
+    # Create a copy of expanded data to avoid modifications
+    expanded_dt <- copy(expanded_dt)
+
+    # Generate unique directory paths for each group combination
+    unique_paths <- unique(expanded_dt[, do.call(file.path,
+                                                 c(list(export_path),
+                                                   lapply(group_cols, function(col) get(col))))])
+
+    # Create directories for each unique group combination
+    lapply(unique_paths, function(path) {
+      dir.create(path, showWarnings = FALSE, recursive = TRUE)
+    })
+
+    # Initialize file count tracker
+    file_count <- 0L
+
+    # Export data for each group combination
+    expanded_dt[, {
+      # Construct directory path based on group columns
+      dir_path <- do.call(file.path,
+                          c(list(export_path),
+                            lapply(group_cols, function(col) get(col))))
+
+      # Determine separator based on file type
+      sep <- if (file_type == "txt") "\t" else ","
+
+      # Construct full filename
+      filename <- paste0(basename, ".", file_type)
+
+      # Write data to file
+      fwrite(.SD,
+             file = file.path(dir_path, filename),
+             sep = sep,
+             nThread = parallel::detectCores() - 1, # Use multiple threads for faster writing
+             buffMB = 32) # Set buffer size for efficient writing
+
+      # Increment file count
+      file_count <<- file_count + 1L
+
+      # Return NULL to avoid unnecessary data storage
+      NULL
+    }, by = group_cols]
+
+    # Return total number of files exported
+    return(file_count)
+  }, error = function(e) {
+    # Catch and report any errors during export process
+    stop("Failed to export nested data: ", e$message)
+  })
+}
+```
+  
+```{r example-nest_export}
+# Data Nesting Operation
+dt_nest <- w2l_nest(data = iris, cols2l = 1:2, by = "Species")
+# Export Nested Data
+nest_export(nest_dt = dt_nest, nest_col = "data",
+            group_cols = c("name", "Species"))
+# Check Export Results
+list.files(path = tempdir(), pattern = "txt", recursive = TRUE)
+```
+
+
+
+# format_digits
+    
+```{r function-format_digits}
+#' Format Numeric Columns with Specified Digits
+#'
+#' The `format_digits` function formats numeric columns in a data frame or data table by rounding numbers to a specified number of decimal places and converting them to character strings. It can optionally format the numbers as percentages.
+#'
+#' @param data A `data.frame` or `data.table`. The input data containing numeric columns to format.
+#' @param cols An optional numeric or character vector specifying the columns to format. If `NULL` (default), all numeric columns are formatted.
+#' @param digits A non-negative integer specifying the number of decimal places to use. Defaults to `2`.
+#' @param percentage A logical value indicating whether to format the numbers as percentages. If `TRUE`, the numbers are multiplied by 100 and a percent sign (`%`) is appended. Defaults to `FALSE`.
+#'
+#' @return A `data.table` with the specified numeric columns formatted as character strings with the specified number of decimal places. If `percentage = TRUE`, the numbers are shown as percentages.
+#'
+#' @details
+#' The function performs the following steps:
+#' \enumerate{
+#'   \item Validates the input parameters, ensuring that `data` is a `data.frame` or `data.table`, `cols` (if provided) are valid column names or indices, and `digits` is a non-negative integer.
+#'   \item Converts `data` to a `data.table` if it is not already one.
+#'   \item Creates a formatting function based on the `digits` and `percentage` parameters:
+#'   \itemize{
+#'     \item If `percentage = FALSE`, numbers are rounded to `digits` decimal places.
+#'     \item If `percentage = TRUE`, numbers are multiplied by 100, rounded to `digits` decimal places, and a percent sign (`%`) is appended.
+#'   }
+#'   \item Applies the formatting function to the specified columns:
+#'   \itemize{
+#'     \item If `cols` is `NULL`, the function formats all numeric columns in `data`.
+#'     \item If `cols` is specified, only those columns are formatted.
+#'   }
+#'   \item Returns a new `data.table` with the formatted columns.
+#' }
+#'
+#' @import data.table
+#' @export
+#'
+#' @note
+#' \itemize{
+#'   \item The input `data` must be a `data.frame` or `data.table`.
+#'   \item If `cols` is specified, it must be a vector of valid column names or indices present in `data`.
+#'   \item The `digits` parameter must be a single non-negative integer.
+#'   \item The original `data` is not modified; a modified copy is returned.
+#' }
+
+
+format_digits <- function(data, cols = NULL, digits = 2, percentage = FALSE) {
+  # Parameter checks
+  if (!is.data.frame(data)) {
+    stop("Input data must be a data.frame or data.table object")
+  }
+
+  # Convert to data.table if it's a data.frame
+  if (!is.data.table(data)) {
+    data <- as.data.table(data)
+  }
+
+  # Check cols parameter
+  if (!is.null(cols)) {
+    if (!is.numeric(cols) && !is.character(cols)) {
+      stop("'cols' must be numeric or character vector")
+    }
+
+    if (length(cols) == 0) {
+      stop("When specified, 'cols' cannot be empty")
+    }
+
+    if (is.numeric(cols)) {
+      if (any(cols < 1) || any(cols > ncol(data))) {
+        stop("Numeric column indices must be between 1 and ", ncol(data))
+      }
+      cols <- names(data)[cols]
+    }
+
+    if (!all(cols %in% names(data))) {
+      invalid_cols <- cols[!cols %in% names(data)]
+      stop("Following columns do not exist in the data: ",
+           paste(invalid_cols, collapse = ", "))
+    }
+  }
+
+  # Check digits parameter
+  if (!is.numeric(digits) ||
+      length(digits) != 1 ||
+      digits < 0 ||
+      digits != round(digits)) {
+    stop("'digits' must be a single non-negative integer")
+  }
+
+  # Create format string based on percentage parameter
+  fmt <- if(percentage) {
+    function(x) sprintf(paste0("%.", digits, "f%%"), round(as.numeric(x) * 100, digits))
+  } else {
+    function(x) sprintf(paste0("%.", digits, "f"), as.numeric(x))
+  }
+
+  # Create a copy of the data to modify
+  result <- copy(data)
+
+  # Process all numeric columns if cols is NULL
+  if (is.null(cols)) {
+    result[, names(.SD) := lapply(.SD, fmt), .SDcols = is.numeric][]
+  } else {
+    # Process specified columns
+    result[, (cols) := lapply(.SD, fmt), .SDcols = cols][]
+  }
+
+  return(result)
+}
+```
+  
+```{r example-format_digits}
+# Create example data
+dt <- data.table::data.table(
+  a = c(0.1234, 0.5678),
+  b = c(0.2345, 0.6789),
+  c = c("text1", "text2")
+)
+dt
+# Format without percentage
+format_digits(dt, cols = c("a", "b"))
+# Format with percentage
+format_digits(dt, cols = c("a"), percentage = TRUE)
+```
+  
+
+
 # mintyr_example
     
 ```{r function-mintyr_example}
@@ -88,19 +595,48 @@ mintyr_examples()
 # import_xlsx
     
 ```{r function-import_xlsx}
-#' Import list of xlsx sheets
+#' Import Data from Excel Files
 #' 
-#' The `import_xlsx` function reads data from Excel files, optionally from specified sheets, and can either merge data from multiple files or keep them separate.
+#' The `import_xlsx` function provides a flexible way to import data from one or multiple
+#' Excel files, with options to specify sheets and combine or separate the imported data.
+#' It handles multiple files and sheets, with automatic source tracking.
 #' 
-#' @param file character vector of file paths. Paths to the Excel files to be imported. These paths must point to existing files.
-#' @inheritParams import_csv
-#' @param sheet numeric vector or NULL, optional. Specifies the sheets to be read from each file. If NULL, all sheets are read. If numeric, only the specified sheets (by index) are read. Default is NULL.
-#' @param ... Additional arguments to be passed to the [readxl::read_excel()] function, such as col_types to specify column data types.
+#' @param file A character vector of file paths. The Excel files to be imported.
+#'   All paths must point to existing .xlsx or .xls files.
+#' @param rbind A logical value. If TRUE and multiple files/sheets are provided,
+#'   combines all data into a single data.table. If FALSE, returns a list of
+#'   data.tables. Default is TRUE.
+#' @param sheet A numeric vector or NULL. Specifies which sheets to read from each file:
+#'   \itemize{
+#'     \item If NULL (default), reads all sheets.
+#'     \item If numeric, reads only the specified sheet indices.
+#'   }
+#' @param ... Additional arguments passed to [readxl::read_excel()], such as
+#'   col_types, skip, or na.
 #'
-#' @return Depending on the `rbind` parameter:
+#' @seealso [readxl::read_excel()]
+#'
+#' @return Depends on the `rbind` parameter:
 #' \itemize{
-#'   \item If `rbind` is TRUE, returns a single `data.table` combining all files and sheets, with an additional 'excel_name' column indicating the source file.
-#'   \item If `rbind` is FALSE, returns a named list of `data.tables`, each representing data from a sheet, named by combining the file and sheet names.
+#'   \item If rbind = TRUE: A single data.table containing all imported data with
+#'     two additional columns:
+#'     \itemize{
+#'       \item excel_name: The source file name (without extension)
+#'       \item sheet_name: The source sheet name
+#'     }
+#'   \item If rbind = FALSE: A named list of data.tables, where each element is named
+#'     as "filename_sheetname" and contains the data from that specific sheet.
+#' }
+#' 
+#' @details
+#' The function provides a comprehensive solution for importing Excel data with the
+#' following features:
+#' \itemize{
+#'   \item Supports multiple files and sheets
+#'   \item Automatic source tracking for files and sheets
+#'   \item Flexible combining options
+#'   \item Handles missing columns across sheets when combining
+#'   \item Preserves original data types through readxl
 #' }
 #' 
 #' @importFrom data.table ":="
@@ -108,18 +644,30 @@ mintyr_examples()
 #' @export
 #' 
 #' @note
-#' Make sure that the `file` paths provided are valid and exist. The function will stop with an error if any file does not exist or if the sheet indices are out of range.
+#' \itemize{
+#'   \item All specified files must exist and be accessible Excel files
+#'   \item Sheet indices must be valid across all input files
+#'   \item When rbind = TRUE, the function assumes compatible data structures
+#'     across sheets and files
+#'   \item Missing columns across sheets are filled with NA when combining
+#'   \item File names in source tracking columns have their extensions removed
+#' }
 import_xlsx <- function(file, rbind = TRUE, sheet = NULL, ...) {
   excel_name <- NULL
   # Parameter checks
   if (!is.character(file) || !all(file.exists(file))) {
     stop("file must be a vector of existing file paths.")
   }
-  
+
   if (!is.logical(rbind)) {
     stop("Parameter 'rbind' should be logical (TRUE or FALSE).")
   }
-  
+
+  # Function to remove file extension
+  remove_extension <- function(filename) {
+    sub("\\.[^.]*$", "", basename(filename))
+  }
+
   # Reads selected sheets from a single Excel file and converts them into a data.table
   read_selected_sheets <- function(file_path, merge, sheet_indices, ...) {
     all_sheets <- readxl::excel_sheets(file_path)
@@ -133,9 +681,9 @@ import_xlsx <- function(file, rbind = TRUE, sheet = NULL, ...) {
         stop("sheet parameter must be a numeric vector or NULL.")
       }
     }
-    
+
     selected_sheets <- if (is.null(sheet_indices)) all_sheets else all_sheets[sheet_indices]
-    
+
     sheet_data <- lapply(selected_sheets, function(s) {
       dt <- data.table::as.data.table(readxl::read_excel(file_path, sheet = s, ...))
       if (!merge) {
@@ -144,7 +692,7 @@ import_xlsx <- function(file, rbind = TRUE, sheet = NULL, ...) {
         return(dt)
       }
     })
-    
+
     if (merge) {
       names(sheet_data) <- selected_sheets
       data.table::rbindlist(sheet_data, use.names = TRUE, fill = TRUE, idcol = "sheet_name")
@@ -153,31 +701,31 @@ import_xlsx <- function(file, rbind = TRUE, sheet = NULL, ...) {
       return(sheet_data)
     }
   }
-  
+
   # Finding minimum sheet count across all Excel files
   min_sheet_count <- min(sapply(file, function(f) length(readxl::excel_sheets(f))))
-  
+
   # Sheet parameter validation
   if (!is.null(sheet)) {
     if (is.numeric(sheet) && (max(sheet) > min_sheet_count || min(sheet) < 1)) {
       stop("sheet parameter contains indices out of range across files.")
     }
   }
-  
+
   # Applies the modified function across all files
   all_data <- lapply(file, read_selected_sheets, merge = rbind, sheet_indices = sheet, ...)
-  
+
   if (rbind) {
     # If merging, use rbindlist to combine all files' data into one data.table
     combined_data <- data.table::rbindlist(all_data, use.names = TRUE, fill = TRUE, idcol = "excel_name")
-    xlsx_sheets_names <- sapply(file, function(x) tools::file_path_sans_ext(basename(x)))
+    xlsx_sheets_names <- sapply(file, remove_extension)  # 使用remove_extension替代tools::file_path_sans_ext
     # Set 'excel_name' column's value to the corresponding file names
     combined_data[, excel_name := rep(xlsx_sheets_names, sapply(all_data, nrow))][]
     return(combined_data)
   } else {
     # If not merging, create a new list to store all sheets' data
     result_list <- list()
-    xlsx_sheets_names <- sapply(file, function(x) tools::file_path_sans_ext(basename(x)))
+    xlsx_sheets_names <- sapply(file, remove_extension)  # 使用remove_extension替代tools::file_path_sans_ext
     for (i in seq_along(file)) {
       file_name <- xlsx_sheets_names[i]
       file_data <- all_data[[i]]
@@ -214,42 +762,67 @@ This first section shows:
 -->
 
 ```{r function-import_csv}
-#' Import CSV Files Using Specified Package
+#' Import CSV Files with Flexible Reading Options
 #' 
-#' The `import_csv` function imports one or multiple CSV files using a specified package (`data.table`, `vroom`, or `arrow`). 
-#' It supports row binding of multiple files into a single dataset with optional labeling of the origin file.
+#' The `import_csv` function provides a flexible way to import one or multiple CSV files
+#' using either data.table or arrow package. It supports combining multiple files and
+#' adding source file labels.
 #' 
-#' @param file character vector of file paths. The paths to the CSV files to be imported.. These paths must point to existing files.
-#' @param package character, optional. Specifies which package to use for reading the CSV files. Default is 'data.table'. Valid options are [data.table], [vroom], and [arrow].
-#' @param rbind logical, optional. If TRUE and more than one file is specified, it binds rows from different files into one dataset. Default is TRUE. Note: For `vroom`, row binding is inherent and cannot be turned off.
-#' @param rbind_label character, optional. The name of the column to add to the dataset that indicates the file origin. This is useful when row binding is used. Default is NULL.
-#' @param ... Additional arguments passed to [import_csv()].The arguments vary depending on the R package chosen.
+#' @param file A character vector of file paths. The CSV files to be imported.
+#' @param package A character string, either "data.table" or "arrow". Specifies which package
+#'   to use for reading CSV files. Default is "data.table".
+#' @param rbind A logical value. If TRUE and multiple files are provided, combines all files
+#'   into a single data object. If FALSE, returns a list of data objects. Default is TRUE.
+#' @param rbind_label A character string or NULL. When rbinding multiple files, specifies
+#'   the column name for the file source label. If NULL, no label column is added.
+#'   Default is "_file".
+#' @param ... Additional arguments passed to the underlying read functions
+#'   (data.table::fread or arrow::read_csv_arrow).
+#'
 #' @seealso [data.table::fread()] 
-#' @seealso [vroom::vroom()]
 #' @seealso [arrow::read_csv_arrow()]
+#'
+#' @return Depending on the parameters:
+#' \itemize{
+#'   \item If rbind = TRUE: A single data.table or arrow table containing all imported data.
+#'   \item If rbind = FALSE: A named list of data.table or arrow table objects, with names
+#'     derived from the input file names (without extensions).
+#' }
 #' 
-#' @return Depending on the input and settings, returns a data.table or a list of data.tables.
-#'         If `rbind` is TRUE and more than one file is processed, it returns a single data.table with all files combined.
-#'         If `rbind` is FALSE or only one file is provided, it returns the data table from the single file processed.
+#' @details
+#' The function provides a unified interface for reading CSV files using either data.table
+#' or arrow package. When reading multiple files, it can either combine them into a single
+#' data object or return them as a list. File source tracking is supported through the
+#' rbind_label parameter.
+#' 
+#' @import data.table
+#' @import arrow
 #' 
 #' @export
 #' 
 #' @note
-#' - The function stops and throws an error if any file does not exist or if an unsupported package is specified.
-#' - The `vroom` package inherently binds rows when reading multiple files and does not support turning off this feature.
+#' \itemize{
+#'   \item All specified files must exist and be accessible.
+#'   \item When rbind = TRUE and multiple files are imported, the function assumes compatible
+#'     column structures across files.
+#'   \item File names in the source label column (if added) will have their extensions removed.
+#'   \item The function uses data.table::rbindlist for combining multiple files, which
+#'     automatically handles missing columns across files.
+#' }
 
-import_csv <- function (file, package = "data.table", rbind = TRUE, rbind_label = NULL, ...) {
+import_csv <- function (file, package = "data.table", rbind = TRUE, rbind_label = "_file", ...) {
   # Validations
   if (!is.character(file) || !all(file.exists(file))) {
     stop("file must be a vector of existing file paths.")
   }
 
-  if (!package %in% c("data.table", "vroom", "arrow")) {
-    stop("package must be one of 'data.table', 'vroom', 'arrow'.")
+  if (!package %in% c("data.table", "arrow")) {
+    stop("package must be one of 'data.table', 'arrow'.")
   }
 
-  if (package == "vroom" && rbind == FALSE) {
-    stop("For 'vroom' package, rbind = FALSE is not applicable.")
+  # Function to remove file extension
+  remove_extension <- function(filename) {
+    sub("\\.[^.]*$", "", basename(filename))
   }
 
   # Read Functionality with naming
@@ -257,8 +830,8 @@ import_csv <- function (file, package = "data.table", rbind = TRUE, rbind_label 
     file_data <- lapply(file, function(file_path) {
       df <- read_function(file_path, ...)
       if (!is.null(rbind_label) && rbind && length(file) > 1) {
-        # Add a column with the label indicating the file origin
-        df <- cbind(stats::setNames(data.frame(basename(file_path)), rbind_label), df)
+        # Add a column with the label indicating the file origin, without extension
+        df <- cbind(stats::setNames(data.frame(remove_extension(file_path)), rbind_label), df)
       }
       return(df)
     })
@@ -267,8 +840,9 @@ import_csv <- function (file, package = "data.table", rbind = TRUE, rbind_label 
       # Combine all data into a single data table/data frame
       return(data.table::rbindlist(file_data, use.names = TRUE, fill = TRUE))
     } else {
-      # No need to bind rows if only one file or rbind is FALSE
-      return(file_data[[1]])
+      # When rbind is FALSE, name the list elements with file names
+      names(file_data) <- remove_extension(file)
+      return(file_data)
     }
   }
 
@@ -277,13 +851,6 @@ import_csv <- function (file, package = "data.table", rbind = TRUE, rbind_label 
     return(read_files(data.table::fread))
   } else if (package == "arrow") {
     return(read_files(arrow::read_csv_arrow))
-  } else if (package == "vroom") {
-    # vroom inherently binds rows when reading multiple files
-    if (!is.null(rbind_label)) {
-      return(vroom::vroom(file, id = rbind_label, ...))
-    } else {
-      return(vroom::vroom(file, ...))
-    }
   }
 }
 ```
@@ -303,46 +870,77 @@ import_csv(csv_files)
 # get_filename
     
 ```{r function-get_filename}
-#' Extract specific parts of the file path
-#' 
-#' This function extracts the base name of the file(s) from the given path(s), with options to remove the file extension and/or the directory path.
-#' 
-#' @param paths character vector. A string or a character vector representing the full path(s) to the file(s).
-#' @param remove_extension logical, optional. If TRUE, the file extensions are removed from the filenames. Default is TRUE.
-#' @param remove_path logical, optional. If TRUE, the directory paths are removed, leaving only the filenames. Default is TRUE.
+#' Extract Filenames from File Paths
 #'
-#' @return character vector. A string or a character vector representing the processed file name(s).
-#' 
-#' @export
-#' 
+#' @description
+#' Extracts filenames from file paths with options to remove file extensions 
+#' and/or directory paths.
+#'
+#' @param paths A character vector of file paths
+#' @param rm_extension Logical. If TRUE, removes file extensions from filenames. 
+#'   Defaults to TRUE.
+#' @param rm_path Logical. If TRUE, removes directory paths, keeping only the filename. 
+#'   Defaults to TRUE.
+#'
+#' @details
+#' The function performs the following operations:
+#' \itemize{
+#'   \item Validates input paths
+#'   \item Handles empty input vectors
+#'   \item Optionally removes directory paths using \code{\link[base]{basename}}
+#'   \item Optionally removes file extensions using regex substitution
+#' }
+#'
+#' @return A character vector of processed filenames
+#'
 #' @note
-#' Ensure that the `paths` parameter is a character vector. The function will stop with an error if `paths` is not a character vector.
-get_filename <- function(paths, remove_extension = TRUE, remove_path = TRUE) {
-  # Check if paths is a character vector
+#' - If both \code{rm_extension} and \code{rm_path} are FALSE, 
+#'   a warning is issued and the original paths are returned
+#' - Supports multiple file paths in the input vector
+#'
+#' @seealso
+#' \code{\link[base]{basename}} for extracting filenames
+#'
+#' @export
+get_filename <- function(paths, rm_extension = TRUE, rm_path = TRUE) {
+
+  # Input validation
+  if (missing(paths)) {
+    stop("Parameter 'paths' cannot be empty")
+  }
+
   if (!is.character(paths)) {
-    stop("paths must be a character vector.")
+    stop("'paths' must be a character vector")
   }
-  
-  # Remove the directory path if remove_path is TRUE
-  if (remove_path) {
-    paths <- basename(paths)
+
+  # Handle empty vector
+  if (length(paths) == 0) {
+    return(character(0))
   }
-  
-  # Remove the file extension if remove_extension is TRUE
-  if (remove_extension) {
-    paths <- tools::file_path_sans_ext(paths)
+
+  # Warn if both parameters are FALSE
+  if (!rm_extension && !rm_path) {
+    warning("Setting both rm_extension=FALSE and rm_path=FALSE returns the original paths")
   }
-  
-  return(paths)
+
+  # Process paths
+  result <- if (rm_path) basename(paths) else paths
+
+  # Process extensions
+  if (rm_extension) {
+    result <- sub("\\.[^.]*$", "", result)
+  }
+
+  return(result)
 }
 ```
   
 ```{r example-get_filename}
 xlsx_files <- mintyr_example(mintyr_examples("xlsx_test"))
 xlsx_files
-get_filename(xlsx_files)
-get_filename(xlsx_files, remove_extension = FALSE)
-get_filename(xlsx_files, remove_path = FALSE)
+get_filename(xlsx_files) # Keep only file names
+get_filename(xlsx_files, rm_extension = FALSE) # Keep extension
+get_filename(xlsx_files, rm_path = FALSE) # Keep path
 ```
 
 
@@ -574,160 +1172,225 @@ w2l_split(data = iris, cols2l = c("Sepal.Length", "Sepal.Width"))
 # combn_pair
     
 ```{r function-combn_pair}
-#' Generate and Combine Pairs of Columns and Nest Data
+#' Generate and Combine Column Pairs with Nested Data
 #' 
-#' The `combn_pair` function generates combinations of specified columns, combines them, and nests the data by the specified columns. It supports both `data.table` and `data.frame` inputs and allows for optional grouping.
+#' @description
+#' `combn_pair` generates combinations of specified columns, combines them, and nests the data.
+#' It supports both data.table and data.frame inputs with optional grouping functionality.
 #' 
-#' @param data data.table or data.frame. The input data.
-#' @param cols_bind character vector. The columns to combine into pairs.
-#' @param by character vector, optional. Columns to group by. Default is NULL.
-#' @param pairs_n integer, optional. The number of columns to include in each combination. Default is 2.
-#' @param sep character, optional. The separator to use when combining column names. Default is "-".
+#' @param data data.table or data.frame. The input dataset.
+#' @param cols2bind character vector. Column names to be combined into pairs.
+#' @param by character vector, optional. Column names for grouping. Default is NULL.
+#' @param pairs_n integer, optional. Number of columns in each combination. 
+#'        Must be >= 2 and <= length of cols2bind. Default is 2.
+#' @param sep character, optional. Separator used when combining column names. Default is "-".
+#' @param nest_type character, optional. Type of nested data to return: "dt" (data.table) or "df" (data.frame). Default is "dt".
 #'
-#' @return data.table. A nested data.table with combined column pairs.
+#' @return A nested data.table:
 #' \itemize{
-#'   \item If `by` is NULL, returns a data.table nested by 'pairs'.
-#'   \item If `by` is specified, returns a data.table nested by 'pairs' and the grouping variables.
+#'   \item When `by` is NULL: returns data.table nested by 'pairs'
+#'   \item When `by` is specified: returns data.table nested by 'pairs' and grouping variables
 #' }
 #' 
+#' @details
+#' The function performs the following main steps:
+#' 1. Validates input parameters
+#' 2. Generates all possible combinations of specified columns
+#' 3. Creates subsets for each combination and renames columns
+#' 4. Merges all subsets and performs nesting
+#'
 #' @import data.table
 #' @importFrom utils "combn"
 #' 
 #' @export
 #' 
 #' @note
+#' Important considerations:
 #' \itemize{
-#'   \item The `cols_bind` parameter must be a character vector of column names.
-#'   \item The `pairs_n` parameter must be a positive integer greater than or equal to 2.
-#'   \item The `sep` parameter must be a single character string.
-#'   \item Ensure all grouping variables specified in `by` are present in the data.
+#'   \item cols2bind must be a character vector of existing column names
+#'   \item pairs_n must be a positive integer >= 2 and <= number of columns in cols2bind
+#'   \item sep must be a single character string
+#'   \item Grouping variables in `by` must exist in the data
+#'   \item nest_type must be either "dt" or "df"
 #' }
-combn_pair <- function(data, cols_bind, by = NULL, pairs_n = 2, sep = "-") {
-  . <- NULL
-  # Validate inputs: check data types and conditions
+combn_pair <- function(data, cols2bind, by = NULL, pairs_n = 2, sep = "-", nest_type = "dt") {
+  . <- pairs <- NULL  # For data.table's NSE
+  
+  # Validate inputs
   if (!inherits(data, c("data.table", "data.frame"))) {
-    stop("data must be a data.table or a data.frame")  # Stop if data is neither a data.table nor a data.frame
+    stop("data must be a data.table or a data.frame")
   }
-  data <- data.table::as.data.table(data)  # Convert data to a data.table if it's a data.frame
-
-  if (!is.character(cols_bind)) {
-    stop("cols_bind must be a character vector")  # Stop if cols_bind is not a character vector
+  data <- data.table::as.data.table(data)
+  
+  if (!is.character(cols2bind)) {
+    stop("cols2bind must be a character vector")
   }
-
+  missing_cols <- cols2bind[!cols2bind %in% names(data)]
+  if (length(missing_cols) > 0) {
+    stop("Some columns specified in cols2bind are not present in the data: ", paste(missing_cols, collapse=", "))
+  }
+  
+  # Validate pairs_n
   if (!is.numeric(pairs_n) || pairs_n < 2 || floor(pairs_n) != pairs_n) {
-    stop("pairs_n must be a positive integer greater than or equal to 2")  # Validate pairs_n as a positive integer >= 2
+    stop("pairs_n must be a positive integer greater than or equal to 2")
   }
-
+  
+  # Check if pairs_n is less than or equal to the number of available columns
+  if (pairs_n > length(cols2bind)) {
+    stop(sprintf("pairs_n (%d) cannot be larger than the number of available columns (%d)", 
+                 pairs_n, length(cols2bind)))
+  }
+  
   if (!is.character(sep) || length(sep) != 1) {
-    stop("sep must be a single character string")  # Ensure sep is a single character
+    stop("sep must be a single character string")
   }
-
-  if (!is.null(by) && (!is.character(by) || !all(by %in% names(data)))) {
-    stop("All elements in 'by' must be valid column names in the data.")  # Validate by elements as column names in data
+  
+  if (!is.null(by)) {
+    if (!is.character(by)) {
+      stop("'by' must be a character vector of column names.")
+    }
+    missing_by_vars <- by[!by %in% names(data)]
+    if (length(missing_by_vars) > 0) {
+      stop("Grouping variables not present in data: ", paste(missing_by_vars, collapse=", "))
+    }
   }
-
+  
+  if (!nest_type %in% c("dt", "df")) {
+    stop("Invalid nest_type provided. It must be either 'dt' or 'df'.")
+  }
+  
   # Prepare data for combination operations
   dt <- data.table::copy(data)  # Copy the data to avoid modifying the original
-  ncols <- ncol(dt)  # Number of columns in the data table
-  col_names <- names(dt)  # Column names of the data table
-  cols_n <- length(cols_bind)  # Number of columns to bind
-  fixed_names <- names(dt)[!col_names %chin% cols_bind]  # Names of columns not in cols_bind
-  data.table::setcolorder(dt, fixed_names)  # Reorder columns to put fixed_names first
-  nums_fixed_col <- ncols - length(cols_bind)  # Calculate number of fixed columns
-
-  # Generate combinations of columns and create new combined columns
-  cols_pairs <- lapply(as.data.frame(combn(cols_n, pairs_n) + nums_fixed_col), function(x) c(1:nums_fixed_col, x))
-  data_pairs <- lapply(cols_pairs, function(x) dt[, .SD, .SDcols = x])
-  pairs_name1 <- lapply(as.data.frame(combn(cols_n, pairs_n) + nums_fixed_col), function(x) c(x))
-  pairs_name2 <- lapply(pairs_name1, function(x) names(dt[, .SD, .SDcols = x]))
-  pairs_name3 <- lapply(pairs_name2, function(x) paste(x, collapse = sep))
-  dt_add_pairs <- mapply(cbind, data_pairs, pairs_name3, SIMPLIFY = FALSE)
-  dt_named <- lapply(dt_add_pairs, function(x) data.table::setnames(x, c(names(x)[1:nums_fixed_col], paste0("value", seq(1, pairs_n, 1)), "pairs")))
-  dt_bind <- data.table::rbindlist(dt_named)
-
-  # Group and nest the data based on 'by' and 'pairs'
-  if (!is.null(by)) {
-    groupby <- c("pairs", by)  # Grouping columns including pairs and by
-    nested_data <- dt_bind[, .(data = list(.SD)), by = groupby]  # Nest data within groups
+  
+  fixed_cols <- setdiff(names(dt), cols2bind)
+  comb_cols_list <- combn(cols2bind, pairs_n, simplify=FALSE)
+  
+  list_of_dts <- lapply(comb_cols_list, function(comb) {
+    dt_subset <- dt[, c(fixed_cols, comb), with=FALSE]
+    # Create pairs identifier
+    pairs_name <- paste(comb, collapse=sep)
+    # Rename the combination columns to 'value1', 'value2', etc.
+    data.table::setnames(dt_subset, comb, paste0('value', seq_along(comb)))
+    # Add 'pairs' column
+    dt_subset[, pairs := pairs_name]
+    dt_subset
+  })
+  
+  dt_bind <- data.table::rbindlist(list_of_dts)
+  
+  # Determine grouping variables
+  if (!is.null(by) && length(by) > 0) {
+    groupby <- c("pairs", by)
   } else {
-    nested_data <- dt_bind[, .(data = list(.SD)), by = "pairs"]  # Nest data by pairs only
+    groupby <- "pairs"
   }
-
-  # Return the nested data table
-  return(nested_data)
+  
+  # Nest the data based on nest_type
+  if (nest_type == "dt") {
+    result <- dt_bind[, .(data = list(.SD)), by = groupby]
+  } else if (nest_type == "df") {
+    result <- dt_bind[, .(data = list(as.data.frame(.SD))), by = groupby]
+  } else {
+    stop("Invalid nest_type provided. It must be either 'dt' or 'df'.")
+  }
+  
+  return(result)
 }
 ```
   
 ```{r example-combn_pair}
 col_names <- c("Sepal.Length", "Sepal.Width", "Petal.Length")
-combn_pair(iris, cols_bind = col_names, pairs_n = 2, sep = "&")
-combn_pair(iris, cols_bind = col_names, pairs_n = 2, by = "Species")
+combn_pair(iris, cols2bind = col_names, pairs_n = 2, sep = "&")
+combn_pair(iris, cols2bind = col_names, pairs_n = 2, by = "Species")
 ```
   
 # nest_cv
     
 ```{r function-nest_cv}
-#' Apply Cross-Validation to Nested Data Tables
-#' 
-#' The `nest_cv` function performs cross-validation on nested data tables within a `data.table`. It supports various cross-validation configurations and handles nested lists of data tables.
-#' 
-#' @param nest_dt data.table. The input data table containing nested data tables.
+#' Apply Cross-Validation to Nested Data
+#'
+#' The `nest_cv` function applies cross-validation splits to nested data frames or data tables within a data table. It uses the `rsample` package's `vfold_cv` function to create cross-validation splits for predictive modeling and analysis on nested datasets.
+#'
+#' @param nest_dt A `data.frame` or `data.table` that contains at least one nested column of `data.frame`s or `data.table`s. The input data where cross-validation will be applied.
 #' @inheritParams rsample::vfold_cv
-#' @return data.table. A data.table with cross-validation splits applied to the nested data tables.
-#' 
+#'
+#' @return A `data.table` containing the cross-validation splits for each nested dataset. It includes:
+#' \itemize{
+#'   \item Original non-nested columns from `nest_dt`.
+#'   \item `splits`: The cross-validation split objects returned by `rsample::vfold_cv`.
+#'   \item `train`: The training data for each split.
+#'   \item `validate`: The validation data for each split.
+#' }
+#'
+#' @seealso [rsample::vfold_cv()] 
+#'
+#' @details
+#' The function performs the following steps:
+#' \enumerate{
+#'   \item Checks if the input `nest_dt` is non-empty and contains at least one nested column of `data.frame`s or `data.table`s.
+#'   \item Identifies the nested columns and non-nested columns within `nest_dt`.
+#'   \item Applies `rsample::vfold_cv` to each nested data frame in the specified nested column(s), creating the cross-validation splits.
+#'   \item Expands the cross-validation splits and associates them with the non-nested columns.
+#'   \item Extracts the training and validation data for each split and adds them to the output data table.
+#' }
+#'
+#' If the `strata` parameter is provided, stratified sampling is performed during the cross-validation. Additional arguments can be passed to `rsample::vfold_cv` via `...`.
+#'
+#' @import data.table
+#' @importFrom rsample vfold_cv training testing
 #' @export
-#' 
+#'
 #' @note
 #' \itemize{
-#'   \item The `nest_dt` parameter must be a `data.table` containing at least one nested list column of data tables.
-#'   \item The function will copy the input `data.table` to avoid modifying the original data.
+#'   \item The `nest_dt` must contain at least one nested column of `data.frame`s or `data.table`s.
+#'   \item The function converts `nest_dt` to a `data.table` internally to ensure efficient data manipulation.
+#'   \item The `strata` parameter should be a column name present in the nested data frames.
+#'   \item If `strata` is specified, ensure that the specified column exists in all nested data frames.
+#'   \item The `breaks` and `pool` parameters are used when `strata` is a numeric variable and control how stratification is handled.
+#'   \item Additional arguments passed through `...` are forwarded to `rsample::vfold_cv`.
 #' }
-
-
-
 nest_cv <- function(nest_dt, v = 10, repeats = 1, strata = NULL, breaks = 4, pool = 0.1, ...) {
   cv_split <- data <- splits <- NULL
-  # Check if the input nest_dt is a data.table
-  if (!inherits(nest_dt, "data.table")) {
-    stop("The input nest_dt must be a data.table")
-  }
 
-  # Check if nest_dt is not empty
+  # Check if input is empty
   if (nrow(nest_dt) == 0) {
     stop("The input nest_dt cannot be empty")
   }
 
-  # Check if any column in nest_dt is a nested list of data.tables
-  contains_nested_dt <- any(sapply(nest_dt, function(x) is.list(x[[1]]) && all(inherits(x[[1]], "data.table"))))
-  if (!contains_nested_dt) {
-    stop("The input nest_dt must contain at least one nested list column of data.tables")
+  # Check for nested data.frame or data.table columns
+  nested_cols <- names(nest_dt)[sapply(nest_dt, function(x) {
+    is.list(x) && all(sapply(x, function(y) {
+      inherits(y, c("data.frame", "data.table"))
+    }))
+  })]
+
+  if (length(nested_cols) == 0) {
+    stop("The input nest_dt must contain at least one nested column of data.frames or data.tables")
   }
 
-  # Copy the input data.table to avoid modifying the original data
+  # Copy input data to avoid modifying original data
   dt <- data.table::copy(nest_dt)
 
-  # Identify which columns are nested lists
+  # Identify nested list columns
   is_nested_list <- sapply(dt, function(x) all(vapply(x, is.list, logical(1))))
 
-  # Get the names of columns that are not nested lists
+  # Get non-nested column names
   non_nested_cols <- names(dt)[!is_nested_list]
 
-  # Apply cross-validation to nested list columns and assign results to cv_split
-  dt[, cv_split := purrr::map(data, \(x, ...) rsample::vfold_cv(data = x, ...), ...)
+  # Apply cross-validation
+  dt[, cv_split := lapply(data, function(x) {
+    if (!is.null(strata)) {
+      rsample::vfold_cv(data = x, v = v, repeats = repeats,
+                        strata = strata,  # 直接传递 strata 变量名
+                        breaks = breaks, pool = pool, ...)
+    } else {
+      rsample::vfold_cv(data = x, v = v, repeats = repeats,
+                        breaks = breaks, pool = pool, ...)
+    }
+  })
   ][, cv_split[[1]], by = non_nested_cols
-  ][, ':='(train = purrr::map(splits, \(x) rsample::training(x)),
-           validate = purrr::map(splits, \(x) rsample::testing(x)))][]
-}
-assert_nest_dt <- function(x) {
-  # Check if x is a list and each element is a data.table
-  if (!is.list(x)) {
-    stop("argument `x` must be a list.")
-  }
-
-  # Check if every element of the list is a data.table
-  if (!all(sapply(x, inherits, "data.table"))) {
-    stop("Each element of `x` must be a data.table.")
-  }
+  ][, ':='(train = lapply(splits, \(x) rsample::training(x)),
+           validate = lapply(splits, \(x) rsample::testing(x)))][]
 }
 ```
   

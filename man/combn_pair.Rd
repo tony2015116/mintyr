@@ -2,41 +2,63 @@
 % Please edit documentation in R/combn_pair.R
 \name{combn_pair}
 \alias{combn_pair}
-\title{Generate and Combine Pairs of Columns and Nest Data}
+\title{Generate and Combine Column Pairs with Nested Data}
 \usage{
-combn_pair(data, cols_bind, by = NULL, pairs_n = 2, sep = "-")
+combn_pair(
+  data,
+  cols2bind,
+  by = NULL,
+  pairs_n = 2,
+  sep = "-",
+  nest_type = "dt"
+)
 }
 \arguments{
-\item{data}{data.table or data.frame. The input data.}
+\item{data}{data.table or data.frame. The input dataset.}
 
-\item{cols_bind}{character vector. The columns to combine into pairs.}
+\item{cols2bind}{character vector. Column names to be combined into pairs.}
 
-\item{by}{character vector, optional. Columns to group by. Default is NULL.}
+\item{by}{character vector, optional. Column names for grouping. Default is NULL.}
 
-\item{pairs_n}{integer, optional. The number of columns to include in each combination. Default is 2.}
+\item{pairs_n}{integer, optional. Number of columns in each combination.
+Must be >= 2 and <= length of cols2bind. Default is 2.}
 
-\item{sep}{character, optional. The separator to use when combining column names. Default is "-".}
+\item{sep}{character, optional. Separator used when combining column names. Default is "-".}
+
+\item{nest_type}{character, optional. Type of nested data to return: "dt" (data.table) or "df" (data.frame). Default is "dt".}
 }
 \value{
-data.table. A nested data.table with combined column pairs.
+A nested data.table:
 \itemize{
-\item If \code{by} is NULL, returns a data.table nested by 'pairs'.
-\item If \code{by} is specified, returns a data.table nested by 'pairs' and the grouping variables.
+\item When \code{by} is NULL: returns data.table nested by 'pairs'
+\item When \code{by} is specified: returns data.table nested by 'pairs' and grouping variables
 }
 }
 \description{
-The \code{combn_pair} function generates combinations of specified columns, combines them, and nests the data by the specified columns. It supports both \code{data.table} and \code{data.frame} inputs and allows for optional grouping.
+\code{combn_pair} generates combinations of specified columns, combines them, and nests the data.
+It supports both data.table and data.frame inputs with optional grouping functionality.
+}
+\details{
+The function performs the following main steps:
+\enumerate{
+\item Validates input parameters
+\item Generates all possible combinations of specified columns
+\item Creates subsets for each combination and renames columns
+\item Merges all subsets and performs nesting
+}
 }
 \note{
+Important considerations:
 \itemize{
-\item The \code{cols_bind} parameter must be a character vector of column names.
-\item The \code{pairs_n} parameter must be a positive integer greater than or equal to 2.
-\item The \code{sep} parameter must be a single character string.
-\item Ensure all grouping variables specified in \code{by} are present in the data.
+\item cols2bind must be a character vector of existing column names
+\item pairs_n must be a positive integer >= 2 and <= number of columns in cols2bind
+\item sep must be a single character string
+\item Grouping variables in \code{by} must exist in the data
+\item nest_type must be either "dt" or "df"
 }
 }
 \examples{
 col_names <- c("Sepal.Length", "Sepal.Width", "Petal.Length")
-combn_pair(iris, cols_bind = col_names, pairs_n = 2, sep = "&")
-combn_pair(iris, cols_bind = col_names, pairs_n = 2, by = "Species")
+combn_pair(iris, cols2bind = col_names, pairs_n = 2, sep = "&")
+combn_pair(iris, cols2bind = col_names, pairs_n = 2, by = "Species")
 }

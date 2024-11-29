@@ -24,16 +24,21 @@ reference:
   - '`w2l_split`'
   - '`nest_cv`'
   - '`combn_pair`'
-- title: stat functions
+  - '`convert_nested`'
+  - '`nest_export`'
+# - title: stat functions
+#   desc: |
+#     stat functions
+#   contents:
+#   - '`top_perc`'
+- title: other useful functions
   desc: |
-    stat functions
+    other useful functions
   contents:
   - '`top_perc`'
-- title: other functions
-  desc: |
-    other functions
-  contents:
   - '`get_filename`'
+  - '`get_path_segment`'
+  - '`format_digits`'
 - title: data example functions
   desc: |
     data example functions

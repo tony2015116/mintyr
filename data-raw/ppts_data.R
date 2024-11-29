@@ -1,6 +1,6 @@
 ## code to prepare `ppts_data` dataset goes here
 nedap_files <- list.files("data-raw/nedap/", full.names = T, recursive = T)
-nedap <- mintyr::import_csv(file = nedap_files)
+nedap <- pptsda::import_csv(file = nedap_files)
 nedap <- copy(nedap) |>
   tidyfst::filter_dt(location %in% c(501, 505)) |>
   tidyfst::mutate_dt(responder = str_sub(responder, 3, 7)) |>
@@ -12,10 +12,10 @@ nedap <- copy(nedap) |>
                      responder = as.integer(responder),
                      location = as.integer(location))
 
+library(stringr)
+library(tidyfst)
 
-
-
-fire <- mintyr::import_csv("data-raw/fire/丹系第2批采食数据.csv")
+fire <- rio::import("data-raw/fire/丹系第2批采食数据.csv")
 fire <- fire |>
   tidyfst::mutate_dt(Date = as.Date(Date) + lubridate::years(8),
                      Tag = str_replace(Tag, "9991680000", "")) |>

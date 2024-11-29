@@ -2,34 +2,59 @@
 % Please edit documentation in R/import_csv.R
 \name{import_csv}
 \alias{import_csv}
-\title{Import CSV Files Using Specified Package}
+\title{Import CSV Files with Flexible Reading Options}
 \usage{
-import_csv(file, package = "data.table", rbind = TRUE, rbind_label = NULL, ...)
+import_csv(
+  file,
+  package = "data.table",
+  rbind = TRUE,
+  rbind_label = "_file",
+  ...
+)
 }
 \arguments{
-\item{file}{character vector of file paths. The paths to the CSV files to be imported.. These paths must point to existing files.}
+\item{file}{A character vector of file paths. The CSV files to be imported.}
 
-\item{package}{character, optional. Specifies which package to use for reading the CSV files. Default is 'data.table'. Valid options are \link{data.table}, \link{vroom}, and \link{arrow}.}
+\item{package}{A character string, either "data.table" or "arrow". Specifies which package
+to use for reading CSV files. Default is "data.table".}
 
-\item{rbind}{logical, optional. If TRUE and more than one file is specified, it binds rows from different files into one dataset. Default is TRUE. Note: For \code{vroom}, row binding is inherent and cannot be turned off.}
+\item{rbind}{A logical value. If TRUE and multiple files are provided, combines all files
+into a single data object. If FALSE, returns a list of data objects. Default is TRUE.}
 
-\item{rbind_label}{character, optional. The name of the column to add to the dataset that indicates the file origin. This is useful when row binding is used. Default is NULL.}
+\item{rbind_label}{A character string or NULL. When rbinding multiple files, specifies
+the column name for the file source label. If NULL, no label column is added.
+Default is "_file".}
 
-\item{...}{Additional arguments passed to \code{\link[=import_csv]{import_csv()}}.The arguments vary depending on the R package chosen.}
+\item{...}{Additional arguments passed to the underlying read functions
+(data.table::fread or arrow::read_csv_arrow).}
 }
 \value{
-Depending on the input and settings, returns a data.table or a list of data.tables.
-If \code{rbind} is TRUE and more than one file is processed, it returns a single data.table with all files combined.
-If \code{rbind} is FALSE or only one file is provided, it returns the data table from the single file processed.
+Depending on the parameters:
+\itemize{
+\item If rbind = TRUE: A single data.table or arrow table containing all imported data.
+\item If rbind = FALSE: A named list of data.table or arrow table objects, with names
+derived from the input file names (without extensions).
+}
 }
 \description{
-The \code{import_csv} function imports one or multiple CSV files using a specified package (\code{data.table}, \code{vroom}, or \code{arrow}).
-It supports row binding of multiple files into a single dataset with optional labeling of the origin file.
+The \code{import_csv} function provides a flexible way to import one or multiple CSV files
+using either data.table or arrow package. It supports combining multiple files and
+adding source file labels.
+}
+\details{
+The function provides a unified interface for reading CSV files using either data.table
+or arrow package. When reading multiple files, it can either combine them into a single
+data object or return them as a list. File source tracking is supported through the
+rbind_label parameter.
 }
 \note{
 \itemize{
-\item The function stops and throws an error if any file does not exist or if an unsupported package is specified.
-\item The \code{vroom} package inherently binds rows when reading multiple files and does not support turning off this feature.
+\item All specified files must exist and be accessible.
+\item When rbind = TRUE and multiple files are imported, the function assumes compatible
+column structures across files.
+\item File names in the source label column (if added) will have their extensions removed.
+\item The function uses data.table::rbindlist for combining multiple files, which
+automatically handles missing columns across files.
 }
 }
 \examples{
@@ -39,8 +64,6 @@ import_csv(csv_files)
 }
 \seealso{
 \code{\link[data.table:fread]{data.table::fread()}}
-
-\code{\link[vroom:vroom]{vroom::vroom()}}
 
 \code{\link[arrow:read_delim_arrow]{arrow::read_csv_arrow()}}
 }

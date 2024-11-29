@@ -2,34 +2,71 @@
 % Please edit documentation in R/import_xlsx.R
 \name{import_xlsx}
 \alias{import_xlsx}
-\title{Import list of xlsx sheets}
+\title{Import Data from Excel Files}
 \usage{
 import_xlsx(file, rbind = TRUE, sheet = NULL, ...)
 }
 \arguments{
-\item{file}{character vector of file paths. Paths to the Excel files to be imported. These paths must point to existing files.}
+\item{file}{A character vector of file paths. The Excel files to be imported.
+All paths must point to existing .xlsx or .xls files.}
 
-\item{rbind}{logical, optional. If TRUE and more than one file is specified, it binds rows from different files into one dataset. Default is TRUE. Note: For \code{vroom}, row binding is inherent and cannot be turned off.}
+\item{rbind}{A logical value. If TRUE and multiple files/sheets are provided,
+combines all data into a single data.table. If FALSE, returns a list of
+data.tables. Default is TRUE.}
 
-\item{sheet}{numeric vector or NULL, optional. Specifies the sheets to be read from each file. If NULL, all sheets are read. If numeric, only the specified sheets (by index) are read. Default is NULL.}
+\item{sheet}{A numeric vector or NULL. Specifies which sheets to read from each file:
+\itemize{
+\item If NULL (default), reads all sheets.
+\item If numeric, reads only the specified sheet indices.
+}}
 
-\item{...}{Additional arguments to be passed to the \code{\link[readxl:read_excel]{readxl::read_excel()}} function, such as col_types to specify column data types.}
+\item{...}{Additional arguments passed to \code{\link[readxl:read_excel]{readxl::read_excel()}}, such as
+col_types, skip, or na.}
 }
 \value{
-Depending on the \code{rbind} parameter:
+Depends on the \code{rbind} parameter:
 \itemize{
-\item If \code{rbind} is TRUE, returns a single \code{data.table} combining all files and sheets, with an additional 'excel_name' column indicating the source file.
-\item If \code{rbind} is FALSE, returns a named list of \code{data.tables}, each representing data from a sheet, named by combining the file and sheet names.
+\item If rbind = TRUE: A single data.table containing all imported data with
+two additional columns:
+\itemize{
+\item excel_name: The source file name (without extension)
+\item sheet_name: The source sheet name
+}
+\item If rbind = FALSE: A named list of data.tables, where each element is named
+as "filename_sheetname" and contains the data from that specific sheet.
 }
 }
 \description{
-The \code{import_xlsx} function reads data from Excel files, optionally from specified sheets, and can either merge data from multiple files or keep them separate.
+The \code{import_xlsx} function provides a flexible way to import data from one or multiple
+Excel files, with options to specify sheets and combine or separate the imported data.
+It handles multiple files and sheets, with automatic source tracking.
+}
+\details{
+The function provides a comprehensive solution for importing Excel data with the
+following features:
+\itemize{
+\item Supports multiple files and sheets
+\item Automatic source tracking for files and sheets
+\item Flexible combining options
+\item Handles missing columns across sheets when combining
+\item Preserves original data types through readxl
+}
 }
 \note{
-Make sure that the \code{file} paths provided are valid and exist. The function will stop with an error if any file does not exist or if the sheet indices are out of range.
+\itemize{
+\item All specified files must exist and be accessible Excel files
+\item Sheet indices must be valid across all input files
+\item When rbind = TRUE, the function assumes compatible data structures
+across sheets and files
+\item Missing columns across sheets are filled with NA when combining
+\item File names in source tracking columns have their extensions removed
+}
 }
 \examples{
 xlsx_files <- mintyr_example(mintyr_examples("xlsx_test"))
 xlsx_files
 import_xlsx(xlsx_files)
+}
+\seealso{
+\code{\link[readxl:read_excel]{readxl::read_excel()}}
 }

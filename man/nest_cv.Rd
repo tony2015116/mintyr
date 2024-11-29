@@ -2,7 +2,7 @@
 % Please edit documentation in R/nest_cv.R
 \name{nest_cv}
 \alias{nest_cv}
-\title{Apply Cross-Validation to Nested Data Tables}
+\title{Apply Cross-Validation to Nested Data}
 \usage{
 nest_cv(
   nest_dt,
@@ -15,7 +15,7 @@ nest_cv(
 )
 }
 \arguments{
-\item{nest_dt}{data.table. The input data table containing nested data tables.}
+\item{nest_dt}{A \code{data.frame} or \code{data.table} that contains at least one nested column of \code{data.frame}s or \code{data.table}s. The input data where cross-validation will be applied.}
 
 \item{v}{The number of partitions of the data set.}
 
@@ -36,18 +36,43 @@ of stratifying groups that are too small.}
 \item{...}{These dots are for future extensions and must be empty.}
 }
 \value{
-data.table. A data.table with cross-validation splits applied to the nested data tables.
+A \code{data.table} containing the cross-validation splits for each nested dataset. It includes:
+\itemize{
+\item Original non-nested columns from \code{nest_dt}.
+\item \code{splits}: The cross-validation split objects returned by \code{rsample::vfold_cv}.
+\item \code{train}: The training data for each split.
+\item \code{validate}: The validation data for each split.
+}
 }
 \description{
-The \code{nest_cv} function performs cross-validation on nested data tables within a \code{data.table}. It supports various cross-validation configurations and handles nested lists of data tables.
+The \code{nest_cv} function applies cross-validation splits to nested data frames or data tables within a data table. It uses the \code{rsample} package's \code{vfold_cv} function to create cross-validation splits for predictive modeling and analysis on nested datasets.
+}
+\details{
+The function performs the following steps:
+\enumerate{
+\item Checks if the input \code{nest_dt} is non-empty and contains at least one nested column of \code{data.frame}s or \code{data.table}s.
+\item Identifies the nested columns and non-nested columns within \code{nest_dt}.
+\item Applies \code{rsample::vfold_cv} to each nested data frame in the specified nested column(s), creating the cross-validation splits.
+\item Expands the cross-validation splits and associates them with the non-nested columns.
+\item Extracts the training and validation data for each split and adds them to the output data table.
+}
+
+If the \code{strata} parameter is provided, stratified sampling is performed during the cross-validation. Additional arguments can be passed to \code{rsample::vfold_cv} via \code{...}.
 }
 \note{
 \itemize{
-\item The \code{nest_dt} parameter must be a \code{data.table} containing at least one nested list column of data tables.
-\item The function will copy the input \code{data.table} to avoid modifying the original data.
+\item The \code{nest_dt} must contain at least one nested column of \code{data.frame}s or \code{data.table}s.
+\item The function converts \code{nest_dt} to a \code{data.table} internally to ensure efficient data manipulation.
+\item The \code{strata} parameter should be a column name present in the nested data frames.
+\item If \code{strata} is specified, ensure that the specified column exists in all nested data frames.
+\item The \code{breaks} and \code{pool} parameters are used when \code{strata} is a numeric variable and control how stratification is handled.
+\item Additional arguments passed through \code{...} are forwarded to \code{rsample::vfold_cv}.
 }
 }
 \examples{
 dt_nest <- w2l_nest(data = iris, cols2l = 1:2, by = "Species")
 nest_cv(nest_dt = dt_nest, v = 2, repeats = 2)
+}
+\seealso{
+\code{\link[rsample:vfold_cv]{rsample::vfold_cv()}}
 }

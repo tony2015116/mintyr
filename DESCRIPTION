@@ -1,6 +1,6 @@
 Package: mintyr
 Title: Tools Commonly Used In Personal Data Processing Work
-Version: 1.0.0
+Version: 1.0.1
 Authors@R: c(
     person("Guo Meng", , , "tony2015116@163.com", role = c("aut", "cre")),
     person("Guo Meng", role = "cph")
@@ -11,26 +11,25 @@ Description: A Set of tools to understand packages structure. Use
     Rmarkdown file in your project.
 License: MIT + file LICENSE
 Depends: 
-    R (>= 2.10)
+    R (>= 3.5.0)
 Imports: 
     arrow,
     data.table,
     dplyr,
+    parallel,
     purrr,
     readxl,
     rlang,
     rsample,
     rstatix,
     stats,
-    tools,
-    utils,
-    vroom
+    utils
 Suggests: 
     knitr,
     rmarkdown
 VignetteBuilder: 
     knitr
-Config/fusen/version: 0.5.2
+Config/fusen/version: 0.6.0
 Encoding: UTF-8
 LazyData: true
 Roxygen: list(markdown = TRUE)

@@ -1,35 +1,34 @@
 #' @title nedap
-#' @description DATASET_DESCRIPTION
+#' @description Dairy cow feeding behavior dataset
 #' @format A data frame with 31863 rows and 9 variables:
 #' \describe{
-#'   \item{\code{animal_number}}{integer COLUMN_DESCRIPTION}
-#'   \item{\code{lifenumber}}{logical COLUMN_DESCRIPTION}
-#'   \item{\code{responder}}{integer COLUMN_DESCRIPTION}
-#'   \item{\code{location}}{integer COLUMN_DESCRIPTION}
-#'   \item{\code{visit_time}}{double COLUMN_DESCRIPTION}
-#'   \item{\code{duration}}{integer COLUMN_DESCRIPTION}
-#'   \item{\code{state}}{integer COLUMN_DESCRIPTION}
-#'   \item{\code{weight}}{integer COLUMN_DESCRIPTION}
-#'   \item{\code{feed_intake}}{integer COLUMN_DESCRIPTION}
+#'   \item{\code{animal_number}}{integer Animal identification number}
+#'   \item{\code{lifenumber}}{logical Life number of the animal}
+#'   \item{\code{responder}}{integer Responder identification number}
+#'   \item{\code{location}}{integer Feeding station location}
+#'   \item{\code{visit_time}}{double Time of feeding visit}
+#'   \item{\code{duration}}{integer Duration of feeding visit (minutes)}
+#'   \item{\code{state}}{integer Status code}
+#'   \item{\code{weight}}{integer Body weight (kg)}
+#'   \item{\code{feed_intake}}{integer Feed intake amount (kg)}
 #'}
-#' @source \url{http://somewhere.important.com/}
 "nedap"
 
 
+
 #' @title fire
-#' @description DATASET_DESCRIPTION
+#' @description Feeding behavior dataset from Fire system
 #' @format A data frame with 9794 rows and 10 variables:
 #' \describe{
-#'   \item{\code{Location}}{integer COLUMN_DESCRIPTION}
-#'   \item{\code{Tag}}{integer COLUMN_DESCRIPTION}
-#'   \item{\code{Date}}{character COLUMN_DESCRIPTION}
-#'   \item{\code{Entry}}{character COLUMN_DESCRIPTION}
-#'   \item{\code{Exit}}{character COLUMN_DESCRIPTION}
-#'   \item{\code{Ent Wt}}{double COLUMN_DESCRIPTION}
-#'   \item{\code{Ext Wt}}{double COLUMN_DESCRIPTION}
-#'   \item{\code{Consumed}}{double COLUMN_DESCRIPTION}
-#'   \item{\code{Weight}}{double COLUMN_DESCRIPTION}
-#'   \item{\code{Topup Amount}}{double COLUMN_DESCRIPTION}
+#'   \item{\code{Location}}{integer Feeding station identification number}
+#'   \item{\code{Tag}}{integer Animal electronic tag number}
+#'   \item{\code{Date}}{character Date of feeding visit}
+#'   \item{\code{Entry}}{character Time when animal entered feeding station}
+#'   \item{\code{Exit}}{character Time when animal left feeding station}
+#'   \item{\code{Ent Wt}}{double Feed weight at entry (kg)}
+#'   \item{\code{Ext Wt}}{double Feed weight at exit (kg)}
+#'   \item{\code{Consumed}}{double Amount of feed consumed (kg)}
+#'   \item{\code{Weight}}{double Animal body weight (kg)}
+#'   \item{\code{Topup Amount}}{double Amount of feed added to bin (kg)}
 #'}
-#' @source \url{http://somewhere.important.com/}
 "fire"

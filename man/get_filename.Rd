@@ -2,30 +2,49 @@
 % Please edit documentation in R/get_filename.R
 \name{get_filename}
 \alias{get_filename}
-\title{Extract specific parts of the file path}
+\title{Extract Filenames from File Paths}
 \usage{
-get_filename(paths, remove_extension = TRUE, remove_path = TRUE)
+get_filename(paths, rm_extension = TRUE, rm_path = TRUE)
 }
 \arguments{
-\item{paths}{character vector. A string or a character vector representing the full path(s) to the file(s).}
+\item{paths}{A character vector of file paths}
 
-\item{remove_extension}{logical, optional. If TRUE, the file extensions are removed from the filenames. Default is TRUE.}
+\item{rm_extension}{Logical. If TRUE, removes file extensions from filenames.
+Defaults to TRUE.}
 
-\item{remove_path}{logical, optional. If TRUE, the directory paths are removed, leaving only the filenames. Default is TRUE.}
+\item{rm_path}{Logical. If TRUE, removes directory paths, keeping only the filename.
+Defaults to TRUE.}
 }
 \value{
-character vector. A string or a character vector representing the processed file name(s).
+A character vector of processed filenames
 }
 \description{
-This function extracts the base name of the file(s) from the given path(s), with options to remove the file extension and/or the directory path.
+Extracts filenames from file paths with options to remove file extensions
+and/or directory paths.
+}
+\details{
+The function performs the following operations:
+\itemize{
+\item Validates input paths
+\item Handles empty input vectors
+\item Optionally removes directory paths using \code{\link[base]{basename}}
+\item Optionally removes file extensions using regex substitution
+}
 }
 \note{
-Ensure that the \code{paths} parameter is a character vector. The function will stop with an error if \code{paths} is not a character vector.
+\itemize{
+\item If both \code{rm_extension} and \code{rm_path} are FALSE,
+a warning is issued and the original paths are returned
+\item Supports multiple file paths in the input vector
+}
 }
 \examples{
 xlsx_files <- mintyr_example(mintyr_examples("xlsx_test"))
 xlsx_files
-get_filename(xlsx_files)
-get_filename(xlsx_files, remove_extension = FALSE)
-get_filename(xlsx_files, remove_path = FALSE)
+get_filename(xlsx_files) # Keep only file names
+get_filename(xlsx_files, rm_extension = FALSE) # Keep extension
+get_filename(xlsx_files, rm_path = FALSE) # Keep path
+}
+\seealso{
+\code{\link[base]{basename}} for extracting filenames
 }

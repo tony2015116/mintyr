@@ -7,24 +7,21 @@
 \format{
 A data frame with 31863 rows and 9 variables:
 \describe{
-\item{\code{animal_number}}{integer COLUMN_DESCRIPTION}
-\item{\code{lifenumber}}{logical COLUMN_DESCRIPTION}
-\item{\code{responder}}{integer COLUMN_DESCRIPTION}
-\item{\code{location}}{integer COLUMN_DESCRIPTION}
-\item{\code{visit_time}}{double COLUMN_DESCRIPTION}
-\item{\code{duration}}{integer COLUMN_DESCRIPTION}
-\item{\code{state}}{integer COLUMN_DESCRIPTION}
-\item{\code{weight}}{integer COLUMN_DESCRIPTION}
-\item{\code{feed_intake}}{integer COLUMN_DESCRIPTION}
+\item{\code{animal_number}}{integer Animal identification number}
+\item{\code{lifenumber}}{logical Life number of the animal}
+\item{\code{responder}}{integer Responder identification number}
+\item{\code{location}}{integer Feeding station location}
+\item{\code{visit_time}}{double Time of feeding visit}
+\item{\code{duration}}{integer Duration of feeding visit (minutes)}
+\item{\code{state}}{integer Status code}
+\item{\code{weight}}{integer Body weight (kg)}
+\item{\code{feed_intake}}{integer Feed intake amount (kg)}
 }
-}
-\source{
-\url{http://somewhere.important.com/}
 }
 \usage{
 nedap
 }
 \description{
-DATASET_DESCRIPTION
+Dairy cow feeding behavior dataset
 }
 \keyword{datasets}

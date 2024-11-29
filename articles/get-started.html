@@ -38,7 +38,7 @@
       </button>
       <span class="navbar-brand">
         <a class="navbar-link" href="../index.html">mintyr</a>
-        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="">1.0.0</span>
+        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="">1.0.1</span>
       </span>
     </div>
 
@@ -95,7 +95,6 @@ Run this 'development' chunk
 Store every call to library() that you need to run chunks line by line, as in a classical Rmd for analysis
 -->
 <!--
-
 # Description of your package
 
 This will fill the description of your package.
@@ -104,23 +103,115 @@ Fill and run the content of this chunk, before anything else.
 Note: when you will use other flat templates, this part will be in a separate file. Do not be surprised!
 -->
 <div class="section level2">
-<h2 id="mintyr_example">mintyr_example<a class="anchor" aria-label="anchor" href="#mintyr_example"></a>
+<h2 id="convert_nested">convert_nested<a class="anchor" aria-label="anchor" href="#convert_nested"></a>
 </h2>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># Convert a data frame with nested columns to data table</span></span>
+<span><span class="va">df_nest1</span> <span class="op">&lt;-</span> <span class="va">iris</span> <span class="op">|&gt;</span> </span>
+<span>  <span class="fu">dplyr</span><span class="fu">::</span><span class="fu"><a href="https://dplyr.tidyverse.org/reference/group_nest.html" class="external-link">group_nest</a></span><span class="op">(</span><span class="va">Species</span><span class="op">)</span></span>
+<span><span class="va">df_nest2</span> <span class="op">&lt;-</span> <span class="va">iris</span> <span class="op">|&gt;</span></span>
+<span>  <span class="fu">dplyr</span><span class="fu">::</span><span class="fu"><a href="https://dplyr.tidyverse.org/reference/group_nest.html" class="external-link">group_nest</a></span><span class="op">(</span><span class="va">Species</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span>  <span class="fu">dplyr</span><span class="fu">::</span><span class="fu"><a href="https://dplyr.tidyverse.org/reference/mutate.html" class="external-link">mutate</a></span><span class="op">(</span>data2 <span class="op">=</span> <span class="fu">purrr</span><span class="fu">::</span><span class="fu"><a href="https://purrr.tidyverse.org/reference/map.html" class="external-link">map</a></span><span class="op">(</span><span class="va">data</span>, <span class="fu">dplyr</span><span class="fu">::</span><span class="va"><a href="https://dplyr.tidyverse.org/reference/mutate.html" class="external-link">mutate</a></span>, c<span class="op">=</span><span class="fl">2</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="co"># Convert a data table with specific nested columns to data frame</span></span>
+<span><span class="fu"><a href="../reference/convert_nested.html">convert_nested</a></span><span class="op">(</span><span class="va">df_nest1</span>, to <span class="op">=</span> <span class="st">"dt"</span>, nested_cols <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"data"</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="co">#&gt;       Species               data</span></span>
+<span><span class="co">#&gt;        &lt;fctr&gt;             &lt;list&gt;</span></span>
+<span><span class="co">#&gt; 1:     setosa &lt;data.table[50x4]&gt;</span></span>
+<span><span class="co">#&gt; 2: versicolor &lt;data.table[50x4]&gt;</span></span>
+<span><span class="co">#&gt; 3:  virginica &lt;data.table[50x4]&gt;</span></span>
+<span><span class="fu"><a href="../reference/convert_nested.html">convert_nested</a></span><span class="op">(</span><span class="va">df_nest2</span>, to <span class="op">=</span> <span class="st">"dt"</span>, nested_cols <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"data"</span>, <span class="st">"data2"</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="co">#&gt;       Species               data              data2</span></span>
+<span><span class="co">#&gt;        &lt;fctr&gt;             &lt;list&gt;             &lt;list&gt;</span></span>
+<span><span class="co">#&gt; 1:     setosa &lt;data.table[50x4]&gt; &lt;data.table[50x5]&gt;</span></span>
+<span><span class="co">#&gt; 2: versicolor &lt;data.table[50x4]&gt; &lt;data.table[50x5]&gt;</span></span>
+<span><span class="co">#&gt; 3:  virginica &lt;data.table[50x4]&gt; &lt;data.table[50x5]&gt;</span></span>
+<span><span class="co"># Convert a data table with nested columns to data frame</span></span>
+<span><span class="va">dt_nest</span> <span class="op">&lt;-</span> <span class="fu">mintyr</span><span class="fu">::</span><span class="fu"><a href="../reference/w2l_nest.html">w2l_nest</a></span><span class="op">(</span>data <span class="op">=</span> <span class="va">iris</span>, cols2l <span class="op">=</span> <span class="fl">1</span><span class="op">:</span><span class="fl">2</span>, by <span class="op">=</span> <span class="st">"Species"</span><span class="op">)</span></span>
+<span><span class="fu"><a href="../reference/convert_nested.html">convert_nested</a></span><span class="op">(</span><span class="va">dt_nest</span>, to <span class="op">=</span> <span class="st">"dt"</span>, nested_cols <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"data"</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="co">#&gt;            name    Species               data</span></span>
+<span><span class="co">#&gt;          &lt;fctr&gt;     &lt;fctr&gt;             &lt;list&gt;</span></span>
+<span><span class="co">#&gt; 1: Sepal.Length     setosa &lt;data.table[50x3]&gt;</span></span>
+<span><span class="co">#&gt; 2: Sepal.Length versicolor &lt;data.table[50x3]&gt;</span></span>
+<span><span class="co">#&gt; 3: Sepal.Length  virginica &lt;data.table[50x3]&gt;</span></span>
+<span><span class="co">#&gt; 4:  Sepal.Width     setosa &lt;data.table[50x3]&gt;</span></span>
+<span><span class="co">#&gt; 5:  Sepal.Width versicolor &lt;data.table[50x3]&gt;</span></span>
+<span><span class="co">#&gt; 6:  Sepal.Width  virginica &lt;data.table[50x3]&gt;</span></span></code></pre></div>
+</div>
+<div class="section level2">
+<h2 id="get_path_segment">get_path_segment<a class="anchor" aria-label="anchor" href="#get_path_segment"></a>
+</h2>
+<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># Example usage demonstrations</span></span>
+<span><span class="va">paths</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"/home/user/documents"</span>, <span class="st">"/var/log/system"</span>, <span class="st">"/usr/local/bin"</span><span class="op">)</span></span>
+<span><span class="co"># Positive index example</span></span>
+<span><span class="fu"><a href="../reference/get_path_segment.html">get_path_segment</a></span><span class="op">(</span><span class="va">paths</span>, <span class="fl">2</span><span class="op">)</span></span>
+<span><span class="co">#&gt; [1] "home" "var"  "usr"</span></span>
+<span><span class="co"># Negative index example</span></span>
+<span><span class="fu"><a href="../reference/get_path_segment.html">get_path_segment</a></span><span class="op">(</span><span class="va">paths</span>, <span class="op">-</span><span class="fl">2</span><span class="op">)</span></span>
+<span><span class="co">#&gt; [1] "user"  "log"   "local"</span></span></code></pre></div>
+</div>
+<div class="section level2">
+<h2 id="nest_export">nest_export<a class="anchor" aria-label="anchor" href="#nest_export"></a>
+</h2>
+<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># Data Nesting Operation</span></span>
+<span><span class="va">dt_nest</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/w2l_nest.html">w2l_nest</a></span><span class="op">(</span>data <span class="op">=</span> <span class="va">iris</span>, cols2l <span class="op">=</span> <span class="fl">1</span><span class="op">:</span><span class="fl">2</span>, by <span class="op">=</span> <span class="st">"Species"</span><span class="op">)</span></span>
+<span><span class="co"># Export Nested Data</span></span>
+<span><span class="fu"><a href="../reference/nest_export.html">nest_export</a></span><span class="op">(</span>nest_dt <span class="op">=</span> <span class="va">dt_nest</span>, nest_col <span class="op">=</span> <span class="st">"data"</span>,</span>
+<span>            group_cols <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"name"</span>, <span class="st">"Species"</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="co">#&gt; [1] 6</span></span>
+<span><span class="co"># Check Export Results</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/list.files.html" class="external-link">list.files</a></span><span class="op">(</span>path <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempdir</a></span><span class="op">(</span><span class="op">)</span>, pattern <span class="op">=</span> <span class="st">"txt"</span>, recursive <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
+<span><span class="co">#&gt; [1] "Sepal.Length/setosa/data.txt"     "Sepal.Length/versicolor/data.txt"</span></span>
+<span><span class="co">#&gt; [3] "Sepal.Length/virginica/data.txt"  "Sepal.Width/setosa/data.txt"     </span></span>
+<span><span class="co">#&gt; [5] "Sepal.Width/versicolor/data.txt"  "Sepal.Width/virginica/data.txt"</span></span></code></pre></div>
+</div>
+<div class="section level2">
+<h2 id="format_digits">format_digits<a class="anchor" aria-label="anchor" href="#format_digits"></a>
+</h2>
+<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># Create example data</span></span>
+<span><span class="va">dt</span> <span class="op">&lt;-</span> <span class="fu">data.table</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/data.table/man/data.table.html" class="external-link">data.table</a></span><span class="op">(</span></span>
+<span>  a <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0.1234</span>, <span class="fl">0.5678</span><span class="op">)</span>,</span>
+<span>  b <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0.2345</span>, <span class="fl">0.6789</span><span class="op">)</span>,</span>
+<span>  c <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"text1"</span>, <span class="st">"text2"</span><span class="op">)</span></span>
+<span><span class="op">)</span></span>
+<span><span class="va">dt</span></span>
+<span><span class="co">#&gt;         a      b      c</span></span>
+<span><span class="co">#&gt;     &lt;num&gt;  &lt;num&gt; &lt;char&gt;</span></span>
+<span><span class="co">#&gt; 1: 0.1234 0.2345  text1</span></span>
+<span><span class="co">#&gt; 2: 0.5678 0.6789  text2</span></span>
+<span><span class="co"># Format without percentage</span></span>
+<span><span class="fu"><a href="../reference/format_digits.html">format_digits</a></span><span class="op">(</span><span class="va">dt</span>, cols <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"a"</span>, <span class="st">"b"</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="co">#&gt;         a      b      c</span></span>
+<span><span class="co">#&gt;    &lt;char&gt; &lt;char&gt; &lt;char&gt;</span></span>
+<span><span class="co">#&gt; 1:   0.12   0.23  text1</span></span>
+<span><span class="co">#&gt; 2:   0.57   0.68  text2</span></span>
+<span><span class="co"># Format with percentage</span></span>
+<span><span class="fu"><a href="../reference/format_digits.html">format_digits</a></span><span class="op">(</span><span class="va">dt</span>, cols <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"a"</span><span class="op">)</span>, percentage <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
+<span><span class="co">#&gt;         a      b      c</span></span>
+<span><span class="co">#&gt;    &lt;char&gt;  &lt;num&gt; &lt;char&gt;</span></span>
+<span><span class="co">#&gt; 1: 12.34% 0.2345  text1</span></span>
+<span><span class="co">#&gt; 2: 56.78% 0.6789  text2</span></span></code></pre></div>
+</div>
+<div class="section level2">
+<h2 id="mintyr_example">mintyr_example<a class="anchor" aria-label="anchor" href="#mintyr_example"></a>
+</h2>
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/mintyr_example.html">mintyr_example</a></span><span class="op">(</span><span class="st">"csv_test1.csv"</span><span class="op">)</span></span>
 <span><span class="co">#&gt; [1] "/home/runner/work/_temp/Library/mintyr/extdata/csv_test1.csv"</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="mintyr_examples">mintyr_examples<a class="anchor" aria-label="anchor" href="#mintyr_examples"></a>
 </h2>
-<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/mintyr_examples.html">mintyr_examples</a></span><span class="op">(</span><span class="op">)</span></span>
 <span><span class="co">#&gt; [1] "csv_test1.csv"   "csv_test2.csv"   "xlsx_test1.xlsx" "xlsx_test2.xlsx"</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="import_xlsx">import_xlsx<a class="anchor" aria-label="anchor" href="#import_xlsx"></a>
 </h2>
-<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">xlsx_files</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/mintyr_example.html">mintyr_example</a></span><span class="op">(</span><span class="fu"><a href="../reference/mintyr_examples.html">mintyr_examples</a></span><span class="op">(</span><span class="st">"xlsx_test"</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="va">xlsx_files</span></span>
 <span><span class="co">#&gt; [1] "/home/runner/work/_temp/Library/mintyr/extdata/xlsx_test1.xlsx"</span></span>
@@ -161,41 +252,41 @@ This first section shows:
 Here is an example on how to use the function.
 This should be a reproducible and working example
 -->
-<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">csv_files</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/mintyr_example.html">mintyr_example</a></span><span class="op">(</span><span class="fu"><a href="../reference/mintyr_examples.html">mintyr_examples</a></span><span class="op">(</span><span class="st">"csv_test"</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="va">csv_files</span></span>
 <span><span class="co">#&gt; [1] "/home/runner/work/_temp/Library/mintyr/extdata/csv_test1.csv"</span></span>
 <span><span class="co">#&gt; [2] "/home/runner/work/_temp/Library/mintyr/extdata/csv_test2.csv"</span></span>
 <span><span class="fu"><a href="../reference/import_csv.html">import_csv</a></span><span class="op">(</span><span class="va">csv_files</span><span class="op">)</span></span>
-<span><span class="co">#&gt;     col1   col2   col3</span></span>
-<span><span class="co">#&gt;    &lt;int&gt; &lt;char&gt; &lt;lgcl&gt;</span></span>
-<span><span class="co">#&gt; 1:     4      d  FALSE</span></span>
-<span><span class="co">#&gt; 2:     5      f   TRUE</span></span>
-<span><span class="co">#&gt; 3:     6      e   TRUE</span></span>
-<span><span class="co">#&gt; 4:    15      o  FALSE</span></span>
-<span><span class="co">#&gt; 5:    16      p   TRUE</span></span>
-<span><span class="co">#&gt; 6:    17      q  FALSE</span></span></code></pre></div>
+<span><span class="co">#&gt;        _file  col1   col2   col3</span></span>
+<span><span class="co">#&gt;       &lt;char&gt; &lt;int&gt; &lt;char&gt; &lt;lgcl&gt;</span></span>
+<span><span class="co">#&gt; 1: csv_test1     4      d  FALSE</span></span>
+<span><span class="co">#&gt; 2: csv_test1     5      f   TRUE</span></span>
+<span><span class="co">#&gt; 3: csv_test1     6      e   TRUE</span></span>
+<span><span class="co">#&gt; 4: csv_test2    15      o  FALSE</span></span>
+<span><span class="co">#&gt; 5: csv_test2    16      p   TRUE</span></span>
+<span><span class="co">#&gt; 6: csv_test2    17      q  FALSE</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="get_filename">get_filename<a class="anchor" aria-label="anchor" href="#get_filename"></a>
 </h2>
-<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">xlsx_files</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/mintyr_example.html">mintyr_example</a></span><span class="op">(</span><span class="fu"><a href="../reference/mintyr_examples.html">mintyr_examples</a></span><span class="op">(</span><span class="st">"xlsx_test"</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="va">xlsx_files</span></span>
 <span><span class="co">#&gt; [1] "/home/runner/work/_temp/Library/mintyr/extdata/xlsx_test1.xlsx"</span></span>
 <span><span class="co">#&gt; [2] "/home/runner/work/_temp/Library/mintyr/extdata/xlsx_test2.xlsx"</span></span>
-<span><span class="fu"><a href="../reference/get_filename.html">get_filename</a></span><span class="op">(</span><span class="va">xlsx_files</span><span class="op">)</span></span>
+<span><span class="fu"><a href="../reference/get_filename.html">get_filename</a></span><span class="op">(</span><span class="va">xlsx_files</span><span class="op">)</span> <span class="co"># Keep only file names</span></span>
 <span><span class="co">#&gt; [1] "xlsx_test1" "xlsx_test2"</span></span>
-<span><span class="fu"><a href="../reference/get_filename.html">get_filename</a></span><span class="op">(</span><span class="va">xlsx_files</span>, remove_extension <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span>
+<span><span class="fu"><a href="../reference/get_filename.html">get_filename</a></span><span class="op">(</span><span class="va">xlsx_files</span>, rm_extension <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span> <span class="co"># Keep extension</span></span>
 <span><span class="co">#&gt; [1] "xlsx_test1.xlsx" "xlsx_test2.xlsx"</span></span>
-<span><span class="fu"><a href="../reference/get_filename.html">get_filename</a></span><span class="op">(</span><span class="va">xlsx_files</span>, remove_path <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span>
+<span><span class="fu"><a href="../reference/get_filename.html">get_filename</a></span><span class="op">(</span><span class="va">xlsx_files</span>, rm_path <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span> <span class="co"># Keep path</span></span>
 <span><span class="co">#&gt; [1] "/home/runner/work/_temp/Library/mintyr/extdata/xlsx_test1"</span></span>
 <span><span class="co">#&gt; [2] "/home/runner/work/_temp/Library/mintyr/extdata/xlsx_test2"</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="w2l_nest">w2l_nest<a class="anchor" aria-label="anchor" href="#w2l_nest"></a>
 </h2>
-<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/w2l_nest.html">w2l_nest</a></span><span class="op">(</span>data <span class="op">=</span> <span class="va">iris</span>, cols2l <span class="op">=</span> <span class="fl">1</span><span class="op">:</span><span class="fl">4</span><span class="op">)</span></span>
 <span><span class="co">#&gt;            name                data</span></span>
 <span><span class="co">#&gt;          &lt;fctr&gt;              &lt;list&gt;</span></span>
@@ -219,7 +310,7 @@ This should be a reproducible and working example
 <div class="section level2">
 <h2 id="w2l_split">w2l_split<a class="anchor" aria-label="anchor" href="#w2l_split"></a>
 </h2>
-<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/w2l_split.html">w2l_split</a></span><span class="op">(</span>data <span class="op">=</span> <span class="va">iris</span>, cols2l <span class="op">=</span> <span class="fl">1</span><span class="op">:</span><span class="fl">3</span><span class="op">)</span></span>
 <span><span class="co">#&gt; $Sepal.Length</span></span>
 <span><span class="co">#&gt;      Petal.Width   Species value</span></span>
@@ -299,15 +390,15 @@ This should be a reproducible and working example
 <div class="section level2">
 <h2 id="combn_pair">combn_pair<a class="anchor" aria-label="anchor" href="#combn_pair"></a>
 </h2>
-<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">col_names</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"Sepal.Length"</span>, <span class="st">"Sepal.Width"</span>, <span class="st">"Petal.Length"</span><span class="op">)</span></span>
-<span><span class="fu"><a href="../reference/combn_pair.html">combn_pair</a></span><span class="op">(</span><span class="va">iris</span>, cols_bind <span class="op">=</span> <span class="va">col_names</span>, pairs_n <span class="op">=</span> <span class="fl">2</span>, sep <span class="op">=</span> <span class="st">"&amp;"</span><span class="op">)</span></span>
+<span><span class="fu"><a href="../reference/combn_pair.html">combn_pair</a></span><span class="op">(</span><span class="va">iris</span>, cols2bind <span class="op">=</span> <span class="va">col_names</span>, pairs_n <span class="op">=</span> <span class="fl">2</span>, sep <span class="op">=</span> <span class="st">"&amp;"</span><span class="op">)</span></span>
 <span><span class="co">#&gt;                        pairs                data</span></span>
 <span><span class="co">#&gt;                       &lt;char&gt;              &lt;list&gt;</span></span>
 <span><span class="co">#&gt; 1:  Sepal.Length&amp;Sepal.Width &lt;data.table[150x4]&gt;</span></span>
 <span><span class="co">#&gt; 2: Sepal.Length&amp;Petal.Length &lt;data.table[150x4]&gt;</span></span>
 <span><span class="co">#&gt; 3:  Sepal.Width&amp;Petal.Length &lt;data.table[150x4]&gt;</span></span>
-<span><span class="fu"><a href="../reference/combn_pair.html">combn_pair</a></span><span class="op">(</span><span class="va">iris</span>, cols_bind <span class="op">=</span> <span class="va">col_names</span>, pairs_n <span class="op">=</span> <span class="fl">2</span>, by <span class="op">=</span> <span class="st">"Species"</span><span class="op">)</span></span>
+<span><span class="fu"><a href="../reference/combn_pair.html">combn_pair</a></span><span class="op">(</span><span class="va">iris</span>, cols2bind <span class="op">=</span> <span class="va">col_names</span>, pairs_n <span class="op">=</span> <span class="fl">2</span>, by <span class="op">=</span> <span class="st">"Species"</span><span class="op">)</span></span>
 <span><span class="co">#&gt;                        pairs    Species               data</span></span>
 <span><span class="co">#&gt;                       &lt;char&gt;     &lt;fctr&gt;             &lt;list&gt;</span></span>
 <span><span class="co">#&gt; 1:  Sepal.Length-Sepal.Width     setosa &lt;data.table[50x3]&gt;</span></span>
@@ -323,140 +414,68 @@ This should be a reproducible and working example
 <div class="section level2">
 <h2 id="nest_cv">nest_cv<a class="anchor" aria-label="anchor" href="#nest_cv"></a>
 </h2>
-<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">dt_nest</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/w2l_nest.html">w2l_nest</a></span><span class="op">(</span>data <span class="op">=</span> <span class="va">iris</span>, cols2l <span class="op">=</span> <span class="fl">1</span><span class="op">:</span><span class="fl">2</span>, by <span class="op">=</span> <span class="st">"Species"</span><span class="op">)</span></span>
 <span><span class="fu"><a href="../reference/nest_cv.html">nest_cv</a></span><span class="op">(</span>nest_dt <span class="op">=</span> <span class="va">dt_nest</span>, v <span class="op">=</span> <span class="fl">2</span>, repeats <span class="op">=</span> <span class="fl">2</span><span class="op">)</span></span>
-<span><span class="co">#&gt;             name    Species                   splits     id              train</span></span>
-<span><span class="co">#&gt;           &lt;fctr&gt;     &lt;fctr&gt;                   &lt;list&gt; &lt;char&gt;             &lt;list&gt;</span></span>
-<span><span class="co">#&gt;  1: Sepal.Length     setosa &lt;vfold_split[45x5x50x3]&gt; Fold01 &lt;data.table[45x3]&gt;</span></span>
-<span><span class="co">#&gt;  2: Sepal.Length     setosa &lt;vfold_split[45x5x50x3]&gt; Fold02 &lt;data.table[45x3]&gt;</span></span>
-<span><span class="co">#&gt;  3: Sepal.Length     setosa &lt;vfold_split[45x5x50x3]&gt; Fold03 &lt;data.table[45x3]&gt;</span></span>
-<span><span class="co">#&gt;  4: Sepal.Length     setosa &lt;vfold_split[45x5x50x3]&gt; Fold04 &lt;data.table[45x3]&gt;</span></span>
-<span><span class="co">#&gt;  5: Sepal.Length     setosa &lt;vfold_split[45x5x50x3]&gt; Fold05 &lt;data.table[45x3]&gt;</span></span>
-<span><span class="co">#&gt;  6: Sepal.Length     setosa &lt;vfold_split[45x5x50x3]&gt; Fold06 &lt;data.table[45x3]&gt;</span></span>
-<span><span class="co">#&gt;  7: Sepal.Length     setosa &lt;vfold_split[45x5x50x3]&gt; Fold07 &lt;data.table[45x3]&gt;</span></span>
-<span><span class="co">#&gt;  8: Sepal.Length     setosa &lt;vfold_split[45x5x50x3]&gt; Fold08 &lt;data.table[45x3]&gt;</span></span>
-<span><span class="co">#&gt;  9: Sepal.Length     setosa &lt;vfold_split[45x5x50x3]&gt; Fold09 &lt;data.table[45x3]&gt;</span></span>
-<span><span class="co">#&gt; 10: Sepal.Length     setosa &lt;vfold_split[45x5x50x3]&gt; Fold10 &lt;data.table[45x3]&gt;</span></span>
-<span><span class="co">#&gt; 11: Sepal.Length versicolor &lt;vfold_split[45x5x50x3]&gt; Fold01 &lt;data.table[45x3]&gt;</span></span>
-<span><span class="co">#&gt; 12: Sepal.Length versicolor &lt;vfold_split[45x5x50x3]&gt; Fold02 &lt;data.table[45x3]&gt;</span></span>
-<span><span class="co">#&gt; 13: Sepal.Length versicolor &lt;vfold_split[45x5x50x3]&gt; Fold03 &lt;data.table[45x3]&gt;</span></span>
-<span><span class="co">#&gt; 14: Sepal.Length versicolor &lt;vfold_split[45x5x50x3]&gt; Fold04 &lt;data.table[45x3]&gt;</span></span>
-<span><span class="co">#&gt; 15: Sepal.Length versicolor &lt;vfold_split[45x5x50x3]&gt; Fold05 &lt;data.table[45x3]&gt;</span></span>
-<span><span class="co">#&gt; 16: Sepal.Length versicolor &lt;vfold_split[45x5x50x3]&gt; Fold06 &lt;data.table[45x3]&gt;</span></span>
-<span><span class="co">#&gt; 17: Sepal.Length versicolor &lt;vfold_split[45x5x50x3]&gt; Fold07 &lt;data.table[45x3]&gt;</span></span>
-<span><span class="co">#&gt; 18: Sepal.Length versicolor &lt;vfold_split[45x5x50x3]&gt; Fold08 &lt;data.table[45x3]&gt;</span></span>
-<span><span class="co">#&gt; 19: Sepal.Length versicolor &lt;vfold_split[45x5x50x3]&gt; Fold09 &lt;data.table[45x3]&gt;</span></span>
-<span><span class="co">#&gt; 20: Sepal.Length versicolor &lt;vfold_split[45x5x50x3]&gt; Fold10 &lt;data.table[45x3]&gt;</span></span>
-<span><span class="co">#&gt; 21: Sepal.Length  virginica &lt;vfold_split[45x5x50x3]&gt; Fold01 &lt;data.table[45x3]&gt;</span></span>
-<span><span class="co">#&gt; 22: Sepal.Length  virginica &lt;vfold_split[45x5x50x3]&gt; Fold02 &lt;data.table[45x3]&gt;</span></span>
-<span><span class="co">#&gt; 23: Sepal.Length  virginica &lt;vfold_split[45x5x50x3]&gt; Fold03 &lt;data.table[45x3]&gt;</span></span>
-<span><span class="co">#&gt; 24: Sepal.Length  virginica &lt;vfold_split[45x5x50x3]&gt; Fold04 &lt;data.table[45x3]&gt;</span></span>
-<span><span class="co">#&gt; 25: Sepal.Length  virginica &lt;vfold_split[45x5x50x3]&gt; Fold05 &lt;data.table[45x3]&gt;</span></span>
-<span><span class="co">#&gt; 26: Sepal.Length  virginica &lt;vfold_split[45x5x50x3]&gt; Fold06 &lt;data.table[45x3]&gt;</span></span>
-<span><span class="co">#&gt; 27: Sepal.Length  virginica &lt;vfold_split[45x5x50x3]&gt; Fold07 &lt;data.table[45x3]&gt;</span></span>
-<span><span class="co">#&gt; 28: Sepal.Length  virginica &lt;vfold_split[45x5x50x3]&gt; Fold08 &lt;data.table[45x3]&gt;</span></span>
-<span><span class="co">#&gt; 29: Sepal.Length  virginica &lt;vfold_split[45x5x50x3]&gt; Fold09 &lt;data.table[45x3]&gt;</span></span>
-<span><span class="co">#&gt; 30: Sepal.Length  virginica &lt;vfold_split[45x5x50x3]&gt; Fold10 &lt;data.table[45x3]&gt;</span></span>
-<span><span class="co">#&gt; 31:  Sepal.Width     setosa &lt;vfold_split[45x5x50x3]&gt; Fold01 &lt;data.table[45x3]&gt;</span></span>
-<span><span class="co">#&gt; 32:  Sepal.Width     setosa &lt;vfold_split[45x5x50x3]&gt; Fold02 &lt;data.table[45x3]&gt;</span></span>
-<span><span class="co">#&gt; 33:  Sepal.Width     setosa &lt;vfold_split[45x5x50x3]&gt; Fold03 &lt;data.table[45x3]&gt;</span></span>
-<span><span class="co">#&gt; 34:  Sepal.Width     setosa &lt;vfold_split[45x5x50x3]&gt; Fold04 &lt;data.table[45x3]&gt;</span></span>
-<span><span class="co">#&gt; 35:  Sepal.Width     setosa &lt;vfold_split[45x5x50x3]&gt; Fold05 &lt;data.table[45x3]&gt;</span></span>
-<span><span class="co">#&gt; 36:  Sepal.Width     setosa &lt;vfold_split[45x5x50x3]&gt; Fold06 &lt;data.table[45x3]&gt;</span></span>
-<span><span class="co">#&gt; 37:  Sepal.Width     setosa &lt;vfold_split[45x5x50x3]&gt; Fold07 &lt;data.table[45x3]&gt;</span></span>
-<span><span class="co">#&gt; 38:  Sepal.Width     setosa &lt;vfold_split[45x5x50x3]&gt; Fold08 &lt;data.table[45x3]&gt;</span></span>
-<span><span class="co">#&gt; 39:  Sepal.Width     setosa &lt;vfold_split[45x5x50x3]&gt; Fold09 &lt;data.table[45x3]&gt;</span></span>
-<span><span class="co">#&gt; 40:  Sepal.Width     setosa &lt;vfold_split[45x5x50x3]&gt; Fold10 &lt;data.table[45x3]&gt;</span></span>
-<span><span class="co">#&gt; 41:  Sepal.Width versicolor &lt;vfold_split[45x5x50x3]&gt; Fold01 &lt;data.table[45x3]&gt;</span></span>
-<span><span class="co">#&gt; 42:  Sepal.Width versicolor &lt;vfold_split[45x5x50x3]&gt; Fold02 &lt;data.table[45x3]&gt;</span></span>
-<span><span class="co">#&gt; 43:  Sepal.Width versicolor &lt;vfold_split[45x5x50x3]&gt; Fold03 &lt;data.table[45x3]&gt;</span></span>
-<span><span class="co">#&gt; 44:  Sepal.Width versicolor &lt;vfold_split[45x5x50x3]&gt; Fold04 &lt;data.table[45x3]&gt;</span></span>
-<span><span class="co">#&gt; 45:  Sepal.Width versicolor &lt;vfold_split[45x5x50x3]&gt; Fold05 &lt;data.table[45x3]&gt;</span></span>
-<span><span class="co">#&gt; 46:  Sepal.Width versicolor &lt;vfold_split[45x5x50x3]&gt; Fold06 &lt;data.table[45x3]&gt;</span></span>
-<span><span class="co">#&gt; 47:  Sepal.Width versicolor &lt;vfold_split[45x5x50x3]&gt; Fold07 &lt;data.table[45x3]&gt;</span></span>
-<span><span class="co">#&gt; 48:  Sepal.Width versicolor &lt;vfold_split[45x5x50x3]&gt; Fold08 &lt;data.table[45x3]&gt;</span></span>
-<span><span class="co">#&gt; 49:  Sepal.Width versicolor &lt;vfold_split[45x5x50x3]&gt; Fold09 &lt;data.table[45x3]&gt;</span></span>
-<span><span class="co">#&gt; 50:  Sepal.Width versicolor &lt;vfold_split[45x5x50x3]&gt; Fold10 &lt;data.table[45x3]&gt;</span></span>
-<span><span class="co">#&gt; 51:  Sepal.Width  virginica &lt;vfold_split[45x5x50x3]&gt; Fold01 &lt;data.table[45x3]&gt;</span></span>
-<span><span class="co">#&gt; 52:  Sepal.Width  virginica &lt;vfold_split[45x5x50x3]&gt; Fold02 &lt;data.table[45x3]&gt;</span></span>
-<span><span class="co">#&gt; 53:  Sepal.Width  virginica &lt;vfold_split[45x5x50x3]&gt; Fold03 &lt;data.table[45x3]&gt;</span></span>
-<span><span class="co">#&gt; 54:  Sepal.Width  virginica &lt;vfold_split[45x5x50x3]&gt; Fold04 &lt;data.table[45x3]&gt;</span></span>
-<span><span class="co">#&gt; 55:  Sepal.Width  virginica &lt;vfold_split[45x5x50x3]&gt; Fold05 &lt;data.table[45x3]&gt;</span></span>
-<span><span class="co">#&gt; 56:  Sepal.Width  virginica &lt;vfold_split[45x5x50x3]&gt; Fold06 &lt;data.table[45x3]&gt;</span></span>
-<span><span class="co">#&gt; 57:  Sepal.Width  virginica &lt;vfold_split[45x5x50x3]&gt; Fold07 &lt;data.table[45x3]&gt;</span></span>
-<span><span class="co">#&gt; 58:  Sepal.Width  virginica &lt;vfold_split[45x5x50x3]&gt; Fold08 &lt;data.table[45x3]&gt;</span></span>
-<span><span class="co">#&gt; 59:  Sepal.Width  virginica &lt;vfold_split[45x5x50x3]&gt; Fold09 &lt;data.table[45x3]&gt;</span></span>
-<span><span class="co">#&gt; 60:  Sepal.Width  virginica &lt;vfold_split[45x5x50x3]&gt; Fold10 &lt;data.table[45x3]&gt;</span></span>
-<span><span class="co">#&gt;             name    Species                   splits     id              train</span></span>
-<span><span class="co">#&gt;              validate</span></span>
-<span><span class="co">#&gt;                &lt;list&gt;</span></span>
-<span><span class="co">#&gt;  1: &lt;data.table[5x3]&gt;</span></span>
-<span><span class="co">#&gt;  2: &lt;data.table[5x3]&gt;</span></span>
-<span><span class="co">#&gt;  3: &lt;data.table[5x3]&gt;</span></span>
-<span><span class="co">#&gt;  4: &lt;data.table[5x3]&gt;</span></span>
-<span><span class="co">#&gt;  5: &lt;data.table[5x3]&gt;</span></span>
-<span><span class="co">#&gt;  6: &lt;data.table[5x3]&gt;</span></span>
-<span><span class="co">#&gt;  7: &lt;data.table[5x3]&gt;</span></span>
-<span><span class="co">#&gt;  8: &lt;data.table[5x3]&gt;</span></span>
-<span><span class="co">#&gt;  9: &lt;data.table[5x3]&gt;</span></span>
-<span><span class="co">#&gt; 10: &lt;data.table[5x3]&gt;</span></span>
-<span><span class="co">#&gt; 11: &lt;data.table[5x3]&gt;</span></span>
-<span><span class="co">#&gt; 12: &lt;data.table[5x3]&gt;</span></span>
-<span><span class="co">#&gt; 13: &lt;data.table[5x3]&gt;</span></span>
-<span><span class="co">#&gt; 14: &lt;data.table[5x3]&gt;</span></span>
-<span><span class="co">#&gt; 15: &lt;data.table[5x3]&gt;</span></span>
-<span><span class="co">#&gt; 16: &lt;data.table[5x3]&gt;</span></span>
-<span><span class="co">#&gt; 17: &lt;data.table[5x3]&gt;</span></span>
-<span><span class="co">#&gt; 18: &lt;data.table[5x3]&gt;</span></span>
-<span><span class="co">#&gt; 19: &lt;data.table[5x3]&gt;</span></span>
-<span><span class="co">#&gt; 20: &lt;data.table[5x3]&gt;</span></span>
-<span><span class="co">#&gt; 21: &lt;data.table[5x3]&gt;</span></span>
-<span><span class="co">#&gt; 22: &lt;data.table[5x3]&gt;</span></span>
-<span><span class="co">#&gt; 23: &lt;data.table[5x3]&gt;</span></span>
-<span><span class="co">#&gt; 24: &lt;data.table[5x3]&gt;</span></span>
-<span><span class="co">#&gt; 25: &lt;data.table[5x3]&gt;</span></span>
-<span><span class="co">#&gt; 26: &lt;data.table[5x3]&gt;</span></span>
-<span><span class="co">#&gt; 27: &lt;data.table[5x3]&gt;</span></span>
-<span><span class="co">#&gt; 28: &lt;data.table[5x3]&gt;</span></span>
-<span><span class="co">#&gt; 29: &lt;data.table[5x3]&gt;</span></span>
-<span><span class="co">#&gt; 30: &lt;data.table[5x3]&gt;</span></span>
-<span><span class="co">#&gt; 31: &lt;data.table[5x3]&gt;</span></span>
-<span><span class="co">#&gt; 32: &lt;data.table[5x3]&gt;</span></span>
-<span><span class="co">#&gt; 33: &lt;data.table[5x3]&gt;</span></span>
-<span><span class="co">#&gt; 34: &lt;data.table[5x3]&gt;</span></span>
-<span><span class="co">#&gt; 35: &lt;data.table[5x3]&gt;</span></span>
-<span><span class="co">#&gt; 36: &lt;data.table[5x3]&gt;</span></span>
-<span><span class="co">#&gt; 37: &lt;data.table[5x3]&gt;</span></span>
-<span><span class="co">#&gt; 38: &lt;data.table[5x3]&gt;</span></span>
-<span><span class="co">#&gt; 39: &lt;data.table[5x3]&gt;</span></span>
-<span><span class="co">#&gt; 40: &lt;data.table[5x3]&gt;</span></span>
-<span><span class="co">#&gt; 41: &lt;data.table[5x3]&gt;</span></span>
-<span><span class="co">#&gt; 42: &lt;data.table[5x3]&gt;</span></span>
-<span><span class="co">#&gt; 43: &lt;data.table[5x3]&gt;</span></span>
-<span><span class="co">#&gt; 44: &lt;data.table[5x3]&gt;</span></span>
-<span><span class="co">#&gt; 45: &lt;data.table[5x3]&gt;</span></span>
-<span><span class="co">#&gt; 46: &lt;data.table[5x3]&gt;</span></span>
-<span><span class="co">#&gt; 47: &lt;data.table[5x3]&gt;</span></span>
-<span><span class="co">#&gt; 48: &lt;data.table[5x3]&gt;</span></span>
-<span><span class="co">#&gt; 49: &lt;data.table[5x3]&gt;</span></span>
-<span><span class="co">#&gt; 50: &lt;data.table[5x3]&gt;</span></span>
-<span><span class="co">#&gt; 51: &lt;data.table[5x3]&gt;</span></span>
-<span><span class="co">#&gt; 52: &lt;data.table[5x3]&gt;</span></span>
-<span><span class="co">#&gt; 53: &lt;data.table[5x3]&gt;</span></span>
-<span><span class="co">#&gt; 54: &lt;data.table[5x3]&gt;</span></span>
-<span><span class="co">#&gt; 55: &lt;data.table[5x3]&gt;</span></span>
-<span><span class="co">#&gt; 56: &lt;data.table[5x3]&gt;</span></span>
-<span><span class="co">#&gt; 57: &lt;data.table[5x3]&gt;</span></span>
-<span><span class="co">#&gt; 58: &lt;data.table[5x3]&gt;</span></span>
-<span><span class="co">#&gt; 59: &lt;data.table[5x3]&gt;</span></span>
-<span><span class="co">#&gt; 60: &lt;data.table[5x3]&gt;</span></span>
-<span><span class="co">#&gt;              validate</span></span></code></pre></div>
+<span><span class="co">#&gt;             name    Species                    splits      id    id2</span></span>
+<span><span class="co">#&gt;           &lt;fctr&gt;     &lt;fctr&gt;                    &lt;list&gt;  &lt;char&gt; &lt;char&gt;</span></span>
+<span><span class="co">#&gt;  1: Sepal.Length     setosa &lt;vfold_split[25x25x50x3]&gt; Repeat1  Fold1</span></span>
+<span><span class="co">#&gt;  2: Sepal.Length     setosa &lt;vfold_split[25x25x50x3]&gt; Repeat1  Fold2</span></span>
+<span><span class="co">#&gt;  3: Sepal.Length     setosa &lt;vfold_split[25x25x50x3]&gt; Repeat2  Fold1</span></span>
+<span><span class="co">#&gt;  4: Sepal.Length     setosa &lt;vfold_split[25x25x50x3]&gt; Repeat2  Fold2</span></span>
+<span><span class="co">#&gt;  5: Sepal.Length versicolor &lt;vfold_split[25x25x50x3]&gt; Repeat1  Fold1</span></span>
+<span><span class="co">#&gt;  6: Sepal.Length versicolor &lt;vfold_split[25x25x50x3]&gt; Repeat1  Fold2</span></span>
+<span><span class="co">#&gt;  7: Sepal.Length versicolor &lt;vfold_split[25x25x50x3]&gt; Repeat2  Fold1</span></span>
+<span><span class="co">#&gt;  8: Sepal.Length versicolor &lt;vfold_split[25x25x50x3]&gt; Repeat2  Fold2</span></span>
+<span><span class="co">#&gt;  9: Sepal.Length  virginica &lt;vfold_split[25x25x50x3]&gt; Repeat1  Fold1</span></span>
+<span><span class="co">#&gt; 10: Sepal.Length  virginica &lt;vfold_split[25x25x50x3]&gt; Repeat1  Fold2</span></span>
+<span><span class="co">#&gt; 11: Sepal.Length  virginica &lt;vfold_split[25x25x50x3]&gt; Repeat2  Fold1</span></span>
+<span><span class="co">#&gt; 12: Sepal.Length  virginica &lt;vfold_split[25x25x50x3]&gt; Repeat2  Fold2</span></span>
+<span><span class="co">#&gt; 13:  Sepal.Width     setosa &lt;vfold_split[25x25x50x3]&gt; Repeat1  Fold1</span></span>
+<span><span class="co">#&gt; 14:  Sepal.Width     setosa &lt;vfold_split[25x25x50x3]&gt; Repeat1  Fold2</span></span>
+<span><span class="co">#&gt; 15:  Sepal.Width     setosa &lt;vfold_split[25x25x50x3]&gt; Repeat2  Fold1</span></span>
+<span><span class="co">#&gt; 16:  Sepal.Width     setosa &lt;vfold_split[25x25x50x3]&gt; Repeat2  Fold2</span></span>
+<span><span class="co">#&gt; 17:  Sepal.Width versicolor &lt;vfold_split[25x25x50x3]&gt; Repeat1  Fold1</span></span>
+<span><span class="co">#&gt; 18:  Sepal.Width versicolor &lt;vfold_split[25x25x50x3]&gt; Repeat1  Fold2</span></span>
+<span><span class="co">#&gt; 19:  Sepal.Width versicolor &lt;vfold_split[25x25x50x3]&gt; Repeat2  Fold1</span></span>
+<span><span class="co">#&gt; 20:  Sepal.Width versicolor &lt;vfold_split[25x25x50x3]&gt; Repeat2  Fold2</span></span>
+<span><span class="co">#&gt; 21:  Sepal.Width  virginica &lt;vfold_split[25x25x50x3]&gt; Repeat1  Fold1</span></span>
+<span><span class="co">#&gt; 22:  Sepal.Width  virginica &lt;vfold_split[25x25x50x3]&gt; Repeat1  Fold2</span></span>
+<span><span class="co">#&gt; 23:  Sepal.Width  virginica &lt;vfold_split[25x25x50x3]&gt; Repeat2  Fold1</span></span>
+<span><span class="co">#&gt; 24:  Sepal.Width  virginica &lt;vfold_split[25x25x50x3]&gt; Repeat2  Fold2</span></span>
+<span><span class="co">#&gt;             name    Species                    splits      id    id2</span></span>
+<span><span class="co">#&gt;                  train           validate</span></span>
+<span><span class="co">#&gt;                 &lt;list&gt;             &lt;list&gt;</span></span>
+<span><span class="co">#&gt;  1: &lt;data.table[25x3]&gt; &lt;data.table[25x3]&gt;</span></span>
+<span><span class="co">#&gt;  2: &lt;data.table[25x3]&gt; &lt;data.table[25x3]&gt;</span></span>
+<span><span class="co">#&gt;  3: &lt;data.table[25x3]&gt; &lt;data.table[25x3]&gt;</span></span>
+<span><span class="co">#&gt;  4: &lt;data.table[25x3]&gt; &lt;data.table[25x3]&gt;</span></span>
+<span><span class="co">#&gt;  5: &lt;data.table[25x3]&gt; &lt;data.table[25x3]&gt;</span></span>
+<span><span class="co">#&gt;  6: &lt;data.table[25x3]&gt; &lt;data.table[25x3]&gt;</span></span>
+<span><span class="co">#&gt;  7: &lt;data.table[25x3]&gt; &lt;data.table[25x3]&gt;</span></span>
+<span><span class="co">#&gt;  8: &lt;data.table[25x3]&gt; &lt;data.table[25x3]&gt;</span></span>
+<span><span class="co">#&gt;  9: &lt;data.table[25x3]&gt; &lt;data.table[25x3]&gt;</span></span>
+<span><span class="co">#&gt; 10: &lt;data.table[25x3]&gt; &lt;data.table[25x3]&gt;</span></span>
+<span><span class="co">#&gt; 11: &lt;data.table[25x3]&gt; &lt;data.table[25x3]&gt;</span></span>
+<span><span class="co">#&gt; 12: &lt;data.table[25x3]&gt; &lt;data.table[25x3]&gt;</span></span>
+<span><span class="co">#&gt; 13: &lt;data.table[25x3]&gt; &lt;data.table[25x3]&gt;</span></span>
+<span><span class="co">#&gt; 14: &lt;data.table[25x3]&gt; &lt;data.table[25x3]&gt;</span></span>
+<span><span class="co">#&gt; 15: &lt;data.table[25x3]&gt; &lt;data.table[25x3]&gt;</span></span>
+<span><span class="co">#&gt; 16: &lt;data.table[25x3]&gt; &lt;data.table[25x3]&gt;</span></span>
+<span><span class="co">#&gt; 17: &lt;data.table[25x3]&gt; &lt;data.table[25x3]&gt;</span></span>
+<span><span class="co">#&gt; 18: &lt;data.table[25x3]&gt; &lt;data.table[25x3]&gt;</span></span>
+<span><span class="co">#&gt; 19: &lt;data.table[25x3]&gt; &lt;data.table[25x3]&gt;</span></span>
+<span><span class="co">#&gt; 20: &lt;data.table[25x3]&gt; &lt;data.table[25x3]&gt;</span></span>
+<span><span class="co">#&gt; 21: &lt;data.table[25x3]&gt; &lt;data.table[25x3]&gt;</span></span>
+<span><span class="co">#&gt; 22: &lt;data.table[25x3]&gt; &lt;data.table[25x3]&gt;</span></span>
+<span><span class="co">#&gt; 23: &lt;data.table[25x3]&gt; &lt;data.table[25x3]&gt;</span></span>
+<span><span class="co">#&gt; 24: &lt;data.table[25x3]&gt; &lt;data.table[25x3]&gt;</span></span>
+<span><span class="co">#&gt;                  train           validate</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="top_perc">top_perc<a class="anchor" aria-label="anchor" href="#top_perc"></a>
 </h2>
-<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/top_perc.html">top_perc</a></span><span class="op">(</span><span class="va">iris</span>, perc <span class="op">=</span> <span class="fl">0.5</span>, trait <span class="op">=</span> <span class="st">"Petal.Width"</span>, by <span class="op">=</span> <span class="st">"Species"</span><span class="op">)</span></span>
 <span><span class="co">#&gt; <span style="color: #949494;"># A tibble: 3 × 6</span></span></span>
 <span><span class="co">#&gt;   Species    variable        n  mean    sd top_perc</span></span>
@@ -467,7 +486,6 @@ This should be a reproducible and working example
 <p>That’s it ! This the end of the documented story of our package. All
 components are there.</p>
 <!-- 
-
 # Inflate your package
 
 You're one inflate from paper to box.

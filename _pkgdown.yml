@@ -24,7 +24,7 @@ reference:
   - '`w2l_split`'
   - '`nest_cv`'
   - '`combn_pair`'
-  - '`convert_nested`'
+  - '`convert_nest`'
   - '`nest_export`'
 # - title: stat functions
 #   desc: |
@@ -45,5 +45,7 @@ reference:
   contents:
   - '`mintyr_example`'
   - '`mintyr_examples`'
+  - '`nedaps`'
+  - '`fires`'
   - '`nedap`'
   - '`fire`'

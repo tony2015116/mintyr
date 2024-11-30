@@ -3,7 +3,8 @@ flat_teaching.Rmd:
   state: active
   R:
   - R/combn_pair.R
-  - R/convert_nested.R
+  - R/convert_nest.R
+  - R/fires.R
   - R/format_digits.R
   - R/get_filename.R
   - R/get_path_segment.R
@@ -11,6 +12,7 @@ flat_teaching.Rmd:
   - R/import_xlsx.R
   - R/mintyr_example.R
   - R/mintyr_examples.R
+  - R/nedaps.R
   - R/nest_cv.R
   - R/nest_export.R
   - R/top_perc.R

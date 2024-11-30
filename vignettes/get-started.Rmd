@@ -36,23 +36,42 @@ Fill and run the content of this chunk, before anything else.
 Note: when you will use other flat templates, this part will be in a separate file. Do not be surprised!
 --> 
 
-
-# convert_nested
+# fires
     
   
-```{r example-convert_nested}
+```{r example-fires}
+head(fires())
+```
+
+  
+
+# nedaps
+    
+  
+```{r example-nedaps}
+head(nedaps())
+```
+
+
+
+# convert_nest
+    
+  
+```{r example-convert_nest}
 # Convert a data frame with nested columns to data table
 df_nest1 <- iris |> 
   dplyr::group_nest(Species)
+df_nest1
 df_nest2 <- iris |>
   dplyr::group_nest(Species) |>
   dplyr::mutate(data2 = purrr::map(data, dplyr::mutate, c=2))
+df_nest2
 # Convert a data table with specific nested columns to data frame
-convert_nested(df_nest1, to = "dt", nested_cols = c("data"))
-convert_nested(df_nest2, to = "dt", nested_cols = c("data", "data2"))
+convert_nest(df_nest1, to = "dt", nest_cols = c("data"))
+convert_nest(df_nest2, to = "dt", nest_cols = c("data", "data2"))
 # Convert a data table with nested columns to data frame
 dt_nest <- mintyr::w2l_nest(data = iris, cols2l = 1:2, by = "Species")
-convert_nested(dt_nest, to = "dt", nested_cols = c("data"))
+convert_nest(dt_nest, to = "df", nest_cols = c("data"))
 ```
 
   

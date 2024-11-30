@@ -9,7 +9,7 @@
 #' @param data A data frame or data table containing nested columns
 #' @param to A character string specifying the target format. 
 #'   Options are "df" (data frame) or "dt" (data table). Defaults to "df".
-#' @param nested_cols A character vector of column names containing nested data. 
+#' @param nest_cols A character vector of column names containing nested data. 
 #'   If NULL, the function automatically detects list columns.
 #'
 #' @details
@@ -34,21 +34,23 @@
 #' # Convert a data frame with nested columns to data table
 #' df_nest1 <- iris |> 
 #'   dplyr::group_nest(Species)
+#' df_nest1
 #' df_nest2 <- iris |>
 #'   dplyr::group_nest(Species) |>
 #'   dplyr::mutate(data2 = purrr::map(data, dplyr::mutate, c=2))
+#' df_nest2
 #' # Convert a data table with specific nested columns to data frame
-#' convert_nested(df_nest1, to = "dt", nested_cols = c("data"))
-#' convert_nested(df_nest2, to = "dt", nested_cols = c("data", "data2"))
+#' convert_nest(df_nest1, to = "dt", nest_cols = c("data"))
+#' convert_nest(df_nest2, to = "dt", nest_cols = c("data", "data2"))
 #' # Convert a data table with nested columns to data frame
 #' dt_nest <- mintyr::w2l_nest(data = iris, cols2l = 1:2, by = "Species")
-#' convert_nested(dt_nest, to = "dt", nested_cols = c("data"))
-convert_nested <- function(data, to = c("df", "dt"), nested_cols = NULL) {
+#' convert_nest(dt_nest, to = "df", nest_cols = c("data"))
+convert_nest <- function(data, to = c("df", "dt"), nest_cols = NULL) {
   to <- match.arg(to)
 
   # Automatically detect nested columns (list columns) if not specified
-  if (is.null(nested_cols)) {
-    nested_cols <- names(data)[sapply(data, is.list)]
+  if (is.null(nest_cols)) {
+    nest_cols <- names(data)[sapply(data, is.list)]
   }
 
   if (to == "df") {
@@ -59,7 +61,7 @@ convert_nested <- function(data, to = c("df", "dt"), nested_cols = NULL) {
       data <- as.data.frame(data)
     }
     # Convert each element of nested columns to data.frame
-    for (col in nested_cols) {
+    for (col in nest_cols) {
       data[[col]] <- lapply(data[[col]], function(x) {
         if (inherits(x, "data.table")) {
           as.data.frame(copy(x))
@@ -76,7 +78,7 @@ convert_nested <- function(data, to = c("df", "dt"), nested_cols = NULL) {
       data <- as.data.table(copy(data))
     }
     # Convert each element of nested columns to data.table
-    for (col in nested_cols) {
+    for (col in nest_cols) {
       data[[col]] <- lapply(data[[col]], function(x) {
         if (!inherits(x, "data.table")) {
           as.data.table(copy(x))
@@ -89,3 +91,4 @@ convert_nested <- function(data, to = c("df", "dt"), nested_cols = NULL) {
 
   return(data)
 }
+

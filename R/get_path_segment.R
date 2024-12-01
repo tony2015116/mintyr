@@ -39,22 +39,23 @@
 get_path_segment <- function(paths, n = 1) {
   # Check if paths parameter is provided
   if (missing(paths)) stop("Parameter 'paths' cannot be empty")
-
+  
   # Validate paths is a character vector
   if (!is.character(paths)) stop("'paths' must be character")
-
+  
   # Return empty character vector if paths is empty
   if (length(paths) == 0) return(character(0))
-
+  
   # Validate n is numeric
   if (!is.numeric(n)) stop("'n' must be numeric")
-
+  
   # Prevent zero index
   if (n == 0) stop("'n' cannot be 0")
-
-  # Split paths into segments
+  
+  # Split paths into segments and remove empty strings
   segments <- strsplit(paths, "/")
-
+  segments <- lapply(segments, function(x) x[x != ""])
+  
   # Extract specific path segments
   result <- sapply(segments, function(x) {
     if (n > 0) {
@@ -65,11 +66,12 @@ get_path_segment <- function(paths, n = 1) {
       # Negative index: count from the end
       # Convert negative index to positive position
       pos <- length(x) + n + 1
-
+      
       # Return segment if position is valid, otherwise return NA
       if (pos > 0 && pos <= length(x)) x[pos] else NA_character_
     }
   })
-
+  
   return(result)
 }
+

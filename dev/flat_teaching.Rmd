@@ -42,6 +42,142 @@ fusen::fill_description(
 usethis::use_mit_license("Guo Meng")
 ```
 
+
+# combn_pairs2
+    
+```{r function-combn_pairs2}
+#' Combine and Reshape Data by Specified Columns
+#'
+#' @description
+#' Transforms a wide-format dataset into a nested data structure by combining 
+#' specified columns and grouping by traits.
+#'
+#' @param data A data frame or data table containing the input data
+#' @param cols2bind A single column name or index to use for binding/grouping
+#' @param by A vector of column names or indices representing traits to be combined
+#' @param nest_type The type of nested data structure to return. 
+#'   Options are "dt" (data.table) or "df" (data frame). Defaults to "dt".
+#'
+#' @details
+#' The function performs the following operations:
+#' \itemize{
+#'   \item Converts input to data.table format
+#'   \item Validates input columns
+#'   \item Reshapes data to long format using \code{melt()}
+#'   \item Casts data to wide format using \code{dcast()}
+#'   \item Creates a nested data structure grouped by traits
+#' }
+#'
+#' @return A data.table with two columns:
+#' \itemize{
+#'   \item \code{trait}: The trait identifier
+#'   \item \code{data}: A list column containing nested data structures
+#' }
+#'
+#' @note
+#' - Supports both numeric indices and column names for \code{cols2bind} and \code{by}
+#' - Automatically detects and preserves ID columns
+#' - Allows flexible reshaping of data with different nesting options
+#' 
+#' @importFrom data.table as.data.table melt dcast
+#' @importFrom stats as.formula
+#' @export
+
+combn_pair2 <- function(data, cols2bind, by, nest_type = "dt") {# Type of nested data structure ("dt" or "df")
+    . <- NULL
+    # Ensure input is data.table format
+    data <- as.data.table(data)
+    
+    # Validate and process cols2bind
+    if (length(cols2bind) != 1) {
+        stop("cols2bind must be a single column")
+    }
+    
+    # Convert numeric indices to column names
+    if (is.numeric(by)) {
+        if (any(by > ncol(data) | by < 1)) {
+            stop("Invalid column indices in by")
+        }
+        by <- names(data)[by]
+    }
+    
+    if (is.numeric(cols2bind)) {
+        if (cols2bind > ncol(data) | cols2bind < 1) {
+            stop("Invalid column index in cols2bind")
+        }
+        cols2bind <- names(data)[cols2bind]
+    }
+    
+    # Auto-detect ID columns (excluding trait columns)
+    id_cols <- setdiff(names(data), by)
+    
+    # Parameter validation
+    if (!all(by %in% names(data))) {
+        stop("Specified by columns not found in data")
+    }
+    
+    if (!cols2bind %in% names(data)) {
+        stop("Specified cols2bind not found in data")
+    }
+    
+    # 1. Reshape to long format
+    long_dt <- melt(data,
+                    id.vars = id_cols,
+                    measure.vars = by,
+                    variable.name = "trait",
+                    value.name = "value")
+    
+    # 2. Reshape to wide format based on factor
+    # Create formula for spreading data by factor
+    other_ids <- setdiff(id_cols, cols2bind)
+    formula_str <- paste(
+        paste(c("trait", other_ids), collapse = " + "),
+        cols2bind,
+        sep = " ~ "
+    )
+    
+    wide_dt <- dcast(long_dt,
+                     as.formula(formula_str),
+                     value.var = "value")
+    
+    # 3. Group by trait and create nested data structure based on nest_type
+    if (nest_type == "dt") {
+        result <- wide_dt[, .(data = list(.SD)), by = "trait"]
+    }
+    else if (nest_type == "df") {
+        result <- wide_dt[, .(data = list(as.data.frame(.SD))), by = "trait"]
+    }
+    else {
+        stop("Invalid nest_type provided. It must be either 'dt' or 'df'.")
+    }
+    
+    return(result)
+}
+```
+  
+```{r example-combn_pairs2}
+# Sample data
+data <- data.frame(
+  breed = c("A", "B", "A", "B"), 
+  sex = c("F", "F", "M", "M"), 
+  trait1 = c(1.1, 2.1, 3.5, 4.6),
+  trait2 = c(5.2, 6.6, 7.3, 8.6))
+# Method 1: Using combn_pair2() with data.table
+# Combine by breed, grouping traits
+combn_pair2(data, cols2bind = "breed", by = c("trait1", "trait2"))
+
+# Return as data frame nested structure
+combn_pair2(data, cols2bind = "breed", 
+                           by = c("trait1", "trait2"), 
+                           nest_type = "df")
+# Method 2: Using tidyr and dplyr for similar transformation
+data |>
+  tidyr::pivot_longer(cols = c("trait1", "trait2"), names_to = "name", values_to = "value") |>
+  tidyr::pivot_wider(names_from = "breed", values_from = "value") |>
+  dplyr::group_nest(name)
+```
+
+
 # fires
     
 ```{r function-fires}
@@ -225,7 +361,8 @@ convert_nest(df_nest1, to = "dt", nest_cols = c("data"))
 convert_nest(df_nest2, to = "dt", nest_cols = c("data", "data2"))
 # Convert a data table with nested columns to data frame
 dt_nest <- mintyr::w2l_nest(data = iris, cols2l = 1:2, by = "Species")
-convert_nest(dt_nest, to = "df", nest_cols = c("data"))
+convert_nest(dt_nest, to = "df", nest_cols = c("data")) |>
+  dplyr::glimpse()
 ```
   
   
@@ -264,22 +401,23 @@ convert_nest(dt_nest, to = "df", nest_cols = c("data"))
 get_path_segment <- function(paths, n = 1) {
   # Check if paths parameter is provided
   if (missing(paths)) stop("Parameter 'paths' cannot be empty")
-
+  
   # Validate paths is a character vector
   if (!is.character(paths)) stop("'paths' must be character")
-
+  
   # Return empty character vector if paths is empty
   if (length(paths) == 0) return(character(0))
-
+  
   # Validate n is numeric
   if (!is.numeric(n)) stop("'n' must be numeric")
-
+  
   # Prevent zero index
   if (n == 0) stop("'n' cannot be 0")
-
-  # Split paths into segments
+  
+  # Split paths into segments and remove empty strings
   segments <- strsplit(paths, "/")
-
+  segments <- lapply(segments, function(x) x[x != ""])
+  
   # Extract specific path segments
   result <- sapply(segments, function(x) {
     if (n > 0) {
@@ -290,14 +428,15 @@ get_path_segment <- function(paths, n = 1) {
       # Negative index: count from the end
       # Convert negative index to positive position
       pos <- length(x) + n + 1
-
+      
       # Return segment if position is valid, otherwise return NA
       if (pos > 0 && pos <= length(x)) x[pos] else NA_character_
     }
   })
-
+  
   return(result)
 }
+
 ```
   
 ```{r example-get_path_segment}
@@ -1527,16 +1666,16 @@ top_perc <- function(data, perc, trait, by = NULL, type = "mean_sd", keep_data =
   if (missing(data)) missing_args <- c(missing_args, "data")
   if (missing(perc)) missing_args <- c(missing_args, "perc")
   if (missing(trait)) missing_args <- c(missing_args, "trait")
-
+  
   if (length(missing_args) > 0) {
     stop("Error: Missing argument(s): ", paste(missing_args, collapse=", "))
   }
-
+  
   if (!inherits(data, "data.frame")) {
     message("Converting 'data' to data.frame")
     data <- as.data.frame(data)
   }
-
+  
   # Ensure 'perc' is treated as a numeric vector
   perc <- as.numeric(perc)
   if (length(perc) == 0) {
@@ -1545,15 +1684,25 @@ top_perc <- function(data, perc, trait, by = NULL, type = "mean_sd", keep_data =
   if (any(perc < -1 | perc > 1)) {
     stop("Error: Each element of 'perc' must be a numeric value between -1 and 1.")
   }
-
+  
+  # Validate 'trait' parameter
+  if (!is.character(trait) || length(trait) != 1) {
+    stop("Error: 'trait' must be a single character string.")
+  }
   if (!trait %in% names(data)) {
     stop("Error: 'trait' must be a valid column name in 'data'.")
   }
-
-  if (!is.null(by) && !all(by %in% names(data))) {
-    stop("Error: 'by' must contain valid column names in 'data'.")
+  
+  # Validate 'by' parameter if not NULL
+  if (!is.null(by)) {
+    if (!is.character(by) || length(by) == 0) {
+      stop("Error: 'by' must be a character vector of column names in 'data'.")
+    }
+    if (!all(by %in% names(data))) {
+      stop("Error: All elements of 'by' must be valid column names in 'data'.")
+    }
   }
-
+  
   # Processing each percentage
   results <- purrr::map(perc, function(p) {
     grouped_data <- if (!is.null(by) && length(by) > 0) {
@@ -1561,15 +1710,15 @@ top_perc <- function(data, perc, trait, by = NULL, type = "mean_sd", keep_data =
     } else {
       data
     }
-
+    
     top_data <- grouped_data |>
       dplyr::top_frac(p, !!rlang::sym(trait))
-
+    
     # Always compute stats
     stats <- top_data |>
       rstatix::get_summary_stats(!!rlang::sym(trait), type = type) |>
       dplyr::mutate(top_perc = paste0(p * 100, "%"))
-
+    
     # Return both stats and data if keep_data is TRUE
     if (keep_data) {
       list(stat = stats, data = top_data)
@@ -1578,20 +1727,49 @@ top_perc <- function(data, perc, trait, by = NULL, type = "mean_sd", keep_data =
     }
   }) |>
     purrr::set_names(paste(trait, perc, sep = "_"))
-
+  
   # Simplify the output structure based on what is available in each result
   if (keep_data) {
     results
   } else {
     results <- purrr::map(results, "stat") |> purrr::list_rbind()
   }
-
+  
   return(results)
 }
 ```
   
 ```{r example-top_perc}
-top_perc(iris, perc = 0.5, trait = "Petal.Width", by = "Species")
+# Example 1: Basic usage with single trait
+# This example selects the top 10% of observations based on Petal.Width
+# keep_data=TRUE returns both summary statistics and the filtered data
+top_perc(iris, 
+         perc = 0.1,                # Select top 10%
+         trait = c("Petal.Width"),  # Column to analyze
+         keep_data = TRUE)          # Return both stats and filtered data
+
+# Example 2: Using grouping with 'by' parameter
+# This example performs the same analysis but separately for each Species
+# Returns nested list with stats and filtered data for each group
+top_perc(iris, 
+         perc = 0.1,                # Select top 10%
+         trait = c("Petal.Width"),  # Column to analyze
+         by = "Species")            # Group by Species
+
+# Example 3: Complex example with multiple percentages and grouping variables
+# Uses pipe operator and transformed data
+iris |>
+  # Reshape data from wide to long format for Sepal.Length and Sepal.Width
+  tidyr::pivot_longer(1:2,                  # Transform first two columns
+                     names_to = "names",     # New column for original column names
+                     values_to = "values") |># New column for values
+  # Apply top_perc function on reshaped data
+  mintyr::top_perc(
+    perc = c(0.1, -0.2),           # Select top 10% AND bottom 20%
+    trait = "values",               # Analyze the 'values' column
+    by = c("Species", "names"),     # Group by both Species and measurement type
+    type = "mean_sd")               # Calculate mean and standard deviation
+
 ```
   
 

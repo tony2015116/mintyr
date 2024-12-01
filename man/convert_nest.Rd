@@ -52,5 +52,6 @@ convert_nest(df_nest1, to = "dt", nest_cols = c("data"))
 convert_nest(df_nest2, to = "dt", nest_cols = c("data", "data2"))
 # Convert a data table with nested columns to data frame
 dt_nest <- mintyr::w2l_nest(data = iris, cols2l = 1:2, by = "Species")
-convert_nest(dt_nest, to = "df", nest_cols = c("data"))
+convert_nest(dt_nest, to = "df", nest_cols = c("data")) |>
+  dplyr::glimpse()
 }

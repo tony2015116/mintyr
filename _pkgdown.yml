@@ -24,6 +24,7 @@ reference:
   - '`w2l_split`'
   - '`nest_cv`'
   - '`combn_pair`'
+  - '`combn_pair2`'
   - '`convert_nest`'
   - '`nest_export`'
 # - title: stat functions
@@ -49,3 +50,17 @@ reference:
   - '`fires`'
   - '`nedap`'
   - '`fire`'
+articles:
+  - title: step0
+    navbar: tutorial
+    contents:
+      - get-started
+
+  - title: 高级主题
+    contents:
+      - get-started
+
+  # 使用正则表达式匹配文章
+  - title: all
+    contents:
+      - starts_with("get-")

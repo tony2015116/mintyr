@@ -3,6 +3,7 @@ flat_teaching.Rmd:
   state: active
   R:
   - R/combn_pair.R
+  - R/combn_pair2.R
   - R/convert_nest.R
   - R/fires.R
   - R/format_digits.R

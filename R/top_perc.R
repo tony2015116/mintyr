@@ -30,23 +30,52 @@
 #'   \item If `keep_data` is set to TRUE, the function will return both the summary statistics and the selected top data for each percentage.
 #' }
 #' @examples
-#' top_perc(iris, perc = 0.5, trait = "Petal.Width", by = "Species")
+#' # Example 1: Basic usage with single trait
+#' # This example selects the top 10% of observations based on Petal.Width
+#' # keep_data=TRUE returns both summary statistics and the filtered data
+#' top_perc(iris, 
+#'          perc = 0.1,                # Select top 10%
+#'          trait = c("Petal.Width"),  # Column to analyze
+#'          keep_data = TRUE)          # Return both stats and filtered data
+#'
+#' # Example 2: Using grouping with 'by' parameter
+#' # This example performs the same analysis but separately for each Species
+#' # Returns nested list with stats and filtered data for each group
+#' top_perc(iris, 
+#'          perc = 0.1,                # Select top 10%
+#'          trait = c("Petal.Width"),  # Column to analyze
+#'          by = "Species")            # Group by Species
+#'
+#' # Example 3: Complex example with multiple percentages and grouping variables
+#' # Uses pipe operator and transformed data
+#' iris |>
+#'   # Reshape data from wide to long format for Sepal.Length and Sepal.Width
+#'   tidyr::pivot_longer(1:2,                  # Transform first two columns
+#'                      names_to = "names",     # New column for original column names
+#'                      values_to = "values") |># New column for values
+#'   # Apply top_perc function on reshaped data
+#'   mintyr::top_perc(
+#'     perc = c(0.1, -0.2),           # Select top 10% AND bottom 20%
+#'     trait = "values",               # Analyze the 'values' column
+#'     by = c("Species", "names"),     # Group by both Species and measurement type
+#'     type = "mean_sd")               # Calculate mean and standard deviation
+#'
 top_perc <- function(data, perc, trait, by = NULL, type = "mean_sd", keep_data = FALSE) {
   # Initial checks and data preparation
   missing_args <- c()
   if (missing(data)) missing_args <- c(missing_args, "data")
   if (missing(perc)) missing_args <- c(missing_args, "perc")
   if (missing(trait)) missing_args <- c(missing_args, "trait")
-
+  
   if (length(missing_args) > 0) {
     stop("Error: Missing argument(s): ", paste(missing_args, collapse=", "))
   }
-
+  
   if (!inherits(data, "data.frame")) {
     message("Converting 'data' to data.frame")
     data <- as.data.frame(data)
   }
-
+  
   # Ensure 'perc' is treated as a numeric vector
   perc <- as.numeric(perc)
   if (length(perc) == 0) {
@@ -55,15 +84,25 @@ top_perc <- function(data, perc, trait, by = NULL, type = "mean_sd", keep_data =
   if (any(perc < -1 | perc > 1)) {
     stop("Error: Each element of 'perc' must be a numeric value between -1 and 1.")
   }
-
+  
+  # Validate 'trait' parameter
+  if (!is.character(trait) || length(trait) != 1) {
+    stop("Error: 'trait' must be a single character string.")
+  }
   if (!trait %in% names(data)) {
     stop("Error: 'trait' must be a valid column name in 'data'.")
   }
-
-  if (!is.null(by) && !all(by %in% names(data))) {
-    stop("Error: 'by' must contain valid column names in 'data'.")
+  
+  # Validate 'by' parameter if not NULL
+  if (!is.null(by)) {
+    if (!is.character(by) || length(by) == 0) {
+      stop("Error: 'by' must be a character vector of column names in 'data'.")
+    }
+    if (!all(by %in% names(data))) {
+      stop("Error: All elements of 'by' must be valid column names in 'data'.")
+    }
   }
-
+  
   # Processing each percentage
   results <- purrr::map(perc, function(p) {
     grouped_data <- if (!is.null(by) && length(by) > 0) {
@@ -71,15 +110,15 @@ top_perc <- function(data, perc, trait, by = NULL, type = "mean_sd", keep_data =
     } else {
       data
     }
-
+    
     top_data <- grouped_data |>
       dplyr::top_frac(p, !!rlang::sym(trait))
-
+    
     # Always compute stats
     stats <- top_data |>
       rstatix::get_summary_stats(!!rlang::sym(trait), type = type) |>
       dplyr::mutate(top_perc = paste0(p * 100, "%"))
-
+    
     # Return both stats and data if keep_data is TRUE
     if (keep_data) {
       list(stat = stats, data = top_data)
@@ -88,13 +127,13 @@ top_perc <- function(data, perc, trait, by = NULL, type = "mean_sd", keep_data =
     }
   }) |>
     purrr::set_names(paste(trait, perc, sep = "_"))
-
+  
   # Simplify the output structure based on what is available in each result
   if (keep_data) {
     results
   } else {
     results <- purrr::map(results, "stat") |> purrr::list_rbind()
   }
-
+  
   return(results)
 }

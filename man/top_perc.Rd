@@ -43,5 +43,34 @@ The function can also retain the selected data if needed.
 }
 }
 \examples{
-top_perc(iris, perc = 0.5, trait = "Petal.Width", by = "Species")
+# Example 1: Basic usage with single trait
+# This example selects the top 10\% of observations based on Petal.Width
+# keep_data=TRUE returns both summary statistics and the filtered data
+top_perc(iris, 
+         perc = 0.1,                # Select top 10\%
+         trait = c("Petal.Width"),  # Column to analyze
+         keep_data = TRUE)          # Return both stats and filtered data
+
+# Example 2: Using grouping with 'by' parameter
+# This example performs the same analysis but separately for each Species
+# Returns nested list with stats and filtered data for each group
+top_perc(iris, 
+         perc = 0.1,                # Select top 10\%
+         trait = c("Petal.Width"),  # Column to analyze
+         by = "Species")            # Group by Species
+
+# Example 3: Complex example with multiple percentages and grouping variables
+# Uses pipe operator and transformed data
+iris |>
+  # Reshape data from wide to long format for Sepal.Length and Sepal.Width
+  tidyr::pivot_longer(1:2,                  # Transform first two columns
+                     names_to = "names",     # New column for original column names
+                     values_to = "values") |># New column for values
+  # Apply top_perc function on reshaped data
+  mintyr::top_perc(
+    perc = c(0.1, -0.2),           # Select top 10\% AND bottom 20\%
+    trait = "values",               # Analyze the 'values' column
+    by = c("Species", "names"),     # Group by both Species and measurement type
+    type = "mean_sd")               # Calculate mean and standard deviation
+
 }

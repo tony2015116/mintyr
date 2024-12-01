@@ -26,7 +26,8 @@ Imports:
     utils
 Suggests: 
     knitr,
-    rmarkdown
+    rmarkdown,
+    tidyr
 VignetteBuilder: 
     knitr
 Config/fusen/version: 0.6.0

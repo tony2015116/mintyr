@@ -2,6 +2,7 @@
 
 #' Reshape Wide Data to Long Format and Nest by Specified Columns
 #' 
+#' @description
 #' The `w2l_nest` function reshapes wide-format data into long-format and nests it by specified columns.
 #' It handles both `data.frame` and `data.table` objects and provides options for grouping and nesting the data.
 #' 
@@ -13,22 +14,31 @@
 #'   result: `"dt"` for `data.table`, `"df"` for `data.frame`. Default is `"dt"`.
 #'
 #' @return A `data.table` with nested data in long format, grouped by specified columns if provided.
-#' Each row contains a nested data table or data frame under the column `data`, depending on `nest_type`.
+#' Each row contains a nested `data.table` or `data.frame` under the column `data`, depending on `nest_type`.
 #' \itemize{
 #'   \item If `by` is `NULL`, returns a `data.table` nested by `name`.
 #'   \item If `by` is specified, returns a `data.table` nested by `name` and the grouping variables.
 #' }
 #' 
 #' @details
-#' The function melts the specified wide columns into long format and nests the resulting data by the `name`
-#' column and any additional grouping variables specified in `by`. The nested data can be in the form of
-#' `data.table` or `data.frame` objects, controlled by the `nest_type` parameter.
+#' The function performs the following key operations:
+#' \enumerate{
+#'   \item Melts the specified wide columns into long format
+#'   \item Nests the resulting data by the `name` column
+#'   \item Optionally groups by additional variables specified in `by`
+#'   \item Allows flexible output format (`data.table` or `data.frame`)
+#' }
 #' 
-#' @import data.table
-#' 
-#' @export
+#' Transformation Strategy:
+#' \itemize{
+#'   \item Converts input to `data.table` if necessary
+#'   \item Validates input columns and grouping variables
+#'   \item Reshapes data using `data.table::melt()`
+#'   \item Nests data with flexible grouping options
+#' }
 #' 
 #' @note
+#' Important Considerations:
 #' \itemize{
 #'   \item The `cols2l` parameter should be either numeric indices or a character vector of column names present in `data`.
 #'   \item Ensure all grouping variables specified in `by` are present in `data`.
@@ -36,6 +46,9 @@
 #'   \item The `nest_type` parameter controls whether nested data are `data.table` (`"dt"`) or `data.frame` (`"df"`) objects.
 #'   \item If `nest_type` is not `"dt"` or `"df"`, the function will stop with an error.
 #' }
+#' 
+#' @import data.table
+#' @export
 #' @examples
 #' w2l_nest(data = iris, cols2l = 1:4)
 #' w2l_nest(data = iris, cols2l = c("Sepal.Length", "Sepal.Width", "Petal.Length"), by = "Species")

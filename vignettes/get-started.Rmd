@@ -37,29 +37,81 @@ Note: when you will use other flat templates, this part will be in a separate fi
 --> 
 
 
-# combn_pairs2
+# split_cv
     
   
-```{r example-combn_pairs2}
+```{r example-split_cv}
+dt_split <- w2l_split(data = iris, cols2l = 1:2, by = "Species")
+split_cv(split_dt = dt_split, v = 3, repeats = 2)
+```
+
+
+
+# c2p_nest
+    
+  
+```{r example-c2p_nest}
+col_names <- c("Sepal.Length", "Sepal.Width", "Petal.Length")
+c2p_nest(iris, cols2bind = col_names, pairs_n = 2, sep = "&")
+c2p_nest(iris, cols2bind = col_names, pairs_n = 2, by = "Species")
+```
+
+
+
+# r2p_nest
+    
+
+```{r example-r2p_nest}
 # Sample data
 data <- data.frame(
   breed = c("A", "B", "A", "B"), 
   sex = c("F", "F", "M", "M"), 
   trait1 = c(1.1, 2.1, 3.5, 4.6),
   trait2 = c(5.2, 6.6, 7.3, 8.6))
-# Method 1: Using combn_pair2() with data.table
+data
+# Method 1: Using r2p_nest() with data.table
 # Combine by breed, grouping traits
-combn_pair2(data, cols2bind = "breed", by = c("trait1", "trait2"))
-
+r2p_nest(data, rows2bind = "breed", by = "trait1")
 # Return as data frame nested structure
-combn_pair2(data, cols2bind = "breed", 
-                           by = c("trait1", "trait2"), 
-                           nest_type = "df")
+r2p_nest(data, rows2bind = "breed", by = c("trait1", "trait2"), nest_type = "df")
 # Method 2: Using tidyr and dplyr for similar transformation
 data |>
-  tidyr::pivot_longer(cols = c("trait1", "trait2"), names_to = "name", values_to = "value") |>
+  tidyr::pivot_longer(cols = c("trait1"), names_to = "name", values_to = "value") |>
   tidyr::pivot_wider(names_from = "breed", values_from = "value") |>
   dplyr::group_nest(name)
+```
+
+
+
+# export_nest
+    
+  
+```{r example-export_nest}
+# Data Nesting Operation
+dt_nest <- w2l_nest(data = iris, cols2l = 1:2, by = "Species")
+# Export Nested Data
+export_nest(nest_dt = dt_nest, nest_col = "data",
+            group_cols = c("name", "Species"))
+# Check Export Results
+files <- list.files(path = tempdir(), pattern = "txt", recursive = TRUE, full.names = TRUE)
+files
+file.remove(files)
+```
+
+
+
+# export_list
+    
+  
+```{r example-export_list}
+# Data Nesting Operation
+dt_split <- w2l_split(data = iris, cols2l = 1:2, by = "Species")
+# Export Nested Data
+export_list(split_dt = dt_split)
+# Check Export Results
+files <- list.files(path = tempdir(), pattern = "txt", recursive = TRUE, full.names = TRUE)
+files
+file.remove(files)
 ```
 
 
@@ -99,8 +151,7 @@ convert_nest(df_nest1, to = "dt", nest_cols = c("data"))
 convert_nest(df_nest2, to = "dt", nest_cols = c("data", "data2"))
 # Convert a data table with nested columns to data frame
 dt_nest <- mintyr::w2l_nest(data = iris, cols2l = 1:2, by = "Species")
-convert_nest(dt_nest, to = "df", nest_cols = c("data")) |>
-  dplyr::glimpse()
+convert_nest(dt_nest, to = "df", nest_cols = c("data"))
 ```
 
   
@@ -116,22 +167,6 @@ get_path_segment(paths, 2)
 # Negative index example
 get_path_segment(paths, -2)
 ```
-
-  
-
-# nest_export
-    
-  
-```{r example-nest_export}
-# Data Nesting Operation
-dt_nest <- w2l_nest(data = iris, cols2l = 1:2, by = "Species")
-# Export Nested Data
-nest_export(nest_dt = dt_nest, nest_col = "data",
-            group_cols = c("name", "Species"))
-# Check Export Results
-list.files(path = tempdir(), pattern = "txt", recursive = TRUE)
-```
-
 
 
 
@@ -185,22 +220,12 @@ import_xlsx(xlsx_files)
 
   
 # import_csv
-
-This is the first tool of our wonderful package. 
-You can add `1` to any `value` using function `add_one()`.
-
 <!-- 
 This first section shows:
-
 - the three parts necessary for a package: 'function', 'examples' and 'tests'.  
   + Note that the three following chunks have names accordingly.
-
 -->
 
-<!--
-Here is an example on how to use the function.
-This should be a reproducible and working example
--->
 ```{r examples-import_csv}
 csv_files <- mintyr_example(mintyr_examples("csv_test"))
 csv_files
@@ -239,17 +264,8 @@ w2l_split(data = iris, cols2l = 1:3)
 w2l_split(data = iris, cols2l = c("Sepal.Length", "Sepal.Width"))
 ```
 
-  
-# combn_pair
-    
-  
-```{r example-combn_pair}
-col_names <- c("Sepal.Length", "Sepal.Width", "Petal.Length")
-combn_pair(iris, cols2bind = col_names, pairs_n = 2, sep = "&")
-combn_pair(iris, cols2bind = col_names, pairs_n = 2, by = "Species")
-```
 
-  
+
 # nest_cv
     
   
@@ -296,11 +312,9 @@ iris |>
 
 ```
 
-  
 
 
 
-That's it ! This the end of the documented story of our package. All components are there.
 
 <!-- 
 # Inflate your package

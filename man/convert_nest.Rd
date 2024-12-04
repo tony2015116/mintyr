@@ -2,40 +2,58 @@
 % Please edit documentation in R/convert_nest.R
 \name{convert_nest}
 \alias{convert_nest}
-\title{Convert Nested Columns Between Data Frame and Data Table}
+\title{Convert Nested Columns Between \code{data.frame} and \code{data.table}}
 \usage{
 convert_nest(data, to = c("df", "dt"), nest_cols = NULL)
 }
 \arguments{
-\item{data}{A data frame or data table containing nested columns}
+\item{data}{A \code{data.frame} or \code{data.table} containing nested columns}
 
-\item{to}{A character string specifying the target format.
-Options are "df" (data frame) or "dt" (data table). Defaults to "df".}
+\item{to}{A \code{character} string specifying the target format.
+Options are \code{"df"} (data frame) or \code{"dt"} (data table). Defaults to \code{"df"}.}
 
-\item{nest_cols}{A character vector of column names containing nested data.
-If NULL, the function automatically detects list columns.}
+\item{nest_cols}{A \code{character} vector of column names containing nested data.
+If \code{NULL}, the function automatically detects list columns.}
 }
 \value{
-A data frame or data table with nested columns converted to the specified format
+A transformed \code{data.frame} or \code{data.table} with nested columns converted to the specified format.
 }
 \description{
-This function converts a data frame or data table, transforming nested columns
-to either data frame or data table format while preserving the original data structure.
+Transforms a \code{data.frame} or \code{data.table} by converting nested columns
+to either \code{data.frame} or \code{data.table} format while preserving the original data structure.
 }
 \details{
-The function performs the following operations:
+Advanced Nested Column Conversion Features:
 \itemize{
-\item Automatically detects nested columns if not explicitly specified
-\item Converts the entire data structure to the target format (data frame or data table)
-\item Converts nested columns within the specified columns to the target format
-\item Creates a copy of the input data to avoid modifying the original
+\item Intelligent automatic detection of nested columns
+\item Comprehensive conversion of entire data structure
+\item Selective conversion of specified nested columns
+\item Non-destructive transformation with data copying
+}
+
+Conversion Strategies:
+\enumerate{
+\item Nested column identification based on \code{is.list()} detection
+\item Preservation of original data integrity
+\item Flexible handling of mixed data structures
+\item Consistent type conversion across nested elements
+}
+
+Nested Column Handling:
+\itemize{
+\item Supports conversion of \code{list} columns
+\item Handles \code{data.table}, \code{data.frame}, and generic \code{list} inputs
+\item Maintains original column structure and order
+\item Prevents in-place modification of source data
 }
 }
 \note{
+Conversion Characteristics:
 \itemize{
-\item The function preserves the original data structure
-\item Nested columns are converted individually
-\item Automatic detection of nested columns is based on list-type columns
+\item Non-destructive transformation of nested columns
+\item Supports flexible input and output formats
+\item Intelligent type detection and conversion
+\item Minimal performance overhead
 }
 }
 \examples{
@@ -52,6 +70,11 @@ convert_nest(df_nest1, to = "dt", nest_cols = c("data"))
 convert_nest(df_nest2, to = "dt", nest_cols = c("data", "data2"))
 # Convert a data table with nested columns to data frame
 dt_nest <- mintyr::w2l_nest(data = iris, cols2l = 1:2, by = "Species")
-convert_nest(dt_nest, to = "df", nest_cols = c("data")) |>
-  dplyr::glimpse()
+convert_nest(dt_nest, to = "df", nest_cols = c("data"))
+}
+\seealso{
+\itemize{
+\item \code{\link[data.table:as.data.table]{data.table::as.data.table()}}
+\item \code{\link[tibble:as_tibble]{tibble::as_tibble()}}
+}
 }

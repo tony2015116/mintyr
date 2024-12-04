@@ -2,64 +2,79 @@
 % Please edit documentation in R/import_xlsx.R
 \name{import_xlsx}
 \alias{import_xlsx}
-\title{Import Data from Excel Files}
+\title{Import Data from \code{Excel} Files with Advanced Handling}
 \usage{
 import_xlsx(file, rbind = TRUE, sheet = NULL, ...)
 }
 \arguments{
-\item{file}{A character vector of file paths. The Excel files to be imported.
-All paths must point to existing .xlsx or .xls files.}
+\item{file}{A \code{character} vector of file paths to \code{Excel} files.
+Must point to existing \code{.xlsx} or \code{.xls} files.}
 
-\item{rbind}{A logical value. If TRUE and multiple files/sheets are provided,
-combines all data into a single data.table. If FALSE, returns a list of
-data.tables. Default is TRUE.}
-
-\item{sheet}{A numeric vector or NULL. Specifies which sheets to read from each file:
+\item{rbind}{A \code{logical} value controlling data combination strategy:
 \itemize{
-\item If NULL (default), reads all sheets.
-\item If numeric, reads only the specified sheet indices.
+\item \code{TRUE}: Combines all data into a single \code{data.table}
+\item \code{FALSE}: Returns a list of \code{data.table}s
+Default is \code{TRUE}.
 }}
 
-\item{...}{Additional arguments passed to \code{\link[readxl:read_excel]{readxl::read_excel()}}, such as
-col_types, skip, or na.}
+\item{sheet}{A \code{numeric} vector or \code{NULL} specifying sheet import strategy:
+\itemize{
+\item \code{NULL} (default): Imports all sheets
+\item \code{numeric}: Imports only specified sheet indices
+}}
+
+\item{...}{Additional arguments passed to \code{\link[readxl:read_excel]{readxl::read_excel()}},
+such as \code{col_types}, \code{skip}, or \code{na}.}
 }
 \value{
 Depends on the \code{rbind} parameter:
 \itemize{
-\item If rbind = TRUE: A single data.table containing all imported data with
-two additional columns:
-\itemize{
-\item excel_name: The source file name (without extension)
-\item sheet_name: The source sheet name
-}
-\item If rbind = FALSE: A named list of data.tables, where each element is named
-as "filename_sheetname" and contains the data from that specific sheet.
+\item If \code{rbind = TRUE}: A single \code{data.table} with additional tracking columns:
+- \code{excel_name}: Source file name (without extension)
+- \code{sheet_name}: Source sheet name
+\item If \code{rbind = FALSE}: A named list of \code{data.table}s with format
+\code{"filename_sheetname"}
 }
 }
 \description{
-The \code{import_xlsx} function provides a flexible way to import data from one or multiple
-Excel files, with options to specify sheets and combine or separate the imported data.
-It handles multiple files and sheets, with automatic source tracking.
+A robust and flexible function for importing data from one or multiple
+\code{Excel} files, offering comprehensive options for sheet selection,
+data combination, and source tracking.
 }
 \details{
-The function provides a comprehensive solution for importing Excel data with the
-following features:
+Advanced \code{Excel} Data Import Features:
 \itemize{
-\item Supports multiple files and sheets
-\item Automatic source tracking for files and sheets
-\item Flexible combining options
-\item Handles missing columns across sheets when combining
-\item Preserves original data types through readxl
+\item Multi-file and multi-sheet data extraction
+\item Intelligent source tracking for files and sheets
+\item Flexible data combination strategies
+\item Automatic handling of inconsistent column structures
+\item Preservation of original data types
+}
+
+Comprehensive Import Strategies:
+\enumerate{
+\item Dynamic sheet selection
+\item Automatic file and sheet metadata tracking
+\item Seamless handling of disparate data structures
+\item Configurable import and combination methods
+}
+
+Data Transformation Capabilities:
+\itemize{
+\item Supports single and multiple \code{Excel} file imports
+\item Handles partial or complete sheet imports
+\item Manages missing columns through intelligent filling
+\item Provides granular control over import process
 }
 }
 \note{
+Critical Import Considerations:
 \itemize{
-\item All specified files must exist and be accessible Excel files
-\item Sheet indices must be valid across all input files
-\item When rbind = TRUE, the function assumes compatible data structures
-across sheets and files
-\item Missing columns across sheets are filled with NA when combining
-\item File names in source tracking columns have their extensions removed
+\item Requires all specified files to be accessible \code{Excel} files
+\item Sheet indices must be valid across input files
+\item \code{rbind = TRUE} assumes compatible data structures
+\item Missing columns are automatically filled with \code{NA}
+\item File extensions are automatically removed in tracking columns
 }
 }
 \examples{
@@ -68,5 +83,8 @@ xlsx_files
 import_xlsx(xlsx_files)
 }
 \seealso{
-\code{\link[readxl:read_excel]{readxl::read_excel()}}
+\itemize{
+\item \code{\link[readxl:read_excel]{readxl::read_excel()}} for underlying Excel reading
+\item \code{\link[data.table:rbindlist]{data.table::rbindlist()}} for data combination
+}
 }

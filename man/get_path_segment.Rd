@@ -2,40 +2,73 @@
 % Please edit documentation in R/get_path_segment.R
 \name{get_path_segment}
 \alias{get_path_segment}
-\title{Extract Specific Segments from File Paths}
+\title{Advanced File Path Segment Extraction}
 \usage{
 get_path_segment(paths, n = 1)
 }
 \arguments{
-\item{paths}{A non-empty character vector containing file paths, where each path is a string with segments separated by forward slashes (\code{/}). This parameter cannot be empty.}
+\item{paths}{A 'character vector' containing file system paths
+\itemize{
+\item Must be non-empty
+\item Path segments separated by forward slash \code{'/'}
+\item Supports absolute and relative paths
+\item Handles complex path structures
+}}
 
-\item{n}{An integer specifying which segment to extract from each path. If \code{n} is positive, the function extracts the \code{n}-th segment from the beginning of the path. If \code{n} is negative, the function extracts the \code{n}-th segment from the end of the path. \code{n} cannot be zero.}
+\item{n}{Numeric index for segment selection
+\itemize{
+\item Positive values: Select from path start
+\item Negative values: Select from path end
+\item Cannot be \code{0}
+\item Default is \code{1} (first segment)
+}}
 }
 \value{
-A character vector of the extracted segments. If a path does not have the requested segment, \code{NA_character_} is returned for that path.
+'character vector' with extracted path segments
+\itemize{
+\item Matching segments for valid indices
+\item \code{NA_character_} for segments beyond path length
+}
 }
 \description{
-The \code{get_path_segment} function extracts specific segments from file paths provided as character strings. Segments can be extracted from either the beginning or the end of the path, depending on the value of \code{n}.
+A robust utility for precise segment extraction from file system paths
+with flexible indexing and comprehensive error handling.
 }
 \details{
-The function operates as follows:
+Sophisticated Path Segment Extraction Mechanism:
 \enumerate{
-\item Validates that \code{paths} is a non-empty character vector and that \code{n} is a non-zero numeric value.
-\item Splits each path in \code{paths} into segments based on the forward slash (\code{/}) delimiter.
-\item Extracts the specified segment from each set of path segments:
-\itemize{
-\item If \code{n > 0}, the function extracts the \code{n}-th segment counting from the start of the path.
-\item If \code{n < 0}, the function extracts the \code{n}-th segment counting from the end of the path.
+\item Input validation and preprocessing
+\item Robust path segmentation
+\item Flexible indexing strategy
+\item Intelligent segment retrieval
+\item Graceful handling of edge cases
 }
-\item If a path does not contain the specified segment, \code{NA_character_} is returned for that path.
+
+Indexing Behavior:
+\itemize{
+\item Positive \code{n}: Forward indexing from path start
+- \code{n = 1}: First segment
+- \code{n = 2}: Second segment
+\item Negative \code{n}: Reverse indexing from path end
+- \code{n = -1}: Last segment
+- \code{n = -2}: Second-to-last segment
+}
+
+Path Parsing Characteristics:
+\itemize{
+\item Ignores consecutive \code{'/'} delimiters
+\item Removes empty path segments
+\item Returns \code{NA_character_} for non-existent segments
+\item Supports complex path structures
 }
 }
 \note{
+Critical Operational Constraints:
 \itemize{
-\item The \code{paths} parameter must be a non-empty character vector.
-\item The \code{n} parameter must be a non-zero numeric value.
-\item If \code{n} is zero, the function will raise an error.
-\item The function handles empty strings and paths with consecutive slashes appropriately.
+\item Requires non-empty 'paths' input
+\item \code{n} must be non-zero integer
+\item Supports cross-platform path representations
+\item Minimal computational overhead
 }
 }
 \examples{
@@ -45,4 +78,10 @@ paths <- c("/home/user/documents", "/var/log/system", "/usr/local/bin")
 get_path_segment(paths, 2)
 # Negative index example
 get_path_segment(paths, -2)
+}
+\seealso{
+\itemize{
+\item \code{\link[base:strsplit]{base::strsplit()}} String splitting utility
+\item \code{\link[tools:fileutils]{tools::file_path_sans_ext()}} File extension manipulation
+}
 }

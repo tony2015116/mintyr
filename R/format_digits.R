@@ -51,8 +51,6 @@
 #' format_digits(dt, cols = c("a", "b"))
 #' # Format with percentage
 #' format_digits(dt, cols = c("a"), percentage = TRUE)
-
-
 format_digits <- function(data, cols = NULL, digits = 2, percentage = FALSE) {
   # Parameter checks
   if (!is.data.frame(data)) {

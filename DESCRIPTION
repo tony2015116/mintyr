@@ -1,5 +1,5 @@
 Package: mintyr
-Title: Tools Commonly Used In Personal Data Processing Work
+Title: Title: Tools Commonly Used in Personal Data Processing Work
 Version: 1.0.1
 Authors@R: c(
     person("Guo Meng", , , "tony2015116@163.com", role = c("aut", "cre")),
@@ -23,6 +23,7 @@ Imports:
     rsample,
     rstatix,
     stats,
+    tibble,
     utils
 Suggests: 
     knitr,

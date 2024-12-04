@@ -23,10 +23,12 @@ reference:
   - '`w2l_nest`'
   - '`w2l_split`'
   - '`nest_cv`'
-  - '`combn_pair`'
-  - '`combn_pair2`'
+  - '`split_cv`'
+  - '`c2p_nest`'
+  - '`r2p_nest`'
   - '`convert_nest`'
-  - '`nest_export`'
+  - '`export_nest`'
+  - '`export_list`'
 # - title: stat functions
 #   desc: |
 #     stat functions

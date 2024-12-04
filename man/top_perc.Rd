@@ -2,44 +2,90 @@
 % Please edit documentation in R/top_perc.R
 \name{top_perc}
 \alias{top_perc}
-\title{Select Top Percentage of Data and Compute Summary Statistics}
+\title{Advanced Top Percentage Selection and Statistical Summarization}
 \usage{
 top_perc(data, perc, trait, by = NULL, type = "mean_sd", keep_data = FALSE)
 }
 \arguments{
-\item{data}{data.frame. The input data frame.}
+\item{data}{A \code{data.frame} containing the source dataset for analysis
+\itemize{
+\item Supports various data frame-like structures
+\item Automatically converts non-data frame inputs
+}}
 
-\item{perc}{numeric vector. A vector of percentages to select the top data. Each element should be a numeric value between -1 and 1.}
+\item{perc}{Numeric vector of percentages for data selection
+\itemize{
+\item Range: \code{-1} to \code{1}
+\item Positive values: Select top percentiles
+\item Negative values: Select bottom percentiles
+\item Multiple percentiles supported
+}}
 
-\item{trait}{character. The name of the column in \code{data} on which to base the selection.}
+\item{trait}{Character string specifying the 'selection column'
+\itemize{
+\item Must be a valid column name in the input \code{data}
+\item Used as the basis for top/bottom percentage selection
+}}
 
-\item{by}{character vector, optional. The names of the columns to group by. Default is NULL.}
+\item{by}{Optional character vector for 'grouping columns'
+\itemize{
+\item Default is \code{NULL}
+\item Enables stratified analysis
+\item Allows granular percentage selection within groups
+}}
 
-\item{type}{type of summary statistics. Possible values include: \code{"full",
-"common", "robust",  "five_number", "mean_sd", "mean_se", "mean_ci",
-"median_iqr", "median_mad", "quantile", "mean", "median",  "min", "max"}}
+\item{type}{Statistical summary type
+\itemize{
+\item Default: \code{"mean_sd"}
+\item Controls the type of summary statistics computed
+\item Supports various summary methods from \code{rstatix}
+}}
 
-\item{keep_data}{logical, optional. If TRUE, the function returns both the summary statistics and the selected top data. Default is FALSE.}
+\item{keep_data}{Logical flag for data retention
+\itemize{
+\item Default: \code{FALSE}
+\item \code{TRUE}: Return both summary statistics and selected data
+\item \code{FALSE}: Return only summary statistics
+}}
 }
 \value{
-A list or data frame:
+Depending on \code{keep_data}:
 \itemize{
-\item If \code{keep_data} is FALSE, a data frame with summary statistics.
-\item If \code{keep_data} is TRUE, a list where each element is a list containing summary statistics (\code{stat}) and the selected top data (\code{data}).
+\item \code{FALSE}: A \code{data.frame} with summary statistics
+\item \code{TRUE}: A \code{list} with summary statistics and selected data
 }
 }
 \description{
-The \code{top_perc} function selects the top percentage of data based on a specified trait and computes summary statistics.
-It allows for grouping by additional columns and offers flexibility in the type of statistics calculated.
-The function can also retain the selected data if needed.
+A sophisticated function for selecting top or bottom percentiles of data
+and computing comprehensive statistical summaries with high flexibility.
+}
+\details{
+Comprehensive Data Selection and Analysis Workflow:
+\enumerate{
+\item Input validation and preprocessing
+\item Flexible percentage-based data selection
+\item Optional group-level analysis
+\item Statistical summary computation
+\item Configurable output generation
+}
+
+Key Features:
+\itemize{
+\item Multi-percentile selection support
+\item Stratified analysis capabilities
+\item Robust error handling
+\item Flexible statistical summarization
+\item Optional data retention
+}
 }
 \note{
+Operational Considerations:
 \itemize{
-\item The \code{perc} parameter accepts values between -1 and 1. Positive values select the top percentage, while negative values select the bottom percentage.
-\item The function performs initial checks to ensure required arguments are provided and valid.
-\item Grouping by additional columns (\code{by}) is optional and allows for more granular analysis.
-\item The \code{type} parameter specifies the type of summary statistics to compute, with "mean_sd" as the default.
-\item If \code{keep_data} is set to TRUE, the function will return both the summary statistics and the selected top data for each percentage.
+\item Percentage selection range: \code{-1} to \code{1}
+\item Supports complex grouping strategies
+\item Leverages \code{rstatix} for statistical computations
+\item Handles multiple percentile selections
+\item Provides detailed error messages for invalid inputs
 }
 }
 \examples{
@@ -73,4 +119,10 @@ iris |>
     by = c("Species", "names"),     # Group by both Species and measurement type
     type = "mean_sd")               # Calculate mean and standard deviation
 
+}
+\seealso{
+\itemize{
+\item \code{\link[rstatix:get_summary_stats]{rstatix::get_summary_stats()}} Statistical summary computation
+\item \code{\link[dplyr:top_n]{dplyr::top_frac()}} Percentage-based data selection
+}
 }

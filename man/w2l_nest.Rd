@@ -19,7 +19,7 @@ result: \code{"dt"} for \code{data.table}, \code{"df"} for \code{data.frame}. De
 }
 \value{
 A \code{data.table} with nested data in long format, grouped by specified columns if provided.
-Each row contains a nested data table or data frame under the column \code{data}, depending on \code{nest_type}.
+Each row contains a nested \code{data.table} or \code{data.frame} under the column \code{data}, depending on \code{nest_type}.
 \itemize{
 \item If \code{by} is \code{NULL}, returns a \code{data.table} nested by \code{name}.
 \item If \code{by} is specified, returns a \code{data.table} nested by \code{name} and the grouping variables.
@@ -30,11 +30,24 @@ The \code{w2l_nest} function reshapes wide-format data into long-format and nest
 It handles both \code{data.frame} and \code{data.table} objects and provides options for grouping and nesting the data.
 }
 \details{
-The function melts the specified wide columns into long format and nests the resulting data by the \code{name}
-column and any additional grouping variables specified in \code{by}. The nested data can be in the form of
-\code{data.table} or \code{data.frame} objects, controlled by the \code{nest_type} parameter.
+The function performs the following key operations:
+\enumerate{
+\item Melts the specified wide columns into long format
+\item Nests the resulting data by the \code{name} column
+\item Optionally groups by additional variables specified in \code{by}
+\item Allows flexible output format (\code{data.table} or \code{data.frame})
+}
+
+Transformation Strategy:
+\itemize{
+\item Converts input to \code{data.table} if necessary
+\item Validates input columns and grouping variables
+\item Reshapes data using \code{data.table::melt()}
+\item Nests data with flexible grouping options
+}
 }
 \note{
+Important Considerations:
 \itemize{
 \item The \code{cols2l} parameter should be either numeric indices or a character vector of column names present in \code{data}.
 \item Ensure all grouping variables specified in \code{by} are present in \code{data}.

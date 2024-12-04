@@ -2,9 +2,10 @@ flat_teaching.Rmd:
   path: dev/flat_teaching.Rmd
   state: active
   R:
-  - R/combn_pair.R
-  - R/combn_pair2.R
+  - R/c2p_nest.R
   - R/convert_nest.R
+  - R/export_list.R
+  - R/export_nest.R
   - R/fires.R
   - R/format_digits.R
   - R/get_filename.R
@@ -15,7 +16,8 @@ flat_teaching.Rmd:
   - R/mintyr_examples.R
   - R/nedaps.R
   - R/nest_cv.R
-  - R/nest_export.R
+  - R/r2p_nest.R
+  - R/split_cv.R
   - R/top_perc.R
   - R/w2l_nest.R
   - R/w2l_split.R

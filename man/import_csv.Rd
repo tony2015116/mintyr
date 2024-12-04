@@ -2,7 +2,7 @@
 % Please edit documentation in R/import_csv.R
 \name{import_csv}
 \alias{import_csv}
-\title{Import CSV Files with Flexible Reading Options}
+\title{Flexible CSV File Import with Multiple Backend Support}
 \usage{
 import_csv(
   file,
@@ -13,48 +13,80 @@ import_csv(
 )
 }
 \arguments{
-\item{file}{A character vector of file paths. The CSV files to be imported.}
+\item{file}{A \code{character} vector of file paths to \code{CSV} files.
+Must point to existing and accessible files.}
 
-\item{package}{A character string, either "data.table" or "arrow". Specifies which package
-to use for reading CSV files. Default is "data.table".}
+\item{package}{A \code{character} string specifying the backend package:
+\itemize{
+\item \code{"data.table"}: Uses \code{\link[data.table:fread]{data.table::fread()}} (default)
+\item \code{"arrow"}: Uses \code{\link[arrow:read_delim_arrow]{arrow::read_csv_arrow()}}
+Determines the underlying reading mechanism.
+}}
 
-\item{rbind}{A logical value. If TRUE and multiple files are provided, combines all files
-into a single data object. If FALSE, returns a list of data objects. Default is TRUE.}
+\item{rbind}{A \code{logical} value controlling data combination strategy:
+\itemize{
+\item \code{TRUE}: Combines all files into a single data object
+\item \code{FALSE}: Returns a list of individual data objects
+Default is \code{TRUE}.
+}}
 
-\item{rbind_label}{A character string or NULL. When rbinding multiple files, specifies
-the column name for the file source label. If NULL, no label column is added.
-Default is "_file".}
+\item{rbind_label}{A \code{character} string or \code{NULL} for source file tracking:
+\itemize{
+\item \code{character}: Specifies the column name for file source labeling
+\item \code{NULL}: Disables source file tracking
+Default is \code{"_file"}.
+}}
 
-\item{...}{Additional arguments passed to the underlying read functions
-(data.table::fread or arrow::read_csv_arrow).}
+\item{...}{Additional arguments passed to backend-specific reading functions
+(e.g., \code{col_types}, \code{na.strings}, \code{skip}).}
 }
 \value{
-Depending on the parameters:
+Depends on the \code{rbind} parameter:
 \itemize{
-\item If rbind = TRUE: A single data.table or arrow table containing all imported data.
-\item If rbind = FALSE: A named list of data.table or arrow table objects, with names
-derived from the input file names (without extensions).
+\item If \code{rbind = TRUE}: A single data object (from chosen package)
+containing all imported data
+\item If \code{rbind = FALSE}: A named list of data objects with names
+derived from input file names (without extensions)
 }
 }
 \description{
-The \code{import_csv} function provides a flexible way to import one or multiple CSV files
-using either data.table or arrow package. It supports combining multiple files and
-adding source file labels.
+A comprehensive \code{CSV} file import function offering advanced reading capabilities
+through \code{data.table} and \code{arrow} packages with intelligent data combination strategies.
 }
 \details{
-The function provides a unified interface for reading CSV files using either data.table
-or arrow package. When reading multiple files, it can either combine them into a single
-data object or return them as a list. File source tracking is supported through the
-rbind_label parameter.
+Comprehensive \code{CSV} Import Features:
+\itemize{
+\item Dual-backend support (\code{data.table} and \code{arrow})
+\item Intelligent multi-file import strategies
+\item Flexible data combination and source tracking
+\item Automatic handling of inconsistent file structures
+\item Preservation of original data types
+}
+
+Import Strategies:
+\enumerate{
+\item Dynamic package selection
+\item Configurable file combination methods
+\item Automatic source file metadata tracking
+\item Seamless handling of disparate data structures
+}
+
+Performance Considerations:
+\itemize{
+\item \code{data.table}: Optimized for speed and memory efficiency
+\item \code{arrow}: Enhanced performance for large datasets
+\item Automatic column alignment during import
+\item Minimal memory overhead
+}
 }
 \note{
+Critical Import Considerations:
 \itemize{
-\item All specified files must exist and be accessible.
-\item When rbind = TRUE and multiple files are imported, the function assumes compatible
-column structures across files.
-\item File names in the source label column (if added) will have their extensions removed.
-\item The function uses data.table::rbindlist for combining multiple files, which
-automatically handles missing columns across files.
+\item Requires all specified files to be accessible \code{CSV} files
+\item Supports flexible backend selection
+\item \code{rbind = TRUE} assumes compatible data structures
+\item Missing columns are automatically aligned
+\item File extensions are automatically removed in tracking columns
 }
 }
 \examples{
@@ -63,7 +95,9 @@ csv_files
 import_csv(csv_files)
 }
 \seealso{
-\code{\link[data.table:fread]{data.table::fread()}}
-
-\code{\link[arrow:read_delim_arrow]{arrow::read_csv_arrow()}}
+\itemize{
+\item \code{\link[data.table:fread]{data.table::fread()}} for \code{data.table} backend
+\item \code{\link[arrow:read_delim_arrow]{arrow::read_csv_arrow()}} for \code{arrow} backend
+\item \code{\link[data.table:rbindlist]{data.table::rbindlist()}} for data combination
+}
 }

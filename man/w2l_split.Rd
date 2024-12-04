@@ -2,46 +2,63 @@
 % Please edit documentation in R/w2l_split.R
 \name{w2l_split}
 \alias{w2l_split}
-\title{Reshape Wide Data to Long Format and Split into List}
+\title{Wide to Long Data Splitting with Advanced Transformation Capabilities}
 \usage{
-w2l_split(data, cols2l, by = NULL, split_type = "dt")
+w2l_split(data, cols2l, by = NULL, split_type = "dt", sep = "_")
 }
 \arguments{
-\item{data}{A \code{data.frame} or \code{data.table}. The input data in wide format.}
+\item{data}{A \code{data.frame} or \code{data.table} to be transformed and split.}
 
-\item{cols2l}{A numeric or character vector. Specifies the columns to reshape from wide to long format.
-Can be either numeric indices or column names.}
+\item{cols2l}{Columns to be transformed from wide to long format.
+Can be specified as numeric indices or column names.}
 
-\item{by}{An optional character vector. Specifies additional columns to split by. Default is \code{NULL}.}
+\item{by}{Optional grouping columns for additional data stratification.}
 
-\item{split_type}{A character string, either \code{"dt"} or \code{"df"}. Specifies the type of objects in the
-resulting list: \code{"dt"} for \code{data.table}, \code{"df"} for \code{data.frame}. Default is \code{"dt"}.}
+\item{split_type}{Output format for split data, either \code{"dt"} (\code{data.table})
+or \code{"df"} (\code{data.frame}). Defaults to \code{"dt"}.}
+
+\item{sep}{Separator used for generating list names when grouping.
+Defaults to \code{"_"}.}
 }
 \value{
-A list of \code{data.table} or \code{data.frame} objects (depending on \code{split_type}), split by variable
-names and optional grouping columns.
-\itemize{
-\item If \code{by} is \code{NULL}, returns a list split by variable names only.
-\item If \code{by} is specified, returns a list split by both variable names and grouping variables.
-}
+A list of \code{data.table}s or \code{data.frame}s, split according to specified parameters.
 }
 \description{
-The \code{w2l_split} function reshapes wide-format data into long-format and splits it into a list
-by variable names and optional grouping columns. It handles both \code{data.frame} and \code{data.table} objects.
+Transforms wide-format data to long format with flexible splitting
+and grouping options, supporting multiple data type conversions.
 }
 \details{
-The function first melts the specified wide columns into long format and then splits the resulting data
-into a list based on the variable names and any additional grouping variables specified in \code{by}.
-The resulting list elements can be either \code{data.table} or \code{data.frame} objects, as specified by
-the \code{split_type} parameter.
+The function provides comprehensive wide-to-long data transformation
+with the following advanced features:
+\itemize{
+\item Flexible column specification (numeric indices or names)
+\item Automatic data type conversion
+\item Intelligent handling of grouping variables
+\item Customizable output data type
+\item Robust error checking and validation
+}
+
+Transformation Strategy:
+\enumerate{
+\item Converts input to \code{data.table} format
+\item Melts specified columns to long format
+\item Splits data based on optional grouping variables
+\item Generates list names using grouping values
+}
+
+Column Specification Options:
+\itemize{
+\item Numeric indices of columns to transform
+\item Character vector of column names
+\item Comprehensive validation of provided columns
+}
 }
 \note{
 \itemize{
-\item The \code{cols2l} parameter should be either numeric indices or a character vector of column names present in \code{data}.
-\item Ensure all grouping variables specified in \code{by} are present in \code{data}.
-\item The function automatically converts \code{data.frame} to \code{data.table} for processing.
-\item The \code{split_type} parameter determines the class of objects in the resulting list.
-\item Non-specified columns are automatically used as ID variables in the reshaping process.
+\item Supports complex data transformation scenarios
+\item Handles mixed input data types
+\item Provides detailed error messages for invalid inputs
+\item Efficient data manipulation using \code{data.table}
 }
 }
 \examples{

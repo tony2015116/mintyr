@@ -2,40 +2,69 @@
 % Please edit documentation in R/get_filename.R
 \name{get_filename}
 \alias{get_filename}
-\title{Extract Filenames from File Paths}
+\title{Advanced Filename Extraction from File Paths}
 \usage{
 get_filename(paths, rm_extension = TRUE, rm_path = TRUE)
 }
 \arguments{
-\item{paths}{A character vector of file paths}
+\item{paths}{A \code{character} vector containing file system paths.
+Must be valid and accessible path strings.}
 
-\item{rm_extension}{Logical. If TRUE, removes file extensions from filenames.
-Defaults to TRUE.}
+\item{rm_extension}{A \code{logical} flag controlling file extension removal:
+\itemize{
+\item \code{TRUE}: Strips file extensions from filenames
+\item \code{FALSE}: Preserves complete filename with extension
+Default is \code{TRUE}.
+}}
 
-\item{rm_path}{Logical. If TRUE, removes directory paths, keeping only the filename.
-Defaults to TRUE.}
+\item{rm_path}{A \code{logical} flag managing directory path handling:
+\itemize{
+\item \code{TRUE}: Extracts only the filename, discarding directory information
+\item \code{FALSE}: Retains complete path information
+Default is \code{TRUE}.
+}}
 }
 \value{
-A character vector of processed filenames
+A \code{character} vector of processed filenames with applied transformations.
 }
 \description{
-Extracts filenames from file paths with options to remove file extensions
-and/or directory paths.
+A robust \code{filename} extraction utility providing comprehensive path processing
+with granular control over filename transformation.
 }
 \details{
-The function performs the following operations:
+Comprehensive Path Processing Features:
 \itemize{
-\item Validates input paths
-\item Handles empty input vectors
-\item Optionally removes directory paths using \code{\link[base]{basename}}
-\item Optionally removes file extensions using regex substitution
+\item Intelligent input validation
+\item Flexible filename transformation
+\item Robust handling of diverse path formats
+\item Configurable extraction strategies
+\item Minimal performance overhead
+}
+
+Processing Workflow:
+\enumerate{
+\item Validates input path vector
+\item Handles empty input scenarios
+\item Optionally removes directory paths using \code{\link[base:basename]{base::basename()}}
+\item Optionally strips file extensions via regex substitution
+}
+
+Extension Handling Strategies:
+\itemize{
+\item Supports multi-dot filenames
+\item Removes the last file extension
+\item Preserves complex filename structures
+\item Compatible with various file naming conventions
 }
 }
 \note{
+Critical Behavioral Considerations:
 \itemize{
-\item If both \code{rm_extension} and \code{rm_path} are FALSE,
-a warning is issued and the original paths are returned
-\item Supports multiple file paths in the input vector
+\item Requires valid \code{character} input paths
+\item Supports processing multiple file paths simultaneously
+\item Warns when no transformations are requested
+\item Handles edge cases like empty vectors gracefully
+\item Preserves original input order
 }
 }
 \examples{
@@ -46,5 +75,9 @@ get_filename(xlsx_files, rm_extension = FALSE) # Keep extension
 get_filename(xlsx_files, rm_path = FALSE) # Keep path
 }
 \seealso{
-\code{\link[base]{basename}} for extracting filenames
+\itemize{
+\item \code{\link[base:basename]{base::basename()}} for basic filename extraction
+\item \code{\link[base:file.path]{base::file.path()}} for path manipulation
+\item \code{\link[tools:fileutils]{tools::file_ext()}} for extension handling
+}
 }

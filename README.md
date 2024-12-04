@@ -11,19 +11,16 @@
 
 <!--[![CodeFactor](https://www.codefactor.io/repository/github/tony2015116/mintyr/badge/main)](https://www.codefactor.io/repository/github/tony2015116/mintyr/overview/main)-->
 
-**mintyr** is an R package that enables automatic monitor the stations and pigs in the pig farm which using nedap pig performance test stations.`station_monitor()` can monitor the number of pigs within a testing station, total feed intake, total visit time, total visit frequency, and overall weight condition. `fid_monitor()` can monitor the feed intake and proportion of each pig within a single testing station.`table_monitor()` can monitor several informations in table fromat.`monitor_schedule()` packages the previous two functions into one that can be set to monitor on a regular basis.
+`mintyr` is an R package that provides fresh and efficient solutions for data processing, with a particular emphasis on animal breeding data. The package name reflects its core philosophy - delivering clean, fresh, and straightforward approaches to data manipulation. The package originated from the challenges encountered in handling multi-breed and multi-trait data in genomic selection, where nested data structures (via `dplyr::group_nest()`) proved to be remarkably effective for model iteration, especially when combined with `dplyr::mutate` and `purrr::map()` operations. While the tidyverse ecosystem offers powerful tools, to enhance performance while maintaining code clarity, `mintyr` has been implemented primarily using `data.table` and base R functions. Although initially designed for processing genomic selection phenotype data, `mintyr` has evolved to include a comprehensive collection of utility functions that streamline common data processing tasks.
+
+# Acknowledgments
+
+Special thanks to AI assistance, particularly ChatGPT and Claude, for helping transform the initial concepts and inspirations for the `mintyr` package into reality. Their contribution has been invaluable in refining ideas, improving code structure, and crafting documentation.
+
 
 # Installation
 You can install the development version from GitHub with:
 ``` r
 # install.packages("pak")
 pak::pak("tony2015116/mintyr")
-```
-## Example
-
-This is a basic example which shows you how to download pig performance test CSVs data:
-
-``` r
-# Require packages
-library(mintyr)
 ```

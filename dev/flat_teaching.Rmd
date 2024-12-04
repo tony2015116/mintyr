@@ -30,8 +30,8 @@ Note: when you will use other flat templates, this part will be in a separate fi
 fusen::fill_description(
   pkg = here::here(),
   fields = list(
-    Title = "Tools commonly used in personal data processing work",
-    Description = "A Set of tools to understand packages structure. Use Rmarkdown First method to build a package from a defined template. Start your package with documentation. Everything can be set from a Rmarkdown file in your project.",
+    Title = "Fresh and Efficient Data Processing Tools",
+    Description = "`mintyr` is an R package offering fresh and efficient solutions for data processing, with a focus on animal breeding data. It provides streamlined functionality for handling multi-breed and multi-trait data in genomic selection, leveraging nested data structures for clear model iteration. Built primarily with `data.table` and base R for performance, the package delivers a comprehensive collection of utility functions that balance efficiency with user-friendly data manipulation approaches.",
     `Authors@R` = c(
       person("Guo Meng", email = "tony2015116@163.com", role = c("aut", "cre")),
       person(given = "Guo Meng", role = "cph")

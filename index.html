@@ -5,7 +5,7 @@
 <meta charset="utf-8">
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Title: Tools Commonly Used in Personal Data Processing Work • mintyr</title>
+<title>Fresh and Efficient Data Processing Tools • mintyr</title>
 <!-- favicons --><link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png">
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
 <link rel="apple-touch-icon" type="image/png" sizes="180x180" href="apple-touch-icon.png">
@@ -17,8 +17,8 @@
 <script src="bootstrap-toc.js"></script><!-- Font Awesome icons --><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.12.1/css/all.min.css" integrity="sha256-mmgLkCYLUQbXn0B1SRqzHar6dCnv9oZFPEC1g1cwlkk=" crossorigin="anonymous">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.12.1/css/v4-shims.min.css" integrity="sha256-wZjR52fzng1pJHwx4aV2AO3yyTOXrcDW7jBpJtTwVxw=" crossorigin="anonymous">
 <!-- clipboard.js --><script src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.6/clipboard.min.js" integrity="sha256-inc5kl9MA1hkeYUt+EC3BhlIgyp/2jDIyBLS6k3UxPI=" crossorigin="anonymous"></script><!-- headroom.js --><script src="https://cdnjs.cloudflare.com/ajax/libs/headroom/0.11.0/headroom.min.js" integrity="sha256-AsUX4SJE1+yuDu5+mAVzJbuYNPHj/WroHuZ8Ir/CkE0=" crossorigin="anonymous"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/headroom/0.11.0/jQuery.headroom.min.js" integrity="sha256-ZX/yNShbjqsohH1k95liqY9Gd8uOiE1S4vZc+9KQ1K4=" crossorigin="anonymous"></script><!-- pkgdown --><link href="pkgdown.css" rel="stylesheet">
-<script src="pkgdown.js"></script><meta property="og:title" content="Title: Tools Commonly Used in Personal Data Processing Work">
-<meta property="og:description" content="A Set of tools to understand packages structure. Use Rmarkdown First method to build a package from a defined template. Start your package with documentation. Everything can be set from a Rmarkdown file in your project.">
+<script src="pkgdown.js"></script><meta property="og:title" content="Fresh and Efficient Data Processing Tools">
+<meta property="og:description" content="`mintyr` is an R package offering fresh and efficient solutions for data processing, with a focus on animal breeding data. It provides streamlined functionality for handling multi-breed and multi-trait data in genomic selection, leveraging nested data structures for clear model iteration. Built primarily with `data.table` and base R for performance, the package delivers a comprehensive collection of utility functions that balance efficiency with user-friendly data manipulation approaches.">
 <meta property="og:image" content="https://tony2015116.github.io/mintyr/logo.svg">
 <!-- mathjax --><script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/MathJax.js" integrity="sha256-nvJJv9wWKEm88qvoQl9ekL2J+k/RWIsaSScxxlsrv8k=" crossorigin="anonymous"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/config/TeX-AMS-MML_HTMLorMML.js" integrity="sha256-84DKXVJXs0/F8OTMzX4UR909+jtl4G7SPypPavF+GfA=" crossorigin="anonymous"></script><!--[if lt IE 9]>
 <script src="https://oss.maxcdn.com/html5shiv/3.7.3/html5shiv.min.js"></script>
@@ -40,7 +40,7 @@
       </button>
       <span class="navbar-brand">
         <a class="navbar-link" href="index.html">mintyr</a>
-        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="">1.0.1</span>
+        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="">0.0.0.9000</span>
       </span>
     </div>
 
@@ -73,7 +73,20 @@
   <a href="news/index.html">Changelog</a>
 </li>
       </ul>
-<ul class="nav navbar-nav navbar-right"></ul>
+<ul class="nav navbar-nav navbar-right">
+<li>
+  <a href="https://github.com/tony2015116/mintyr" class="external-link">
+    <span class="fab fa-github fa-lg"></span>
+
+  </a>
+</li>
+<li>
+  <a href="https://github.com/tony2015116/mintyr/discussions" class="external-link">
+    <span class="fa fa-users"></span>
+
+  </a>
+</li>
+      </ul>
 </div>
 <!--/.nav-collapse -->
   </div>
@@ -95,7 +108,12 @@
 <!-- badges: start -->
 
 <!--[![CodeFactor](https://www.codefactor.io/repository/github/tony2015116/mintyr/badge/main)](https://www.codefactor.io/repository/github/tony2015116/mintyr/overview/main)-->
-<p><strong>mintyr</strong> is an R package that enables automatic monitor the stations and pigs in the pig farm which using nedap pig performance test stations.<code>station_monitor()</code> can monitor the number of pigs within a testing station, total feed intake, total visit time, total visit frequency, and overall weight condition. <code>fid_monitor()</code> can monitor the feed intake and proportion of each pig within a single testing station.<code>table_monitor()</code> can monitor several informations in table fromat.<code>monitor_schedule()</code> packages the previous two functions into one that can be set to monitor on a regular basis.</p>
+<p><code>mintyr</code> is an R package that provides fresh and efficient solutions for data processing, with a particular emphasis on animal breeding data. The package name reflects its core philosophy - delivering clean, fresh, and straightforward approaches to data manipulation. The package originated from the challenges encountered in handling multi-breed and multi-trait data in genomic selection, where nested data structures (via <code><a href="https://dplyr.tidyverse.org/reference/group_nest.html" class="external-link">dplyr::group_nest()</a></code>) proved to be remarkably effective for model iteration, especially when combined with <code><a href="https://dplyr.tidyverse.org/reference/mutate.html" class="external-link">dplyr::mutate</a></code> and <code><a href="https://purrr.tidyverse.org/reference/map.html" class="external-link">purrr::map()</a></code> operations. While the tidyverse ecosystem offers powerful tools, to enhance performance while maintaining code clarity, <code>mintyr</code> has been implemented primarily using <code>data.table</code> and base R functions. Although initially designed for processing genomic selection phenotype data, <code>mintyr</code> has evolved to include a comprehensive collection of utility functions that streamline common data processing tasks.</p>
+</div>
+<div class="section level1">
+<h1 id="acknowledgments">Acknowledgments<a class="anchor" aria-label="anchor" href="#acknowledgments"></a>
+</h1>
+<p>Special thanks to AI assistance, particularly ChatGPT and Claude, for helping transform the initial concepts and inspirations for the <code>mintyr</code> package into reality. Their contribution has been invaluable in refining ideas, improving code structure, and crafting documentation.</p>
 </div>
 <div class="section level1">
 <h1 id="installation">Installation<a class="anchor" aria-label="anchor" href="#installation"></a>
@@ -104,14 +122,6 @@
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># install.packages("pak")</span></span>
 <span><span class="fu">pak</span><span class="fu">::</span><span class="fu"><a href="https://pak.r-lib.org/reference/pak.html" class="external-link">pak</a></span><span class="op">(</span><span class="st">"tony2015116/mintyr"</span><span class="op">)</span></span></code></pre></div>
-<div class="section level2">
-<h2 id="example">Example<a class="anchor" aria-label="anchor" href="#example"></a>
-</h2>
-<p>This is a basic example which shows you how to download pig performance test CSVs data:</p>
-<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># Require packages</span></span>
-<span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va">mintyr</span><span class="op">)</span></span></code></pre></div>
-</div>
 </div>
 
   </div>

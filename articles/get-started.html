@@ -38,7 +38,7 @@
       </button>
       <span class="navbar-brand">
         <a class="navbar-link" href="../index.html">mintyr</a>
-        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="">1.0.1</span>
+        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="">0.0.0.9000</span>
       </span>
     </div>
 
@@ -71,7 +71,20 @@
   <a href="../news/index.html">Changelog</a>
 </li>
       </ul>
-<ul class="nav navbar-nav navbar-right"></ul>
+<ul class="nav navbar-nav navbar-right">
+<li>
+  <a href="https://github.com/tony2015116/mintyr" class="external-link">
+    <span class="fab fa-github fa-lg"></span>
+
+  </a>
+</li>
+<li>
+  <a href="https://github.com/tony2015116/mintyr/discussions" class="external-link">
+    <span class="fa fa-users"></span>
+
+  </a>
+</li>
+      </ul>
 </div>
 <!--/.nav-collapse -->
   </div>
@@ -299,12 +312,12 @@ Note: when you will use other flat templates, this part will be in a separate fi
 <span><span class="co"># Check Export Results</span></span>
 <span><span class="va">files</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/list.files.html" class="external-link">list.files</a></span><span class="op">(</span>path <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempdir</a></span><span class="op">(</span><span class="op">)</span>, pattern <span class="op">=</span> <span class="st">"txt"</span>, recursive <span class="op">=</span> <span class="cn">TRUE</span>, full.names <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
 <span><span class="va">files</span></span>
-<span><span class="co">#&gt; [1] "/tmp/RtmppmhB5X/Sepal.Length/setosa/data.txt"    </span></span>
-<span><span class="co">#&gt; [2] "/tmp/RtmppmhB5X/Sepal.Length/versicolor/data.txt"</span></span>
-<span><span class="co">#&gt; [3] "/tmp/RtmppmhB5X/Sepal.Length/virginica/data.txt" </span></span>
-<span><span class="co">#&gt; [4] "/tmp/RtmppmhB5X/Sepal.Width/setosa/data.txt"     </span></span>
-<span><span class="co">#&gt; [5] "/tmp/RtmppmhB5X/Sepal.Width/versicolor/data.txt" </span></span>
-<span><span class="co">#&gt; [6] "/tmp/RtmppmhB5X/Sepal.Width/virginica/data.txt"</span></span>
+<span><span class="co">#&gt; [1] "/tmp/Rtmph9W3j6/Sepal.Length/setosa/data.txt"    </span></span>
+<span><span class="co">#&gt; [2] "/tmp/Rtmph9W3j6/Sepal.Length/versicolor/data.txt"</span></span>
+<span><span class="co">#&gt; [3] "/tmp/Rtmph9W3j6/Sepal.Length/virginica/data.txt" </span></span>
+<span><span class="co">#&gt; [4] "/tmp/Rtmph9W3j6/Sepal.Width/setosa/data.txt"     </span></span>
+<span><span class="co">#&gt; [5] "/tmp/Rtmph9W3j6/Sepal.Width/versicolor/data.txt" </span></span>
+<span><span class="co">#&gt; [6] "/tmp/Rtmph9W3j6/Sepal.Width/virginica/data.txt"</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/files.html" class="external-link">file.remove</a></span><span class="op">(</span><span class="va">files</span><span class="op">)</span></span>
 <span><span class="co">#&gt; [1] TRUE TRUE TRUE TRUE TRUE TRUE</span></span></code></pre></div>
 </div>
@@ -320,12 +333,12 @@ Note: when you will use other flat templates, this part will be in a separate fi
 <span><span class="co"># Check Export Results</span></span>
 <span><span class="va">files</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/list.files.html" class="external-link">list.files</a></span><span class="op">(</span>path <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempdir</a></span><span class="op">(</span><span class="op">)</span>, pattern <span class="op">=</span> <span class="st">"txt"</span>, recursive <span class="op">=</span> <span class="cn">TRUE</span>, full.names <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
 <span><span class="va">files</span></span>
-<span><span class="co">#&gt; [1] "/tmp/RtmppmhB5X/Sepal.Length_setosa.txt"    </span></span>
-<span><span class="co">#&gt; [2] "/tmp/RtmppmhB5X/Sepal.Length_versicolor.txt"</span></span>
-<span><span class="co">#&gt; [3] "/tmp/RtmppmhB5X/Sepal.Length_virginica.txt" </span></span>
-<span><span class="co">#&gt; [4] "/tmp/RtmppmhB5X/Sepal.Width_setosa.txt"     </span></span>
-<span><span class="co">#&gt; [5] "/tmp/RtmppmhB5X/Sepal.Width_versicolor.txt" </span></span>
-<span><span class="co">#&gt; [6] "/tmp/RtmppmhB5X/Sepal.Width_virginica.txt"</span></span>
+<span><span class="co">#&gt; [1] "/tmp/Rtmph9W3j6/Sepal.Length_setosa.txt"    </span></span>
+<span><span class="co">#&gt; [2] "/tmp/Rtmph9W3j6/Sepal.Length_versicolor.txt"</span></span>
+<span><span class="co">#&gt; [3] "/tmp/Rtmph9W3j6/Sepal.Length_virginica.txt" </span></span>
+<span><span class="co">#&gt; [4] "/tmp/Rtmph9W3j6/Sepal.Width_setosa.txt"     </span></span>
+<span><span class="co">#&gt; [5] "/tmp/Rtmph9W3j6/Sepal.Width_versicolor.txt" </span></span>
+<span><span class="co">#&gt; [6] "/tmp/Rtmph9W3j6/Sepal.Width_virginica.txt"</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/files.html" class="external-link">file.remove</a></span><span class="op">(</span><span class="va">files</span><span class="op">)</span></span>
 <span><span class="co">#&gt; [1] TRUE TRUE TRUE TRUE TRUE TRUE</span></span></code></pre></div>
 </div>

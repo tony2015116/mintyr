@@ -93,19 +93,23 @@ result: <code>"dt"</code> for <code>data.table</code>, <code>"df"</code> for <co
     <div id="value">
     <h2>Value</h2>
     <p>A <code>data.table</code> with nested data in long format, grouped by specified columns if provided.
-Each row contains a nested data table or data frame under the column <code>data</code>, depending on <code>nest_type</code>.</p><ul><li><p>If <code>by</code> is <code>NULL</code>, returns a <code>data.table</code> nested by <code>name</code>.</p></li>
+Each row contains a nested <code>data.table</code> or <code>data.frame</code> under the column <code>data</code>, depending on <code>nest_type</code>.</p><ul><li><p>If <code>by</code> is <code>NULL</code>, returns a <code>data.table</code> nested by <code>name</code>.</p></li>
 <li><p>If <code>by</code> is specified, returns a <code>data.table</code> nested by <code>name</code> and the grouping variables.</p></li>
 </ul></div>
     <div id="details">
     <h2>Details</h2>
-    <p>The function melts the specified wide columns into long format and nests the resulting data by the <code>name</code>
-column and any additional grouping variables specified in <code>by</code>. The nested data can be in the form of
-<code>data.table</code> or <code>data.frame</code> objects, controlled by the <code>nest_type</code> parameter.</p>
-    </div>
+    <p>The function performs the following key operations:</p><ol><li><p>Melts the specified wide columns into long format</p></li>
+<li><p>Nests the resulting data by the <code>name</code> column</p></li>
+<li><p>Optionally groups by additional variables specified in <code>by</code></p></li>
+<li><p>Allows flexible output format (<code>data.table</code> or <code>data.frame</code>)</p></li>
+</ol><p>Transformation Strategy:</p><ul><li><p>Converts input to <code>data.table</code> if necessary</p></li>
+<li><p>Validates input columns and grouping variables</p></li>
+<li><p>Reshapes data using <code><a href="https://rdrr.io/pkg/data.table/man/melt.data.table.html" class="external-link">data.table::melt()</a></code></p></li>
+<li><p>Nests data with flexible grouping options</p></li>
+</ul></div>
     <div id="note">
     <h2>Note</h2>
-
-<ul><li><p>The <code>cols2l</code> parameter should be either numeric indices or a character vector of column names present in <code>data</code>.</p></li>
+    <p>Important Considerations:</p><ul><li><p>The <code>cols2l</code> parameter should be either numeric indices or a character vector of column names present in <code>data</code>.</p></li>
 <li><p>Ensure all grouping variables specified in <code>by</code> are present in <code>data</code>.</p></li>
 <li><p>The function converts <code>data.frame</code> to <code>data.table</code> if necessary.</p></li>
 <li><p>The <code>nest_type</code> parameter controls whether nested data are <code>data.table</code> (<code>"dt"</code>) or <code>data.frame</code> (<code>"df"</code>) objects.</p></li>

@@ -111,57 +111,237 @@ Fill and run the content of this chunk, before anything else.
 Note: when you will use other flat templates, this part will be in a separate file. Do not be surprised!
 -->
 <div class="section level2">
-<h2 id="combn_pairs2">combn_pairs2<a class="anchor" aria-label="anchor" href="#combn_pairs2"></a>
+<h2 id="split_cv">split_cv<a class="anchor" aria-label="anchor" href="#split_cv"></a>
 </h2>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">dt_split</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/w2l_split.html">w2l_split</a></span><span class="op">(</span>data <span class="op">=</span> <span class="va">iris</span>, cols2l <span class="op">=</span> <span class="fl">1</span><span class="op">:</span><span class="fl">2</span>, by <span class="op">=</span> <span class="st">"Species"</span><span class="op">)</span></span>
+<span><span class="fu"><a href="../reference/split_cv.html">split_cv</a></span><span class="op">(</span>split_dt <span class="op">=</span> <span class="va">dt_split</span>, v <span class="op">=</span> <span class="fl">3</span>, repeats <span class="op">=</span> <span class="fl">2</span><span class="op">)</span></span>
+<span><span class="co">#&gt; $Sepal.Length_setosa</span></span>
+<span><span class="co">#&gt;                       splits      id    id2              train</span></span>
+<span><span class="co">#&gt;                       &lt;list&gt;  &lt;char&gt; &lt;char&gt;             &lt;list&gt;</span></span>
+<span><span class="co">#&gt; 1: &lt;vfold_split[33x17x50x3]&gt; Repeat1  Fold1 &lt;data.table[33x3]&gt;</span></span>
+<span><span class="co">#&gt; 2: &lt;vfold_split[33x17x50x3]&gt; Repeat1  Fold2 &lt;data.table[33x3]&gt;</span></span>
+<span><span class="co">#&gt; 3: &lt;vfold_split[34x16x50x3]&gt; Repeat1  Fold3 &lt;data.table[34x3]&gt;</span></span>
+<span><span class="co">#&gt; 4: &lt;vfold_split[33x17x50x3]&gt; Repeat2  Fold1 &lt;data.table[33x3]&gt;</span></span>
+<span><span class="co">#&gt; 5: &lt;vfold_split[33x17x50x3]&gt; Repeat2  Fold2 &lt;data.table[33x3]&gt;</span></span>
+<span><span class="co">#&gt; 6: &lt;vfold_split[34x16x50x3]&gt; Repeat2  Fold3 &lt;data.table[34x3]&gt;</span></span>
+<span><span class="co">#&gt;              validate</span></span>
+<span><span class="co">#&gt;                &lt;list&gt;</span></span>
+<span><span class="co">#&gt; 1: &lt;data.table[17x3]&gt;</span></span>
+<span><span class="co">#&gt; 2: &lt;data.table[17x3]&gt;</span></span>
+<span><span class="co">#&gt; 3: &lt;data.table[16x3]&gt;</span></span>
+<span><span class="co">#&gt; 4: &lt;data.table[17x3]&gt;</span></span>
+<span><span class="co">#&gt; 5: &lt;data.table[17x3]&gt;</span></span>
+<span><span class="co">#&gt; 6: &lt;data.table[16x3]&gt;</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $Sepal.Length_versicolor</span></span>
+<span><span class="co">#&gt;                       splits      id    id2              train</span></span>
+<span><span class="co">#&gt;                       &lt;list&gt;  &lt;char&gt; &lt;char&gt;             &lt;list&gt;</span></span>
+<span><span class="co">#&gt; 1: &lt;vfold_split[33x17x50x3]&gt; Repeat1  Fold1 &lt;data.table[33x3]&gt;</span></span>
+<span><span class="co">#&gt; 2: &lt;vfold_split[33x17x50x3]&gt; Repeat1  Fold2 &lt;data.table[33x3]&gt;</span></span>
+<span><span class="co">#&gt; 3: &lt;vfold_split[34x16x50x3]&gt; Repeat1  Fold3 &lt;data.table[34x3]&gt;</span></span>
+<span><span class="co">#&gt; 4: &lt;vfold_split[33x17x50x3]&gt; Repeat2  Fold1 &lt;data.table[33x3]&gt;</span></span>
+<span><span class="co">#&gt; 5: &lt;vfold_split[33x17x50x3]&gt; Repeat2  Fold2 &lt;data.table[33x3]&gt;</span></span>
+<span><span class="co">#&gt; 6: &lt;vfold_split[34x16x50x3]&gt; Repeat2  Fold3 &lt;data.table[34x3]&gt;</span></span>
+<span><span class="co">#&gt;              validate</span></span>
+<span><span class="co">#&gt;                &lt;list&gt;</span></span>
+<span><span class="co">#&gt; 1: &lt;data.table[17x3]&gt;</span></span>
+<span><span class="co">#&gt; 2: &lt;data.table[17x3]&gt;</span></span>
+<span><span class="co">#&gt; 3: &lt;data.table[16x3]&gt;</span></span>
+<span><span class="co">#&gt; 4: &lt;data.table[17x3]&gt;</span></span>
+<span><span class="co">#&gt; 5: &lt;data.table[17x3]&gt;</span></span>
+<span><span class="co">#&gt; 6: &lt;data.table[16x3]&gt;</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $Sepal.Length_virginica</span></span>
+<span><span class="co">#&gt;                       splits      id    id2              train</span></span>
+<span><span class="co">#&gt;                       &lt;list&gt;  &lt;char&gt; &lt;char&gt;             &lt;list&gt;</span></span>
+<span><span class="co">#&gt; 1: &lt;vfold_split[33x17x50x3]&gt; Repeat1  Fold1 &lt;data.table[33x3]&gt;</span></span>
+<span><span class="co">#&gt; 2: &lt;vfold_split[33x17x50x3]&gt; Repeat1  Fold2 &lt;data.table[33x3]&gt;</span></span>
+<span><span class="co">#&gt; 3: &lt;vfold_split[34x16x50x3]&gt; Repeat1  Fold3 &lt;data.table[34x3]&gt;</span></span>
+<span><span class="co">#&gt; 4: &lt;vfold_split[33x17x50x3]&gt; Repeat2  Fold1 &lt;data.table[33x3]&gt;</span></span>
+<span><span class="co">#&gt; 5: &lt;vfold_split[33x17x50x3]&gt; Repeat2  Fold2 &lt;data.table[33x3]&gt;</span></span>
+<span><span class="co">#&gt; 6: &lt;vfold_split[34x16x50x3]&gt; Repeat2  Fold3 &lt;data.table[34x3]&gt;</span></span>
+<span><span class="co">#&gt;              validate</span></span>
+<span><span class="co">#&gt;                &lt;list&gt;</span></span>
+<span><span class="co">#&gt; 1: &lt;data.table[17x3]&gt;</span></span>
+<span><span class="co">#&gt; 2: &lt;data.table[17x3]&gt;</span></span>
+<span><span class="co">#&gt; 3: &lt;data.table[16x3]&gt;</span></span>
+<span><span class="co">#&gt; 4: &lt;data.table[17x3]&gt;</span></span>
+<span><span class="co">#&gt; 5: &lt;data.table[17x3]&gt;</span></span>
+<span><span class="co">#&gt; 6: &lt;data.table[16x3]&gt;</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $Sepal.Width_setosa</span></span>
+<span><span class="co">#&gt;                       splits      id    id2              train</span></span>
+<span><span class="co">#&gt;                       &lt;list&gt;  &lt;char&gt; &lt;char&gt;             &lt;list&gt;</span></span>
+<span><span class="co">#&gt; 1: &lt;vfold_split[33x17x50x3]&gt; Repeat1  Fold1 &lt;data.table[33x3]&gt;</span></span>
+<span><span class="co">#&gt; 2: &lt;vfold_split[33x17x50x3]&gt; Repeat1  Fold2 &lt;data.table[33x3]&gt;</span></span>
+<span><span class="co">#&gt; 3: &lt;vfold_split[34x16x50x3]&gt; Repeat1  Fold3 &lt;data.table[34x3]&gt;</span></span>
+<span><span class="co">#&gt; 4: &lt;vfold_split[33x17x50x3]&gt; Repeat2  Fold1 &lt;data.table[33x3]&gt;</span></span>
+<span><span class="co">#&gt; 5: &lt;vfold_split[33x17x50x3]&gt; Repeat2  Fold2 &lt;data.table[33x3]&gt;</span></span>
+<span><span class="co">#&gt; 6: &lt;vfold_split[34x16x50x3]&gt; Repeat2  Fold3 &lt;data.table[34x3]&gt;</span></span>
+<span><span class="co">#&gt;              validate</span></span>
+<span><span class="co">#&gt;                &lt;list&gt;</span></span>
+<span><span class="co">#&gt; 1: &lt;data.table[17x3]&gt;</span></span>
+<span><span class="co">#&gt; 2: &lt;data.table[17x3]&gt;</span></span>
+<span><span class="co">#&gt; 3: &lt;data.table[16x3]&gt;</span></span>
+<span><span class="co">#&gt; 4: &lt;data.table[17x3]&gt;</span></span>
+<span><span class="co">#&gt; 5: &lt;data.table[17x3]&gt;</span></span>
+<span><span class="co">#&gt; 6: &lt;data.table[16x3]&gt;</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $Sepal.Width_versicolor</span></span>
+<span><span class="co">#&gt;                       splits      id    id2              train</span></span>
+<span><span class="co">#&gt;                       &lt;list&gt;  &lt;char&gt; &lt;char&gt;             &lt;list&gt;</span></span>
+<span><span class="co">#&gt; 1: &lt;vfold_split[33x17x50x3]&gt; Repeat1  Fold1 &lt;data.table[33x3]&gt;</span></span>
+<span><span class="co">#&gt; 2: &lt;vfold_split[33x17x50x3]&gt; Repeat1  Fold2 &lt;data.table[33x3]&gt;</span></span>
+<span><span class="co">#&gt; 3: &lt;vfold_split[34x16x50x3]&gt; Repeat1  Fold3 &lt;data.table[34x3]&gt;</span></span>
+<span><span class="co">#&gt; 4: &lt;vfold_split[33x17x50x3]&gt; Repeat2  Fold1 &lt;data.table[33x3]&gt;</span></span>
+<span><span class="co">#&gt; 5: &lt;vfold_split[33x17x50x3]&gt; Repeat2  Fold2 &lt;data.table[33x3]&gt;</span></span>
+<span><span class="co">#&gt; 6: &lt;vfold_split[34x16x50x3]&gt; Repeat2  Fold3 &lt;data.table[34x3]&gt;</span></span>
+<span><span class="co">#&gt;              validate</span></span>
+<span><span class="co">#&gt;                &lt;list&gt;</span></span>
+<span><span class="co">#&gt; 1: &lt;data.table[17x3]&gt;</span></span>
+<span><span class="co">#&gt; 2: &lt;data.table[17x3]&gt;</span></span>
+<span><span class="co">#&gt; 3: &lt;data.table[16x3]&gt;</span></span>
+<span><span class="co">#&gt; 4: &lt;data.table[17x3]&gt;</span></span>
+<span><span class="co">#&gt; 5: &lt;data.table[17x3]&gt;</span></span>
+<span><span class="co">#&gt; 6: &lt;data.table[16x3]&gt;</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $Sepal.Width_virginica</span></span>
+<span><span class="co">#&gt;                       splits      id    id2              train</span></span>
+<span><span class="co">#&gt;                       &lt;list&gt;  &lt;char&gt; &lt;char&gt;             &lt;list&gt;</span></span>
+<span><span class="co">#&gt; 1: &lt;vfold_split[33x17x50x3]&gt; Repeat1  Fold1 &lt;data.table[33x3]&gt;</span></span>
+<span><span class="co">#&gt; 2: &lt;vfold_split[33x17x50x3]&gt; Repeat1  Fold2 &lt;data.table[33x3]&gt;</span></span>
+<span><span class="co">#&gt; 3: &lt;vfold_split[34x16x50x3]&gt; Repeat1  Fold3 &lt;data.table[34x3]&gt;</span></span>
+<span><span class="co">#&gt; 4: &lt;vfold_split[33x17x50x3]&gt; Repeat2  Fold1 &lt;data.table[33x3]&gt;</span></span>
+<span><span class="co">#&gt; 5: &lt;vfold_split[33x17x50x3]&gt; Repeat2  Fold2 &lt;data.table[33x3]&gt;</span></span>
+<span><span class="co">#&gt; 6: &lt;vfold_split[34x16x50x3]&gt; Repeat2  Fold3 &lt;data.table[34x3]&gt;</span></span>
+<span><span class="co">#&gt;              validate</span></span>
+<span><span class="co">#&gt;                &lt;list&gt;</span></span>
+<span><span class="co">#&gt; 1: &lt;data.table[17x3]&gt;</span></span>
+<span><span class="co">#&gt; 2: &lt;data.table[17x3]&gt;</span></span>
+<span><span class="co">#&gt; 3: &lt;data.table[16x3]&gt;</span></span>
+<span><span class="co">#&gt; 4: &lt;data.table[17x3]&gt;</span></span>
+<span><span class="co">#&gt; 5: &lt;data.table[17x3]&gt;</span></span>
+<span><span class="co">#&gt; 6: &lt;data.table[16x3]&gt;</span></span></code></pre></div>
+</div>
+<div class="section level2">
+<h2 id="c2p_nest">c2p_nest<a class="anchor" aria-label="anchor" href="#c2p_nest"></a>
+</h2>
+<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">col_names</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"Sepal.Length"</span>, <span class="st">"Sepal.Width"</span>, <span class="st">"Petal.Length"</span><span class="op">)</span></span>
+<span><span class="fu"><a href="../reference/c2p_nest.html">c2p_nest</a></span><span class="op">(</span><span class="va">iris</span>, cols2bind <span class="op">=</span> <span class="va">col_names</span>, pairs_n <span class="op">=</span> <span class="fl">2</span>, sep <span class="op">=</span> <span class="st">"&amp;"</span><span class="op">)</span></span>
+<span><span class="co">#&gt;                        pairs                data</span></span>
+<span><span class="co">#&gt;                       &lt;char&gt;              &lt;list&gt;</span></span>
+<span><span class="co">#&gt; 1:  Sepal.Length&amp;Sepal.Width &lt;data.table[150x4]&gt;</span></span>
+<span><span class="co">#&gt; 2: Sepal.Length&amp;Petal.Length &lt;data.table[150x4]&gt;</span></span>
+<span><span class="co">#&gt; 3:  Sepal.Width&amp;Petal.Length &lt;data.table[150x4]&gt;</span></span>
+<span><span class="fu"><a href="../reference/c2p_nest.html">c2p_nest</a></span><span class="op">(</span><span class="va">iris</span>, cols2bind <span class="op">=</span> <span class="va">col_names</span>, pairs_n <span class="op">=</span> <span class="fl">2</span>, by <span class="op">=</span> <span class="st">"Species"</span><span class="op">)</span></span>
+<span><span class="co">#&gt;                        pairs    Species               data</span></span>
+<span><span class="co">#&gt;                       &lt;char&gt;     &lt;fctr&gt;             &lt;list&gt;</span></span>
+<span><span class="co">#&gt; 1:  Sepal.Length-Sepal.Width     setosa &lt;data.table[50x3]&gt;</span></span>
+<span><span class="co">#&gt; 2:  Sepal.Length-Sepal.Width versicolor &lt;data.table[50x3]&gt;</span></span>
+<span><span class="co">#&gt; 3:  Sepal.Length-Sepal.Width  virginica &lt;data.table[50x3]&gt;</span></span>
+<span><span class="co">#&gt; 4: Sepal.Length-Petal.Length     setosa &lt;data.table[50x3]&gt;</span></span>
+<span><span class="co">#&gt; 5: Sepal.Length-Petal.Length versicolor &lt;data.table[50x3]&gt;</span></span>
+<span><span class="co">#&gt; 6: Sepal.Length-Petal.Length  virginica &lt;data.table[50x3]&gt;</span></span>
+<span><span class="co">#&gt; 7:  Sepal.Width-Petal.Length     setosa &lt;data.table[50x3]&gt;</span></span>
+<span><span class="co">#&gt; 8:  Sepal.Width-Petal.Length versicolor &lt;data.table[50x3]&gt;</span></span>
+<span><span class="co">#&gt; 9:  Sepal.Width-Petal.Length  virginica &lt;data.table[50x3]&gt;</span></span></code></pre></div>
+</div>
+<div class="section level2">
+<h2 id="r2p_nest">r2p_nest<a class="anchor" aria-label="anchor" href="#r2p_nest"></a>
+</h2>
+<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Sample data</span></span>
 <span><span class="va">data</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span></span>
 <span>  breed <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"A"</span>, <span class="st">"B"</span>, <span class="st">"A"</span>, <span class="st">"B"</span><span class="op">)</span>, </span>
 <span>  sex <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"F"</span>, <span class="st">"F"</span>, <span class="st">"M"</span>, <span class="st">"M"</span><span class="op">)</span>, </span>
 <span>  trait1 <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1.1</span>, <span class="fl">2.1</span>, <span class="fl">3.5</span>, <span class="fl">4.6</span><span class="op">)</span>,</span>
 <span>  trait2 <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">5.2</span>, <span class="fl">6.6</span>, <span class="fl">7.3</span>, <span class="fl">8.6</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="co"># Method 1: Using combn_pair2() with data.table</span></span>
+<span><span class="va">data</span></span>
+<span><span class="co">#&gt;   breed sex trait1 trait2</span></span>
+<span><span class="co">#&gt; 1     A   F    1.1    5.2</span></span>
+<span><span class="co">#&gt; 2     B   F    2.1    6.6</span></span>
+<span><span class="co">#&gt; 3     A   M    3.5    7.3</span></span>
+<span><span class="co">#&gt; 4     B   M    4.6    8.6</span></span>
+<span><span class="co"># Method 1: Using r2p_nest() with data.table</span></span>
 <span><span class="co"># Combine by breed, grouping traits</span></span>
-<span><span class="fu"><a href="../reference/combn_pair2.html">combn_pair2</a></span><span class="op">(</span><span class="va">data</span>, cols2bind <span class="op">=</span> <span class="st">"breed"</span>, by <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"trait1"</span>, <span class="st">"trait2"</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="co">#&gt; Key: &lt;trait&gt;</span></span>
-<span><span class="co">#&gt;     trait              data</span></span>
+<span><span class="fu"><a href="../reference/r2p_nest.html">r2p_nest</a></span><span class="op">(</span><span class="va">data</span>, rows2bind <span class="op">=</span> <span class="st">"breed"</span>, by <span class="op">=</span> <span class="st">"trait1"</span><span class="op">)</span></span>
+<span><span class="co">#&gt;      name              data</span></span>
 <span><span class="co">#&gt;    &lt;fctr&gt;            &lt;list&gt;</span></span>
-<span><span class="co">#&gt; 1: trait1 &lt;data.table[2x3]&gt;</span></span>
-<span><span class="co">#&gt; 2: trait2 &lt;data.table[2x3]&gt;</span></span>
-<span></span>
+<span><span class="co">#&gt; 1: trait1 &lt;data.table[4x4]&gt;</span></span>
 <span><span class="co"># Return as data frame nested structure</span></span>
-<span><span class="fu"><a href="../reference/combn_pair2.html">combn_pair2</a></span><span class="op">(</span><span class="va">data</span>, cols2bind <span class="op">=</span> <span class="st">"breed"</span>, </span>
-<span>                           by <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"trait1"</span>, <span class="st">"trait2"</span><span class="op">)</span>, </span>
-<span>                           nest_type <span class="op">=</span> <span class="st">"df"</span><span class="op">)</span></span>
-<span><span class="co">#&gt; Key: &lt;trait&gt;</span></span>
-<span><span class="co">#&gt;     trait              data</span></span>
+<span><span class="fu"><a href="../reference/r2p_nest.html">r2p_nest</a></span><span class="op">(</span><span class="va">data</span>, rows2bind <span class="op">=</span> <span class="st">"breed"</span>, by <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"trait1"</span>, <span class="st">"trait2"</span><span class="op">)</span>, nest_type <span class="op">=</span> <span class="st">"df"</span><span class="op">)</span></span>
+<span><span class="co">#&gt;      name              data</span></span>
 <span><span class="co">#&gt;    &lt;fctr&gt;            &lt;list&gt;</span></span>
-<span><span class="co">#&gt; 1: trait1 &lt;data.frame[2x3]&gt;</span></span>
-<span><span class="co">#&gt; 2: trait2 &lt;data.frame[2x3]&gt;</span></span>
+<span><span class="co">#&gt; 1: trait1 &lt;data.frame[4x4]&gt;</span></span>
+<span><span class="co">#&gt; 2: trait2 &lt;data.frame[4x4]&gt;</span></span>
 <span><span class="co"># Method 2: Using tidyr and dplyr for similar transformation</span></span>
 <span><span class="va">data</span> <span class="op">|&gt;</span></span>
-<span>  <span class="fu">tidyr</span><span class="fu">::</span><span class="fu"><a href="https://tidyr.tidyverse.org/reference/pivot_longer.html" class="external-link">pivot_longer</a></span><span class="op">(</span>cols <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"trait1"</span>, <span class="st">"trait2"</span><span class="op">)</span>, names_to <span class="op">=</span> <span class="st">"name"</span>, values_to <span class="op">=</span> <span class="st">"value"</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span>  <span class="fu">tidyr</span><span class="fu">::</span><span class="fu"><a href="https://tidyr.tidyverse.org/reference/pivot_longer.html" class="external-link">pivot_longer</a></span><span class="op">(</span>cols <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"trait1"</span><span class="op">)</span>, names_to <span class="op">=</span> <span class="st">"name"</span>, values_to <span class="op">=</span> <span class="st">"value"</span><span class="op">)</span> <span class="op">|&gt;</span></span>
 <span>  <span class="fu">tidyr</span><span class="fu">::</span><span class="fu"><a href="https://tidyr.tidyverse.org/reference/pivot_wider.html" class="external-link">pivot_wider</a></span><span class="op">(</span>names_from <span class="op">=</span> <span class="st">"breed"</span>, values_from <span class="op">=</span> <span class="st">"value"</span><span class="op">)</span> <span class="op">|&gt;</span></span>
 <span>  <span class="fu">dplyr</span><span class="fu">::</span><span class="fu"><a href="https://dplyr.tidyverse.org/reference/group_nest.html" class="external-link">group_nest</a></span><span class="op">(</span><span class="va">name</span><span class="op">)</span></span>
-<span><span class="co">#&gt; <span style="color: #949494;"># A tibble: 2 × 2</span></span></span>
+<span><span class="co">#&gt; <span style="color: #949494;"># A tibble: 1 × 2</span></span></span>
 <span><span class="co">#&gt;   name                 data</span></span>
-<span><span class="co">#&gt;   <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>  <span style="color: #949494; font-style: italic;">&lt;list&lt;tibble[,3]&gt;&gt;</span></span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">1</span> trait1            <span style="color: #949494;">[2 × 3]</span></span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">2</span> trait2            <span style="color: #949494;">[2 × 3]</span></span></span></code></pre></div>
+<span><span class="co">#&gt;   <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>  <span style="color: #949494; font-style: italic;">&lt;list&lt;tibble[,4]&gt;&gt;</span></span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">1</span> trait1            <span style="color: #949494;">[4 × 4]</span></span></span></code></pre></div>
+</div>
+<div class="section level2">
+<h2 id="export_nest">export_nest<a class="anchor" aria-label="anchor" href="#export_nest"></a>
+</h2>
+<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># Data Nesting Operation</span></span>
+<span><span class="va">dt_nest</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/w2l_nest.html">w2l_nest</a></span><span class="op">(</span>data <span class="op">=</span> <span class="va">iris</span>, cols2l <span class="op">=</span> <span class="fl">1</span><span class="op">:</span><span class="fl">2</span>, by <span class="op">=</span> <span class="st">"Species"</span><span class="op">)</span></span>
+<span><span class="co"># Export Nested Data</span></span>
+<span><span class="fu"><a href="../reference/export_nest.html">export_nest</a></span><span class="op">(</span>nest_dt <span class="op">=</span> <span class="va">dt_nest</span>, nest_col <span class="op">=</span> <span class="st">"data"</span>,</span>
+<span>            group_cols <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"name"</span>, <span class="st">"Species"</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="co">#&gt; [1] 6</span></span>
+<span><span class="co"># Check Export Results</span></span>
+<span><span class="va">files</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/list.files.html" class="external-link">list.files</a></span><span class="op">(</span>path <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempdir</a></span><span class="op">(</span><span class="op">)</span>, pattern <span class="op">=</span> <span class="st">"txt"</span>, recursive <span class="op">=</span> <span class="cn">TRUE</span>, full.names <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
+<span><span class="va">files</span></span>
+<span><span class="co">#&gt; [1] "/tmp/RtmppmhB5X/Sepal.Length/setosa/data.txt"    </span></span>
+<span><span class="co">#&gt; [2] "/tmp/RtmppmhB5X/Sepal.Length/versicolor/data.txt"</span></span>
+<span><span class="co">#&gt; [3] "/tmp/RtmppmhB5X/Sepal.Length/virginica/data.txt" </span></span>
+<span><span class="co">#&gt; [4] "/tmp/RtmppmhB5X/Sepal.Width/setosa/data.txt"     </span></span>
+<span><span class="co">#&gt; [5] "/tmp/RtmppmhB5X/Sepal.Width/versicolor/data.txt" </span></span>
+<span><span class="co">#&gt; [6] "/tmp/RtmppmhB5X/Sepal.Width/virginica/data.txt"</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/files.html" class="external-link">file.remove</a></span><span class="op">(</span><span class="va">files</span><span class="op">)</span></span>
+<span><span class="co">#&gt; [1] TRUE TRUE TRUE TRUE TRUE TRUE</span></span></code></pre></div>
+</div>
+<div class="section level2">
+<h2 id="export_list">export_list<a class="anchor" aria-label="anchor" href="#export_list"></a>
+</h2>
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># Data Nesting Operation</span></span>
+<span><span class="va">dt_split</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/w2l_split.html">w2l_split</a></span><span class="op">(</span>data <span class="op">=</span> <span class="va">iris</span>, cols2l <span class="op">=</span> <span class="fl">1</span><span class="op">:</span><span class="fl">2</span>, by <span class="op">=</span> <span class="st">"Species"</span><span class="op">)</span></span>
+<span><span class="co"># Export Nested Data</span></span>
+<span><span class="fu"><a href="../reference/export_list.html">export_list</a></span><span class="op">(</span>split_dt <span class="op">=</span> <span class="va">dt_split</span><span class="op">)</span></span>
+<span><span class="co">#&gt; [1] 6</span></span>
+<span><span class="co"># Check Export Results</span></span>
+<span><span class="va">files</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/list.files.html" class="external-link">list.files</a></span><span class="op">(</span>path <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempdir</a></span><span class="op">(</span><span class="op">)</span>, pattern <span class="op">=</span> <span class="st">"txt"</span>, recursive <span class="op">=</span> <span class="cn">TRUE</span>, full.names <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
+<span><span class="va">files</span></span>
+<span><span class="co">#&gt; [1] "/tmp/RtmppmhB5X/Sepal.Length_setosa.txt"    </span></span>
+<span><span class="co">#&gt; [2] "/tmp/RtmppmhB5X/Sepal.Length_versicolor.txt"</span></span>
+<span><span class="co">#&gt; [3] "/tmp/RtmppmhB5X/Sepal.Length_virginica.txt" </span></span>
+<span><span class="co">#&gt; [4] "/tmp/RtmppmhB5X/Sepal.Width_setosa.txt"     </span></span>
+<span><span class="co">#&gt; [5] "/tmp/RtmppmhB5X/Sepal.Width_versicolor.txt" </span></span>
+<span><span class="co">#&gt; [6] "/tmp/RtmppmhB5X/Sepal.Width_virginica.txt"</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/files.html" class="external-link">file.remove</a></span><span class="op">(</span><span class="va">files</span><span class="op">)</span></span>
+<span><span class="co">#&gt; [1] TRUE TRUE TRUE TRUE TRUE TRUE</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="fires">fires<a class="anchor" aria-label="anchor" href="#fires"></a>
 </h2>
-<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="fu"><a href="../reference/fires.html">fires</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt;    Location   Tag       Date    Entry     Exit Ent Wt Ext Wt Consumed Weight</span></span>
 <span><span class="co">#&gt;       &lt;int&gt; &lt;int&gt;     &lt;char&gt;   &lt;char&gt;   &lt;char&gt;  &lt;num&gt;  &lt;num&gt;    &lt;num&gt;  &lt;num&gt;</span></span>
-<span><span class="co">#&gt; 1:      101 35877 2024-09-26 14:15:39 14:18:02  0.678  0.632    0.046   67.6</span></span>
-<span><span class="co">#&gt; 2:      101 35873 2024-09-26 14:18:03 14:23:05  0.632  0.384    0.248   60.8</span></span>
-<span><span class="co">#&gt; 3:      101 35878 2024-09-26 14:23:15 14:28:45  0.670  0.469    0.201   70.8</span></span>
-<span><span class="co">#&gt; 4:      101 35855 2024-09-26 14:29:05 14:34:29  0.755  0.634    0.121   51.2</span></span>
-<span><span class="co">#&gt; 5:      101 35877 2024-09-26 14:34:30 14:34:37  0.634  0.634    0.000    0.0</span></span>
-<span><span class="co">#&gt; 6:      101 35853 2024-09-26 14:34:38 14:36:26  0.634  0.634    0.000   88.6</span></span>
+<span><span class="co">#&gt; 1:      101 35877 2024-09-29 14:15:39 14:18:02  0.678  0.632    0.046   67.6</span></span>
+<span><span class="co">#&gt; 2:      101 35873 2024-09-29 14:18:03 14:23:05  0.632  0.384    0.248   60.8</span></span>
+<span><span class="co">#&gt; 3:      101 35878 2024-09-29 14:23:15 14:28:45  0.670  0.469    0.201   70.8</span></span>
+<span><span class="co">#&gt; 4:      101 35855 2024-09-29 14:29:05 14:34:29  0.755  0.634    0.121   51.2</span></span>
+<span><span class="co">#&gt; 5:      101 35877 2024-09-29 14:34:30 14:34:37  0.634  0.634    0.000    0.0</span></span>
+<span><span class="co">#&gt; 6:      101 35853 2024-09-29 14:34:38 14:36:26  0.634  0.634    0.000   88.6</span></span>
 <span><span class="co">#&gt;    Topup Amount</span></span>
 <span><span class="co">#&gt;           &lt;num&gt;</span></span>
 <span><span class="co">#&gt; 1:        0.286</span></span>
@@ -174,16 +354,16 @@ Note: when you will use other flat templates, this part will be in a separate fi
 <div class="section level2">
 <h2 id="nedaps">nedaps<a class="anchor" aria-label="anchor" href="#nedaps"></a>
 </h2>
-<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="fu"><a href="../reference/nedaps.html">nedaps</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt;    animal_number lifenumber responder location          visit_time duration</span></span>
 <span><span class="co">#&gt;            &lt;int&gt;     &lt;lgcl&gt;     &lt;int&gt;    &lt;int&gt;              &lt;POSc&gt;    &lt;int&gt;</span></span>
-<span><span class="co">#&gt; 1:      10115497         NA     15497      101 2024-08-26 20:22:51        3</span></span>
-<span><span class="co">#&gt; 2:      10115967         NA     15967      101 2024-08-26 20:22:54       65</span></span>
-<span><span class="co">#&gt; 3:      10115983         NA     15983      101 2024-08-26 20:23:59        2</span></span>
-<span><span class="co">#&gt; 4:      10115967         NA     15967      101 2024-08-26 20:24:01       11</span></span>
-<span><span class="co">#&gt; 5:      10115983         NA     15983      101 2024-08-26 20:24:12        2</span></span>
-<span><span class="co">#&gt; 6:      10115967         NA     15967      101 2024-08-26 20:24:14       33</span></span>
+<span><span class="co">#&gt; 1:      10115497         NA     15497      101 2024-08-29 20:22:51        3</span></span>
+<span><span class="co">#&gt; 2:      10115967         NA     15967      101 2024-08-29 20:22:54       65</span></span>
+<span><span class="co">#&gt; 3:      10115983         NA     15983      101 2024-08-29 20:23:59        2</span></span>
+<span><span class="co">#&gt; 4:      10115967         NA     15967      101 2024-08-29 20:24:01       11</span></span>
+<span><span class="co">#&gt; 5:      10115983         NA     15983      101 2024-08-29 20:24:12        2</span></span>
+<span><span class="co">#&gt; 6:      10115967         NA     15967      101 2024-08-29 20:24:14       33</span></span>
 <span><span class="co">#&gt;    state weight feed_intake</span></span>
 <span><span class="co">#&gt;    &lt;int&gt;  &lt;int&gt;       &lt;int&gt;</span></span>
 <span><span class="co">#&gt; 1:     0  46500           0</span></span>
@@ -196,7 +376,7 @@ Note: when you will use other flat templates, this part will be in a separate fi
 <div class="section level2">
 <h2 id="convert_nest">convert_nest<a class="anchor" aria-label="anchor" href="#convert_nest"></a>
 </h2>
-<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Convert a data frame with nested columns to data table</span></span>
 <span><span class="va">df_nest1</span> <span class="op">&lt;-</span> <span class="va">iris</span> <span class="op">|&gt;</span> </span>
 <span>  <span class="fu">dplyr</span><span class="fu">::</span><span class="fu"><a href="https://dplyr.tidyverse.org/reference/group_nest.html" class="external-link">group_nest</a></span><span class="op">(</span><span class="va">Species</span><span class="op">)</span></span>
@@ -232,18 +412,21 @@ Note: when you will use other flat templates, this part will be in a separate fi
 <span><span class="co">#&gt; 3:  virginica &lt;data.table[50x4]&gt; &lt;data.table[50x5]&gt;</span></span>
 <span><span class="co"># Convert a data table with nested columns to data frame</span></span>
 <span><span class="va">dt_nest</span> <span class="op">&lt;-</span> <span class="fu">mintyr</span><span class="fu">::</span><span class="fu"><a href="../reference/w2l_nest.html">w2l_nest</a></span><span class="op">(</span>data <span class="op">=</span> <span class="va">iris</span>, cols2l <span class="op">=</span> <span class="fl">1</span><span class="op">:</span><span class="fl">2</span>, by <span class="op">=</span> <span class="st">"Species"</span><span class="op">)</span></span>
-<span><span class="fu"><a href="../reference/convert_nest.html">convert_nest</a></span><span class="op">(</span><span class="va">dt_nest</span>, to <span class="op">=</span> <span class="st">"df"</span>, nest_cols <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"data"</span><span class="op">)</span><span class="op">)</span> <span class="op">|&gt;</span></span>
-<span>  <span class="fu">dplyr</span><span class="fu">::</span><span class="fu"><a href="https://pillar.r-lib.org/reference/glimpse.html" class="external-link">glimpse</a></span><span class="op">(</span><span class="op">)</span></span>
-<span><span class="co">#&gt; Rows: 6</span></span>
-<span><span class="co">#&gt; Columns: 3</span></span>
-<span><span class="co">#&gt; $ name    <span style="color: #949494; font-style: italic;">&lt;fct&gt;</span> Sepal.Length, Sepal.Length, Sepal.Length, Sepal.Width, Sepal.W…</span></span>
-<span><span class="co">#&gt; $ Species <span style="color: #949494; font-style: italic;">&lt;fct&gt;</span> setosa, versicolor, virginica, setosa, versicolor, virginica</span></span>
-<span><span class="co">#&gt; $ data    <span style="color: #949494; font-style: italic;">&lt;list&gt;</span> [&lt;data.frame[50 x 3]&gt;], [&lt;data.frame[50 x 3]&gt;], [&lt;data.frame[5…</span></span></code></pre></div>
+<span><span class="fu"><a href="../reference/convert_nest.html">convert_nest</a></span><span class="op">(</span><span class="va">dt_nest</span>, to <span class="op">=</span> <span class="st">"df"</span>, nest_cols <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"data"</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="co">#&gt; <span style="color: #949494;"># A tibble: 6 × 3</span></span></span>
+<span><span class="co">#&gt;   name         Species    data             </span></span>
+<span><span class="co">#&gt;   <span style="color: #949494; font-style: italic;">&lt;fct&gt;</span>        <span style="color: #949494; font-style: italic;">&lt;fct&gt;</span>      <span style="color: #949494; font-style: italic;">&lt;list&gt;</span>           </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">1</span> Sepal.Length setosa     <span style="color: #949494;">&lt;tibble [50 × 3]&gt;</span></span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">2</span> Sepal.Length versicolor <span style="color: #949494;">&lt;tibble [50 × 3]&gt;</span></span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">3</span> Sepal.Length virginica  <span style="color: #949494;">&lt;tibble [50 × 3]&gt;</span></span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">4</span> Sepal.Width  setosa     <span style="color: #949494;">&lt;tibble [50 × 3]&gt;</span></span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">5</span> Sepal.Width  versicolor <span style="color: #949494;">&lt;tibble [50 × 3]&gt;</span></span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">6</span> Sepal.Width  virginica  <span style="color: #949494;">&lt;tibble [50 × 3]&gt;</span></span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="get_path_segment">get_path_segment<a class="anchor" aria-label="anchor" href="#get_path_segment"></a>
 </h2>
-<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Example usage demonstrations</span></span>
 <span><span class="va">paths</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"/home/user/documents"</span>, <span class="st">"/var/log/system"</span>, <span class="st">"/usr/local/bin"</span><span class="op">)</span></span>
 <span><span class="co"># Positive index example</span></span>
@@ -254,25 +437,9 @@ Note: when you will use other flat templates, this part will be in a separate fi
 <span><span class="co">#&gt; [1] "user"  "log"   "local"</span></span></code></pre></div>
 </div>
 <div class="section level2">
-<h2 id="nest_export">nest_export<a class="anchor" aria-label="anchor" href="#nest_export"></a>
-</h2>
-<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># Data Nesting Operation</span></span>
-<span><span class="va">dt_nest</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/w2l_nest.html">w2l_nest</a></span><span class="op">(</span>data <span class="op">=</span> <span class="va">iris</span>, cols2l <span class="op">=</span> <span class="fl">1</span><span class="op">:</span><span class="fl">2</span>, by <span class="op">=</span> <span class="st">"Species"</span><span class="op">)</span></span>
-<span><span class="co"># Export Nested Data</span></span>
-<span><span class="fu"><a href="../reference/nest_export.html">nest_export</a></span><span class="op">(</span>nest_dt <span class="op">=</span> <span class="va">dt_nest</span>, nest_col <span class="op">=</span> <span class="st">"data"</span>,</span>
-<span>            group_cols <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"name"</span>, <span class="st">"Species"</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="co">#&gt; [1] 6</span></span>
-<span><span class="co"># Check Export Results</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/list.files.html" class="external-link">list.files</a></span><span class="op">(</span>path <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempdir</a></span><span class="op">(</span><span class="op">)</span>, pattern <span class="op">=</span> <span class="st">"txt"</span>, recursive <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
-<span><span class="co">#&gt; [1] "Sepal.Length/setosa/data.txt"     "Sepal.Length/versicolor/data.txt"</span></span>
-<span><span class="co">#&gt; [3] "Sepal.Length/virginica/data.txt"  "Sepal.Width/setosa/data.txt"     </span></span>
-<span><span class="co">#&gt; [5] "Sepal.Width/versicolor/data.txt"  "Sepal.Width/virginica/data.txt"</span></span></code></pre></div>
-</div>
-<div class="section level2">
 <h2 id="format_digits">format_digits<a class="anchor" aria-label="anchor" href="#format_digits"></a>
 </h2>
-<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Create example data</span></span>
 <span><span class="va">dt</span> <span class="op">&lt;-</span> <span class="fu">data.table</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/data.table/man/data.table.html" class="external-link">data.table</a></span><span class="op">(</span></span>
 <span>  a <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0.1234</span>, <span class="fl">0.5678</span><span class="op">)</span>,</span>
@@ -300,21 +467,21 @@ Note: when you will use other flat templates, this part will be in a separate fi
 <div class="section level2">
 <h2 id="mintyr_example">mintyr_example<a class="anchor" aria-label="anchor" href="#mintyr_example"></a>
 </h2>
-<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/mintyr_example.html">mintyr_example</a></span><span class="op">(</span><span class="st">"csv_test1.csv"</span><span class="op">)</span></span>
 <span><span class="co">#&gt; [1] "/home/runner/work/_temp/Library/mintyr/extdata/csv_test1.csv"</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="mintyr_examples">mintyr_examples<a class="anchor" aria-label="anchor" href="#mintyr_examples"></a>
 </h2>
-<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/mintyr_examples.html">mintyr_examples</a></span><span class="op">(</span><span class="op">)</span></span>
 <span><span class="co">#&gt; [1] "csv_test1.csv"   "csv_test2.csv"   "xlsx_test1.xlsx" "xlsx_test2.xlsx"</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="import_xlsx">import_xlsx<a class="anchor" aria-label="anchor" href="#import_xlsx"></a>
 </h2>
-<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">xlsx_files</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/mintyr_example.html">mintyr_example</a></span><span class="op">(</span><span class="fu"><a href="../reference/mintyr_examples.html">mintyr_examples</a></span><span class="op">(</span><span class="st">"xlsx_test"</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="va">xlsx_files</span></span>
 <span><span class="co">#&gt; [1] "/home/runner/work/_temp/Library/mintyr/extdata/xlsx_test1.xlsx"</span></span>
@@ -341,21 +508,12 @@ Note: when you will use other flat templates, this part will be in a separate fi
 <div class="section level2">
 <h2 id="import_csv">import_csv<a class="anchor" aria-label="anchor" href="#import_csv"></a>
 </h2>
-<p>This is the first tool of our wonderful package. You can add
-<code>1</code> to any <code>value</code> using function
-<code>add_one()</code>.</p>
 <!-- 
 This first section shows:
-
 - the three parts necessary for a package: 'function', 'examples' and 'tests'.  
   + Note that the three following chunks have names accordingly.
-
 -->
-<!--
-Here is an example on how to use the function.
-This should be a reproducible and working example
--->
-<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">csv_files</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/mintyr_example.html">mintyr_example</a></span><span class="op">(</span><span class="fu"><a href="../reference/mintyr_examples.html">mintyr_examples</a></span><span class="op">(</span><span class="st">"csv_test"</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="va">csv_files</span></span>
 <span><span class="co">#&gt; [1] "/home/runner/work/_temp/Library/mintyr/extdata/csv_test1.csv"</span></span>
@@ -373,7 +531,7 @@ This should be a reproducible and working example
 <div class="section level2">
 <h2 id="get_filename">get_filename<a class="anchor" aria-label="anchor" href="#get_filename"></a>
 </h2>
-<div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">xlsx_files</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/mintyr_example.html">mintyr_example</a></span><span class="op">(</span><span class="fu"><a href="../reference/mintyr_examples.html">mintyr_examples</a></span><span class="op">(</span><span class="st">"xlsx_test"</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="va">xlsx_files</span></span>
 <span><span class="co">#&gt; [1] "/home/runner/work/_temp/Library/mintyr/extdata/xlsx_test1.xlsx"</span></span>
@@ -389,7 +547,7 @@ This should be a reproducible and working example
 <div class="section level2">
 <h2 id="w2l_nest">w2l_nest<a class="anchor" aria-label="anchor" href="#w2l_nest"></a>
 </h2>
-<div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/w2l_nest.html">w2l_nest</a></span><span class="op">(</span>data <span class="op">=</span> <span class="va">iris</span>, cols2l <span class="op">=</span> <span class="fl">1</span><span class="op">:</span><span class="fl">4</span><span class="op">)</span></span>
 <span><span class="co">#&gt;            name                data</span></span>
 <span><span class="co">#&gt;          &lt;fctr&gt;              &lt;list&gt;</span></span>
@@ -413,7 +571,7 @@ This should be a reproducible and working example
 <div class="section level2">
 <h2 id="w2l_split">w2l_split<a class="anchor" aria-label="anchor" href="#w2l_split"></a>
 </h2>
-<div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb18"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/w2l_split.html">w2l_split</a></span><span class="op">(</span>data <span class="op">=</span> <span class="va">iris</span>, cols2l <span class="op">=</span> <span class="fl">1</span><span class="op">:</span><span class="fl">3</span><span class="op">)</span></span>
 <span><span class="co">#&gt; $Sepal.Length</span></span>
 <span><span class="co">#&gt;      Petal.Width   Species value</span></span>
@@ -491,33 +649,9 @@ This should be a reproducible and working example
 <span><span class="co">#&gt; 150:          5.1         1.8 virginica   3.0</span></span></code></pre></div>
 </div>
 <div class="section level2">
-<h2 id="combn_pair">combn_pair<a class="anchor" aria-label="anchor" href="#combn_pair"></a>
-</h2>
-<div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">col_names</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"Sepal.Length"</span>, <span class="st">"Sepal.Width"</span>, <span class="st">"Petal.Length"</span><span class="op">)</span></span>
-<span><span class="fu"><a href="../reference/combn_pair.html">combn_pair</a></span><span class="op">(</span><span class="va">iris</span>, cols2bind <span class="op">=</span> <span class="va">col_names</span>, pairs_n <span class="op">=</span> <span class="fl">2</span>, sep <span class="op">=</span> <span class="st">"&amp;"</span><span class="op">)</span></span>
-<span><span class="co">#&gt;                        pairs                data</span></span>
-<span><span class="co">#&gt;                       &lt;char&gt;              &lt;list&gt;</span></span>
-<span><span class="co">#&gt; 1:  Sepal.Length&amp;Sepal.Width &lt;data.table[150x4]&gt;</span></span>
-<span><span class="co">#&gt; 2: Sepal.Length&amp;Petal.Length &lt;data.table[150x4]&gt;</span></span>
-<span><span class="co">#&gt; 3:  Sepal.Width&amp;Petal.Length &lt;data.table[150x4]&gt;</span></span>
-<span><span class="fu"><a href="../reference/combn_pair.html">combn_pair</a></span><span class="op">(</span><span class="va">iris</span>, cols2bind <span class="op">=</span> <span class="va">col_names</span>, pairs_n <span class="op">=</span> <span class="fl">2</span>, by <span class="op">=</span> <span class="st">"Species"</span><span class="op">)</span></span>
-<span><span class="co">#&gt;                        pairs    Species               data</span></span>
-<span><span class="co">#&gt;                       &lt;char&gt;     &lt;fctr&gt;             &lt;list&gt;</span></span>
-<span><span class="co">#&gt; 1:  Sepal.Length-Sepal.Width     setosa &lt;data.table[50x3]&gt;</span></span>
-<span><span class="co">#&gt; 2:  Sepal.Length-Sepal.Width versicolor &lt;data.table[50x3]&gt;</span></span>
-<span><span class="co">#&gt; 3:  Sepal.Length-Sepal.Width  virginica &lt;data.table[50x3]&gt;</span></span>
-<span><span class="co">#&gt; 4: Sepal.Length-Petal.Length     setosa &lt;data.table[50x3]&gt;</span></span>
-<span><span class="co">#&gt; 5: Sepal.Length-Petal.Length versicolor &lt;data.table[50x3]&gt;</span></span>
-<span><span class="co">#&gt; 6: Sepal.Length-Petal.Length  virginica &lt;data.table[50x3]&gt;</span></span>
-<span><span class="co">#&gt; 7:  Sepal.Width-Petal.Length     setosa &lt;data.table[50x3]&gt;</span></span>
-<span><span class="co">#&gt; 8:  Sepal.Width-Petal.Length versicolor &lt;data.table[50x3]&gt;</span></span>
-<span><span class="co">#&gt; 9:  Sepal.Width-Petal.Length  virginica &lt;data.table[50x3]&gt;</span></span></code></pre></div>
-</div>
-<div class="section level2">
 <h2 id="nest_cv">nest_cv<a class="anchor" aria-label="anchor" href="#nest_cv"></a>
 </h2>
-<div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb19"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">dt_nest</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/w2l_nest.html">w2l_nest</a></span><span class="op">(</span>data <span class="op">=</span> <span class="va">iris</span>, cols2l <span class="op">=</span> <span class="fl">1</span><span class="op">:</span><span class="fl">2</span>, by <span class="op">=</span> <span class="st">"Species"</span><span class="op">)</span></span>
 <span><span class="fu"><a href="../reference/nest_cv.html">nest_cv</a></span><span class="op">(</span>nest_dt <span class="op">=</span> <span class="va">dt_nest</span>, v <span class="op">=</span> <span class="fl">2</span>, repeats <span class="op">=</span> <span class="fl">2</span><span class="op">)</span></span>
 <span><span class="co">#&gt;             name    Species                    splits      id    id2</span></span>
@@ -578,7 +712,7 @@ This should be a reproducible and working example
 <div class="section level2">
 <h2 id="top_perc">top_perc<a class="anchor" aria-label="anchor" href="#top_perc"></a>
 </h2>
-<div class="sourceCode" id="cb18"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb20"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Example 1: Basic usage with single trait</span></span>
 <span><span class="co"># This example selects the top 10% of observations based on Petal.Width</span></span>
 <span><span class="co"># keep_data=TRUE returns both summary statistics and the filtered data</span></span>
@@ -655,8 +789,6 @@ This should be a reproducible and working example
 <span><span class="co">#&gt; <span style="color: #BCBCBC;">10</span> versicolor Sepal.Width  values      13  2.35 0.151 -20%    </span></span>
 <span><span class="co">#&gt; <span style="color: #BCBCBC;">11</span> virginica  Sepal.Length values      11  5.79 0.336 -20%    </span></span>
 <span><span class="co">#&gt; <span style="color: #BCBCBC;">12</span> virginica  Sepal.Width  values      11  2.56 0.15  -20%</span></span></code></pre></div>
-<p>That’s it ! This the end of the documented story of our package. All
-components are there.</p>
 <!-- 
 # Inflate your package
 

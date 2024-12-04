@@ -7,9 +7,10 @@
 <url><loc>https://tony2015116.github.io/mintyr/authors.html</loc></url>
 <url><loc>https://tony2015116.github.io/mintyr/index.html</loc></url>
 <url><loc>https://tony2015116.github.io/mintyr/news/index.html</loc></url>
-<url><loc>https://tony2015116.github.io/mintyr/reference/combn_pair.html</loc></url>
-<url><loc>https://tony2015116.github.io/mintyr/reference/combn_pair2.html</loc></url>
+<url><loc>https://tony2015116.github.io/mintyr/reference/c2p_nest.html</loc></url>
 <url><loc>https://tony2015116.github.io/mintyr/reference/convert_nest.html</loc></url>
+<url><loc>https://tony2015116.github.io/mintyr/reference/export_list.html</loc></url>
+<url><loc>https://tony2015116.github.io/mintyr/reference/export_nest.html</loc></url>
 <url><loc>https://tony2015116.github.io/mintyr/reference/fire.html</loc></url>
 <url><loc>https://tony2015116.github.io/mintyr/reference/fires.html</loc></url>
 <url><loc>https://tony2015116.github.io/mintyr/reference/format_digits.html</loc></url>
@@ -23,7 +24,8 @@
 <url><loc>https://tony2015116.github.io/mintyr/reference/nedap.html</loc></url>
 <url><loc>https://tony2015116.github.io/mintyr/reference/nedaps.html</loc></url>
 <url><loc>https://tony2015116.github.io/mintyr/reference/nest_cv.html</loc></url>
-<url><loc>https://tony2015116.github.io/mintyr/reference/nest_export.html</loc></url>
+<url><loc>https://tony2015116.github.io/mintyr/reference/r2p_nest.html</loc></url>
+<url><loc>https://tony2015116.github.io/mintyr/reference/split_cv.html</loc></url>
 <url><loc>https://tony2015116.github.io/mintyr/reference/top_perc.html</loc></url>
 <url><loc>https://tony2015116.github.io/mintyr/reference/w2l_nest.html</loc></url>
 <url><loc>https://tony2015116.github.io/mintyr/reference/w2l_split.html</loc></url>

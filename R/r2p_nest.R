@@ -3,25 +3,27 @@
 #' Row to Pair Nested Transformation
 #'
 #' @description
-#' A flexible data transformation tool for performing row pair conversion 
-#' and nesting operations across multiple columns.
+#' A sophisticated data transformation tool for performing row pair conversion 
+#' and creating nested data structures with advanced configuration options.
 #'
-#' @param data Input 'data frame' or 'data table'
+#' @param data Input `data frame` or `data table`
 #'   - Must contain valid columns for transformation
 #'   - Supports multiple data types
 #'
-#' @param rows2bind 'character' or 'numeric' column name/index for row binding
-#'   - Specifies target row binding column
+#' @param rows2bind Row binding specification
+#'   - Can be a `character` column name
+#'   - Can be a `numeric` column index
 #'   - Must be a single column identifier
 #'
-#' @param by 'character' or 'numeric' column name/index vector
-#'   - Columns used for nested pairing
+#' @param by Grouping specification for nested pairing
+#'   - Can be a `character` vector of column names
+#'   - Can be a `numeric` vector of column indices
 #'   - Must specify at least one column
 #'   - Supports multi-column transformation
 #'
 #' @param nest_type Output nesting format
-#'   - `'dt'`: Returns nested 'data table' (default)
-#'   - `'df'`: Returns nested 'data frame'
+#'   - `"dt"`: Returns nested `data table` (default)
+#'   - `"df"`: Returns nested `data frame`
 #'
 #' @details
 #' Advanced Transformation Mechanism:
@@ -34,28 +36,30 @@
 #'
 #' Transformation Process:
 #' \itemize{
-#'   \item Convert input to 'data table'
+#'   \item Validate input parameters and column specifications
+#'   \item Convert numeric indices to column names if necessary
 #'   \item Reshape data from wide to long format
 #'   \item Perform column-wise nested transformation
-#'   \item Support multi-column processing
+#'   \item Generate final nested structure
 #' }
 #'
-#' Index and Column Selection:
+#' Column Specification:
 #' \itemize{
-#'   \item Accepts column names and numeric indices
-#'   \item Validates column existence
-#'   \item Handles single and multiple column scenarios
+#'   \item Supports both column names and numeric indices
+#'   \item Numeric indices must be within valid range (1 to ncol)
+#'   \item Column names must exist in the dataset
+#'   \item Flexible specification for both rows2bind and by parameters
 #' }
 #'
-#' @return 'data table' containing nested transformation results
-#'   - Includes 'name' column identifying source columns
-#'   - Contains 'data' column storing nested data structures
+#' @return `data table` containing nested transformation results
+#'   - Includes `name` column identifying source columns
+#'   - Contains `data` column storing nested data structures
 #'
 #' @note Key Operation Constraints:
 #' \itemize{
 #'   \item Requires non-empty input data
-#'   \item `by` parameter must specify at least one column
-#'   \item Supports flexible column identification
+#'   \item Column specifications must be valid (either names or indices)
+#'   \item By parameter must specify at least one column
 #'   \item Low computational overhead
 #' }
 #'
@@ -64,29 +68,33 @@
 #'   \item [`data.table::melt()`] Long format conversion
 #'   \item [`data.table::dcast()`] Wide format conversion
 #'   \item [`base::rbind()`] Row binding utility
+#'   \item [`c2p_nest()`] Column to pair nested transformation
 #' }
 #'
 #' @import data.table
 #' @importFrom stats as.formula
 #' @export
 #' @examples
-#' # Sample data
-#' data <- data.frame(
-#'   breed = c("A", "B", "A", "B"), 
-#'   sex = c("F", "F", "M", "M"), 
-#'   trait1 = c(1.1, 2.1, 3.5, 4.6),
-#'   trait2 = c(5.2, 6.6, 7.3, 8.6))
-#' data
-#' # Method 1: Using r2p_nest() with data.table
-#' # Combine by breed, grouping traits
-#' r2p_nest(data, rows2bind = "breed", by = "trait1")
-#' # Return as data frame nested structure
-#' r2p_nest(data, rows2bind = "breed", by = c("trait1", "trait2"), nest_type = "df")
-#' # Method 2: Using tidyr and dplyr for similar transformation
-#' data |>
-#'   tidyr::pivot_longer(cols = c("trait1"), names_to = "name", values_to = "value") |>
-#'   tidyr::pivot_wider(names_from = "breed", values_from = "value") |>
-#'   dplyr::group_nest(name)
+#' # Example 1: Row-to-pairs nesting with column names
+#' r2p_nest(
+#'   mtcars,                     # Input mtcars dataset
+#'   rows2bind = "cyl",          # Column to be used as row values
+#'   by = c("hp", "drat", "wt")  # Columns to be transformed into pairs
+#' )
+#' # Returns a nested data.table where:
+#' # - name: variable names (hp, drat, wt)
+#' # - data: list column containing data.tables with rows grouped by cyl values
+#'
+#' # Example 2: Row-to-pairs nesting with numeric indices
+#' r2p_nest(
+#'   mtcars,                     # Input mtcars dataset
+#'   rows2bind = 2,              # Use 2nd column (cyl) as row values
+#'   by = 4:6                    # Use columns 4-6 (hp, drat, wt) for pairs
+#' )
+#' # Returns a nested data.table where:
+#' # - name: variable names from columns 4-6
+#' # - data: list column containing data.tables with rows grouped by cyl values
+
 r2p_nest <- function(data, rows2bind, by, nest_type = "dt") {
   # Input validation
   if (length(by) < 1) {

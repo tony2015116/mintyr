@@ -11,7 +11,7 @@ mintyr_examples(pattern = NULL)
 }
 \description{
 vroom comes bundled with a number of sample files in
-its 'inst/extdata' directory. Use \code{vroom_examples()} to list all the
+its 'inst/extdata' directory. Use \code{mintyr_examples()} to list all the
 available examples.
 }
 \examples{

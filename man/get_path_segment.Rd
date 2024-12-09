@@ -2,7 +2,7 @@
 % Please edit documentation in R/get_path_segment.R
 \name{get_path_segment}
 \alias{get_path_segment}
-\title{Advanced File Path Segment Extraction}
+\title{Extract Specific Segments from File Paths}
 \usage{
 get_path_segment(paths, n = 1)
 }
@@ -12,13 +12,15 @@ get_path_segment(paths, n = 1)
 \item Must be non-empty
 \item Path segments separated by forward slash \code{'/'}
 \item Supports absolute and relative paths
-\item Handles complex path structures
+\item Handles cross-platform path representations
+\item Supports paths with mixed separators (\code{'\\\\'} and \code{'/'})
 }}
 
 \item{n}{Numeric index for segment selection
 \itemize{
 \item Positive values: Select from path start
 \item Negative values: Select from path end
+\item Supports single index or range extraction
 \item Cannot be \code{0}
 \item Default is \code{1} (first segment)
 }}
@@ -31,15 +33,15 @@ get_path_segment(paths, n = 1)
 }
 }
 \description{
-A robust utility for precise segment extraction from file system paths
-with flexible indexing and comprehensive error handling.
+The \code{get_path_segment} function extracts specific segments from file paths provided as character strings. Segments can be extracted from either the beginning or the end of the path, depending on the value of \code{n}.
 }
 \details{
 Sophisticated Path Segment Extraction Mechanism:
 \enumerate{
-\item Input validation and preprocessing
-\item Robust path segmentation
-\item Flexible indexing strategy
+\item Comprehensive input validation
+\item Path normalization and preprocessing
+\item Robust cross-platform path segmentation
+\item Flexible indexing with forward and backward navigation
 \item Intelligent segment retrieval
 \item Graceful handling of edge cases
 }
@@ -52,12 +54,15 @@ Indexing Behavior:
 \item Negative \code{n}: Reverse indexing from path end
 - \code{n = -1}: Last segment
 - \code{n = -2}: Second-to-last segment
+\item Range extraction: Supports \code{c(start, end)} index specification
 }
 
 Path Parsing Characteristics:
 \itemize{
+\item Standardizes path separators to \code{'/'}
+\item Removes drive letters (e.g., \code{'C:'})
 \item Ignores consecutive \code{'/'} delimiters
-\item Removes empty path segments
+\item Removes leading and trailing separators
 \item Returns \code{NA_character_} for non-existent segments
 \item Supports complex path structures
 }
@@ -66,22 +71,66 @@ Path Parsing Characteristics:
 Critical Operational Constraints:
 \itemize{
 \item Requires non-empty 'paths' input
-\item \code{n} must be non-zero integer
+\item \code{n} must be non-zero numeric value
 \item Supports cross-platform path representations
 \item Minimal computational overhead
+\item Preserves path segment order
 }
 }
 \examples{
-# Example usage demonstrations
-paths <- c("/home/user/documents", "/var/log/system", "/usr/local/bin")
-# Positive index example
-get_path_segment(paths, 2)
-# Negative index example
-get_path_segment(paths, -2)
+# Example: Path segment extraction demonstrations
+
+# Setup test paths
+paths <- c(
+  "C:/home/user/documents",   # Windows style path
+  "/var/log/system",          # Unix system path
+  "/usr/local/bin"            # Unix binary path
+)
+
+# Example 1: Extract first segment
+get_path_segment(
+  paths,                      # Input paths
+  1                           # Get first segment
+)
+# Returns: c("home", "var", "usr")
+
+# Example 2: Extract second-to-last segment
+get_path_segment(
+  paths,                      # Input paths
+  -2                          # Get second-to-last segment
+)
+# Returns: c("user", "log", "local")
+
+# Example 3: Extract from first to last segment
+get_path_segment(
+  paths,                      # Input paths
+  c(1,-1)                     # Range from first to last
+)
+# Returns full paths without drive letters
+
+# Example 4: Extract first three segments
+get_path_segment(
+  paths,                      # Input paths
+  c(1,3)                      # Range from first to third
+)
+# Returns: c("home/user/documents", "var/log/system", "usr/local/bin")
+
+# Example 5: Extract last two segments (reverse order)
+get_path_segment(
+  paths,                      # Input paths
+  c(-1,-2)                    # Range from last to second-to-last
+)
+# Returns: c("documents/user", "system/log", "bin/local")
+
+# Example 6: Extract first two segments
+get_path_segment(
+  paths,                      # Input paths
+  c(1,2)                      # Range from first to second
+)
+# Returns: c("home/user", "var/log", "usr/local")
 }
 \seealso{
 \itemize{
-\item \code{\link[base:strsplit]{base::strsplit()}} String splitting utility
 \item \code{\link[tools:fileutils]{tools::file_path_sans_ext()}} File extension manipulation
 }
 }

@@ -2,7 +2,7 @@
 % Please edit documentation in R/import_csv.R
 \name{import_csv}
 \alias{import_csv}
-\title{Flexible CSV File Import with Multiple Backend Support}
+\title{Flexible \code{CSV}/\code{TXT} File Import with Multiple Backend Support}
 \usage{
 import_csv(
   file,
@@ -50,39 +50,19 @@ derived from input file names (without extensions)
 }
 }
 \description{
-A comprehensive \code{CSV} file import function offering advanced reading capabilities
+A comprehensive \code{CSV} or \code{TXT} file import function offering advanced reading capabilities
 through \code{data.table} and \code{arrow} packages with intelligent data combination strategies.
 }
 \details{
-Comprehensive \code{CSV} Import Features:
-\itemize{
-\item Dual-backend support (\code{data.table} and \code{arrow})
-\item Intelligent multi-file import strategies
-\item Flexible data combination and source tracking
-\item Automatic handling of inconsistent file structures
-\item Preservation of original data types
-}
-
-Import Strategies:
-\enumerate{
-\item Dynamic package selection
-\item Configurable file combination methods
-\item Automatic source file metadata tracking
-\item Seamless handling of disparate data structures
-}
-
-Performance Considerations:
-\itemize{
-\item \code{data.table}: Optimized for speed and memory efficiency
-\item \code{arrow}: Enhanced performance for large datasets
-\item Automatic column alignment during import
-\item Minimal memory overhead
-}
+The function provides a unified interface for reading CSV files using either data.table
+or arrow package. When reading multiple files, it can either combine them into a single
+data object or return them as a list. File source tracking is supported through the
+rbind_label parameter.
 }
 \note{
 Critical Import Considerations:
 \itemize{
-\item Requires all specified files to be accessible \code{CSV} files
+\item Requires all specified files to be accessible \code{CSV/TXT} files
 \item Supports flexible backend selection
 \item \code{rbind = TRUE} assumes compatible data structures
 \item Missing columns are automatically aligned
@@ -90,9 +70,27 @@ Critical Import Considerations:
 }
 }
 \examples{
-csv_files <- mintyr_example(mintyr_examples("csv_test"))
-csv_files
-import_csv(csv_files)
+# Example: CSV file import demonstrations
+
+# Setup test files
+csv_files <- mintyr_example(
+  mintyr_examples("csv_test")     # Get example CSV files
+)
+
+# Example 1: Import and combine CSV files using data.table
+import_csv(
+  csv_files,                      # Input CSV file paths
+  package = "data.table",         # Use data.table for reading
+  rbind = TRUE,                   # Combine all files into one data.table
+  rbind_label = "_file"           # Column name for file source
+)
+
+# Example 2: Import files separately using arrow
+import_csv(
+  csv_files,                      # Input CSV file paths
+  package = "arrow",              # Use arrow for reading
+  rbind = FALSE                   # Keep files as separate data.tables
+)
 }
 \seealso{
 \itemize{

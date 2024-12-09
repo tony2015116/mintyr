@@ -41,9 +41,37 @@ Note: when you will use other flat templates, this part will be in a separate fi
     
   
 ```{r example-split_cv}
-dt_split <- w2l_split(data = iris, cols2l = 1:2, by = "Species")
-split_cv(split_dt = dt_split, v = 3, repeats = 2)
+# Prepare example data: Convert first 3 columns of iris dataset to long format and split
+dt_split <- w2l_split(data = iris, cols2l = 1:3)
+# dt_split is now a list containing 3 data tables for Sepal.Length, Sepal.Width, and Petal.Length
+
+# Example 1: Single cross-validation (no repeats)
+split_cv(
+  split_dt = dt_split,  # Input list of split data
+  v = 3,                # Set 3-fold cross-validation
+  repeats = 1           # Perform cross-validation once (no repeats)
+)
+# Returns a list where each element contains:
+# - splits: rsample split objects
+# - id: fold numbers (Fold1, Fold2, Fold3)
+# - train: training set data
+# - validate: validation set data
+
+# Example 2: Repeated cross-validation
+split_cv(
+  split_dt = dt_split,  # Input list of split data
+  v = 3,                # Set 3-fold cross-validation
+  repeats = 2           # Perform cross-validation twice
+)
+# Returns a list where each element contains:
+# - splits: rsample split objects
+# - id: repeat numbers (Repeat1, Repeat2)
+# - id2: fold numbers (Fold1, Fold2, Fold3)
+# - train: training set data
+# - validate: validation set data
 ```
+
+
 
 
 
@@ -51,10 +79,33 @@ split_cv(split_dt = dt_split, v = 3, repeats = 2)
     
   
 ```{r example-c2p_nest}
+# Example data preparation: Define column names for combination
 col_names <- c("Sepal.Length", "Sepal.Width", "Petal.Length")
-c2p_nest(iris, cols2bind = col_names, pairs_n = 2, sep = "&")
-c2p_nest(iris, cols2bind = col_names, pairs_n = 2, by = "Species")
+
+# Example 1: Basic column-to-pairs nesting with custom separator
+c2p_nest(
+  iris,                   # Input iris dataset
+  cols2bind = col_names,  # Columns to be combined as pairs
+  pairs_n = 2,            # Create pairs of 2 columns
+  sep = "&"               # Custom separator for pair names
+)
+# Returns a nested data.table where:
+# - pairs: combined column names (e.g., "Sepal.Length&Sepal.Width")
+# - data: list column containing data.tables with value1, value2 columns
+
+# Example 2: Column-to-pairs nesting with numeric indices and grouping
+c2p_nest(
+  iris,                   # Input iris dataset
+  cols2bind = 1:3,        # First 3 columns to be combined
+  pairs_n = 2,            # Create pairs of 2 columns
+  by = 5                  # Group by 5th column (Species)
+)
+# Returns a nested data.table where:
+# - pairs: combined column names
+# - Species: grouping variable
+# - data: list column containing data.tables grouped by Species
 ```
+
 
 
 
@@ -62,24 +113,27 @@ c2p_nest(iris, cols2bind = col_names, pairs_n = 2, by = "Species")
     
 
 ```{r example-r2p_nest}
-# Sample data
-data <- data.frame(
-  breed = c("A", "B", "A", "B"), 
-  sex = c("F", "F", "M", "M"), 
-  trait1 = c(1.1, 2.1, 3.5, 4.6),
-  trait2 = c(5.2, 6.6, 7.3, 8.6))
-data
-# Method 1: Using r2p_nest() with data.table
-# Combine by breed, grouping traits
-r2p_nest(data, rows2bind = "breed", by = "trait1")
-# Return as data frame nested structure
-r2p_nest(data, rows2bind = "breed", by = c("trait1", "trait2"), nest_type = "df")
-# Method 2: Using tidyr and dplyr for similar transformation
-data |>
-  tidyr::pivot_longer(cols = c("trait1"), names_to = "name", values_to = "value") |>
-  tidyr::pivot_wider(names_from = "breed", values_from = "value") |>
-  dplyr::group_nest(name)
+# Example 1: Row-to-pairs nesting with column names
+r2p_nest(
+  mtcars,                     # Input mtcars dataset
+  rows2bind = "cyl",          # Column to be used as row values
+  by = c("hp", "drat", "wt")  # Columns to be transformed into pairs
+)
+# Returns a nested data.table where:
+# - name: variable names (hp, drat, wt)
+# - data: list column containing data.tables with rows grouped by cyl values
+
+# Example 2: Row-to-pairs nesting with numeric indices
+r2p_nest(
+  mtcars,                     # Input mtcars dataset
+  rows2bind = 2,              # Use 2nd column (cyl) as row values
+  by = 4:6                    # Use columns 4-6 (hp, drat, wt) for pairs
+)
+# Returns a nested data.table where:
+# - name: variable names from columns 4-6
+# - data: list column containing data.tables with rows grouped by cyl values
 ```
+
 
 
 
@@ -87,15 +141,39 @@ data |>
     
   
 ```{r example-export_nest}
-# Data Nesting Operation
-dt_nest <- w2l_nest(data = iris, cols2l = 1:2, by = "Species")
-# Export Nested Data
-export_nest(nest_dt = dt_nest, nest_col = "data",
-            group_cols = c("name", "Species"))
-# Check Export Results
-files <- list.files(path = tempdir(), pattern = "txt", recursive = TRUE, full.names = TRUE)
-files
-file.remove(files)
+# Example 1: Basic nested data export workflow
+# Step 1: Create nested data structure
+dt_nest <- w2l_nest(
+  data = iris,              # Input iris dataset
+  cols2l = 1:2,             # Columns to be nested
+  by = "Species"            # Grouping variable
+)
+
+# Step 2: Export nested data to files
+export_nest(
+  nest_dt = dt_nest,        # Input nested data.table
+  nest_col = "data",        # Column containing nested data
+  group_cols = c("name", "Species")  # Columns to create directory structure
+)
+# Returns the number of files created
+# Creates directory structure: tempdir()/name/Species/data.txt
+
+# Check exported files
+list.files(
+  path = tempdir(),         # Default export directory
+  pattern = "txt",          # File type pattern to search
+  recursive = TRUE          # Search in subdirectories
+)
+# Returns list of created files and their paths
+
+# Clean up exported files
+files <- list.files(
+  path = tempdir(),         # Default export directory
+  pattern = "txt",          # File type pattern to search
+  recursive = TRUE,         # Search in subdirectories
+  full.names = TRUE         # Return full file paths
+)
+file.remove(files)          # Remove all exported files
 ```
 
 
@@ -104,15 +182,39 @@ file.remove(files)
     
   
 ```{r example-export_list}
-# Data Nesting Operation
-dt_split <- w2l_split(data = iris, cols2l = 1:2, by = "Species")
-# Export Nested Data
-export_list(split_dt = dt_split)
-# Check Export Results
-files <- list.files(path = tempdir(), pattern = "txt", recursive = TRUE, full.names = TRUE)
-files
-file.remove(files)
+# Example: Export split data to files
+
+# Step 1: Create split data structure
+dt_split <- w2l_split(
+  data = iris,              # Input iris dataset
+  cols2l = 1:2,             # Columns to be split
+  by = "Species"            # Grouping variable
+)
+
+# Step 2: Export split data to files
+export_list(
+  split_dt = dt_split       # Input list of data.tables
+)
+# Returns the number of files created
+# Files are saved in tempdir() with .txt extension
+
+# Check exported files
+list.files(
+  path = tempdir(),         # Default export directory
+  pattern = "txt",          # File type pattern to search
+  recursive = TRUE          # Search in subdirectories
+)
+
+# Clean up exported files
+files <- list.files(
+  path = tempdir(),         # Default export directory
+  pattern = "txt",          # File type pattern to search
+  recursive = TRUE,         # Search in subdirectories
+  full.names = TRUE         # Return full file paths
+)
+file.remove(files)          # Remove all exported files
 ```
+
 
 
 
@@ -138,35 +240,107 @@ head(nedaps())
     
   
 ```{r example-convert_nest}
-# Convert a data frame with nested columns to data table
+# Example 1: Create nested data structures
+# Create single nested column
 df_nest1 <- iris |> 
-  dplyr::group_nest(Species)
-df_nest1
+  dplyr::group_nest(Species)     # Group and nest by Species
+
+# Create multiple nested columns
 df_nest2 <- iris |>
-  dplyr::group_nest(Species) |>
-  dplyr::mutate(data2 = purrr::map(data, dplyr::mutate, c=2))
-df_nest2
-# Convert a data table with specific nested columns to data frame
-convert_nest(df_nest1, to = "dt", nest_cols = c("data"))
-convert_nest(df_nest2, to = "dt", nest_cols = c("data", "data2"))
-# Convert a data table with nested columns to data frame
-dt_nest <- mintyr::w2l_nest(data = iris, cols2l = 1:2, by = "Species")
-convert_nest(dt_nest, to = "df", nest_cols = c("data"))
+  dplyr::group_nest(Species) |>  # Group and nest by Species
+  dplyr::mutate(
+    data2 = purrr::map(          # Create second nested column
+      data,
+      dplyr::mutate, 
+      c = 2
+    )
+  )
+
+# Example 2: Convert nested structures
+# Convert data frame to data table
+convert_nest(
+  df_nest1,                      # Input nested data frame
+  to = "dt"                      # Convert to data.table
+)
+
+# Convert specific nested columns
+convert_nest(
+  df_nest2,                      # Input nested data frame
+  to = "dt",                     # Convert to data.table
+  nest_cols = "data"             # Only convert 'data' column
+)
+
+# Example 3: Convert data table to data frame
+dt_nest <- mintyr::w2l_nest(
+  data = iris,                   # Input dataset
+  cols2l = 1:2                   # Columns to nest
+)
+convert_nest(
+  dt_nest,                       # Input nested data table
+  to = "df"                      # Convert to data frame
+)
 ```
 
-  
-  
+
+
+
+
 # get_path_segment
     
   
 ```{r example-get_path_segment}
-# Example usage demonstrations
-paths <- c("/home/user/documents", "/var/log/system", "/usr/local/bin")
-# Positive index example
-get_path_segment(paths, 2)
-# Negative index example
-get_path_segment(paths, -2)
+# Example: Path segment extraction demonstrations
+
+# Setup test paths
+paths <- c(
+  "C:/home/user/documents",   # Windows style path
+  "/var/log/system",          # Unix system path
+  "/usr/local/bin"            # Unix binary path
+)
+
+# Example 1: Extract first segment
+get_path_segment(
+  paths,                      # Input paths
+  1                           # Get first segment
+)
+# Returns: c("home", "var", "usr")
+
+# Example 2: Extract second-to-last segment
+get_path_segment(
+  paths,                      # Input paths
+  -2                          # Get second-to-last segment
+)
+# Returns: c("user", "log", "local")
+
+# Example 3: Extract from first to last segment
+get_path_segment(
+  paths,                      # Input paths
+  c(1,-1)                     # Range from first to last
+)
+# Returns full paths without drive letters
+
+# Example 4: Extract first three segments
+get_path_segment(
+  paths,                      # Input paths
+  c(1,3)                      # Range from first to third
+)
+# Returns: c("home/user/documents", "var/log/system", "usr/local/bin")
+
+# Example 5: Extract last two segments (reverse order)
+get_path_segment(
+  paths,                      # Input paths
+  c(-1,-2)                    # Range from last to second-to-last
+)
+# Returns: c("documents/user", "system/log", "bin/local")
+
+# Example 6: Extract first two segments
+get_path_segment(
+  paths,                      # Input paths
+  c(1,2)                      # Range from first to second
+)
+# Returns: c("home/user", "var/log", "usr/local")
 ```
+
 
 
 
@@ -174,20 +348,31 @@ get_path_segment(paths, -2)
     
   
 ```{r example-format_digits}
-# Create example data
+# Example: Number formatting demonstrations
+
+# Setup test data
 dt <- data.table::data.table(
-  a = c(0.1234, 0.5678),
-  b = c(0.2345, 0.6789),
-  c = c("text1", "text2")
+  a = c(0.1234, 0.5678),      # Numeric column 1
+  b = c(0.2345, 0.6789),      # Numeric column 2
+  c = c("text1", "text2")     # Text column
 )
-dt
-# Format without percentage
-format_digits(dt, cols = c("a", "b"))
-# Format with percentage
-format_digits(dt, cols = c("a"), percentage = TRUE)
+
+# Example 1: Format all numeric columns
+format_digits(
+  dt,                         # Input data table
+  digits = 2                  # Round to 2 decimal places
+)
+
+# Example 2: Format specific column as percentage
+format_digits(
+  dt,                         # Input data table
+  cols = c("a"),              # Only format column 'a'
+  digits = 2,                 # Round to 2 decimal places
+  percentage = TRUE           # Convert to percentage
+)
 ```
 
-  
+
 
 
 # mintyr_example
@@ -197,7 +382,8 @@ format_digits(dt, cols = c("a"), percentage = TRUE)
 mintyr_example("csv_test1.csv")
 ```
 
-  
+
+
 # mintyr_examples
     
   
@@ -205,32 +391,64 @@ mintyr_example("csv_test1.csv")
 mintyr_examples()
 ```
 
-  
-  
+
+
+
 # import_xlsx
     
   
 ```{r example-import_xlsx}
-xlsx_files <- mintyr_example(mintyr_examples("xlsx_test"))
-xlsx_files
-import_xlsx(xlsx_files)
+# Example: Excel file import demonstrations
+
+# Setup test files
+xlsx_files <- mintyr_example(
+  mintyr_examples("xlsx_test")    # Get example Excel files
+)
+
+# Example 1: Import and combine all sheets from all files
+import_xlsx(
+  xlsx_files,                     # Input Excel file paths
+  rbind = TRUE                    # Combine all sheets into one data.table
+)
+
+# Example 2: Import specific sheets separately
+import_xlsx(
+  xlsx_files,                     # Input Excel file paths
+  rbind = FALSE,                  # Keep sheets as separate data.tables
+  sheet = 2                       # Only import first sheet
+)
 ```
 
-  
 
-  
+
+
+
 # import_csv
-<!-- 
-This first section shows:
-- the three parts necessary for a package: 'function', 'examples' and 'tests'.  
-  + Note that the three following chunks have names accordingly.
--->
 
 ```{r examples-import_csv}
-csv_files <- mintyr_example(mintyr_examples("csv_test"))
-csv_files
-import_csv(csv_files)
+# Example: CSV file import demonstrations
+
+# Setup test files
+csv_files <- mintyr_example(
+  mintyr_examples("csv_test")     # Get example CSV files
+)
+
+# Example 1: Import and combine CSV files using data.table
+import_csv(
+  csv_files,                      # Input CSV file paths
+  package = "data.table",         # Use data.table for reading
+  rbind = TRUE,                   # Combine all files into one data.table
+  rbind_label = "_file"           # Column name for file source
+)
+
+# Example 2: Import files separately using arrow
+import_csv(
+  csv_files,                      # Input CSV file paths
+  package = "arrow",              # Use arrow for reading
+  rbind = FALSE                   # Keep files as separate data.tables
+)
 ```
+
 
 
 
@@ -238,12 +456,35 @@ import_csv(csv_files)
     
   
 ```{r example-get_filename}
-xlsx_files <- mintyr_example(mintyr_examples("xlsx_test"))
-xlsx_files
-get_filename(xlsx_files) # Keep only file names
-get_filename(xlsx_files, rm_extension = FALSE) # Keep extension
-get_filename(xlsx_files, rm_path = FALSE) # Keep path
+# Example: File path processing demonstrations
+
+# Setup test files
+xlsx_files <- mintyr_example(
+  mintyr_examples("xlsx_test")    # Get example Excel files
+)
+
+# Example 1: Extract filenames without extensions
+get_filename(
+  xlsx_files,                     # Input file paths
+  rm_extension = TRUE,            # Remove file extensions
+  rm_path = TRUE                  # Remove directory paths
+)
+
+# Example 2: Keep file extensions
+get_filename(
+  xlsx_files,                     # Input file paths
+  rm_extension = FALSE,           # Keep file extensions
+  rm_path = TRUE                  # Remove directory paths
+)
+
+# Example 3: Keep full paths without extensions
+get_filename(
+  xlsx_files,                     # Input file paths
+  rm_extension = TRUE,            # Remove file extensions
+  rm_path = FALSE                 # Keep directory paths
+)
 ```
+
 
 
 
@@ -251,18 +492,69 @@ get_filename(xlsx_files, rm_path = FALSE) # Keep path
     
   
 ```{r example-w2l_nest}
-w2l_nest(data = iris, cols2l = 1:4)
-w2l_nest(data = iris, cols2l = c("Sepal.Length", "Sepal.Width", "Petal.Length"), by = "Species")
+# Example: Wide to long format nesting demonstrations
+
+# Example 1: Basic nesting by group
+w2l_nest(
+  data = iris,                    # Input dataset
+  by = "Species"                  # Group by Species column
+)
+
+# Example 2: Nest specific columns with numeric indices
+w2l_nest(
+  data = iris,                    # Input dataset
+  cols2l = 1:4,                   # Select first 4 columns to nest
+  by = "Species"                  # Group by Species column
+)
+
+# Example 3: Nest specific columns with column names
+w2l_nest(
+  data = iris,                    # Input dataset
+  cols2l = c("Sepal.Length",      # Select columns by name
+             "Sepal.Width", 
+             "Petal.Length"),
+  by = 5                          # Group by column index 5 (Species)
+)
+# Returns similar structure to Example 2
 ```
 
-  
+
+
+
+
 # w2l_split
     
   
 ```{r example-w2l_split}
-w2l_split(data = iris, cols2l = 1:3)
-w2l_split(data = iris, cols2l = c("Sepal.Length", "Sepal.Width"))
+# Example: Wide to long format splitting demonstrations
+
+# Example 1: Basic splitting by Species
+w2l_split(
+  data = iris,                    # Input dataset
+  by = "Species"                  # Split by Species column
+) |> 
+  lapply(head)                    # Show first 6 rows of each split
+
+# Example 2: Split specific columns using numeric indices
+w2l_split(
+  data = iris,                    # Input dataset
+  cols2l = 1:3,                   # Select first 3 columns to split
+  by = 5                          # Split by column index 5 (Species)
+) |> 
+  lapply(head)                    # Show first 6 rows of each split
+
+# Example 3: Split specific columns using column names
+list_res <- w2l_split(
+  data = iris,                    # Input dataset
+  cols2l = c("Sepal.Length",      # Select columns by name
+             "Sepal.Width"),
+  by = "Species"                  # Split by Species column
+)
+lapply(list_res, head)            # Show first 6 rows of each split
+# Returns similar structure to Example 2
 ```
+
+
 
 
 
@@ -270,12 +562,31 @@ w2l_split(data = iris, cols2l = c("Sepal.Length", "Sepal.Width"))
     
   
 ```{r example-nest_cv}
-dt_nest <- w2l_nest(data = iris, cols2l = 1:2, by = "Species")
-nest_cv(nest_dt = dt_nest, v = 2, repeats = 2)
+# Example: Cross-validation for nested data.table demonstrations
+
+# Setup test data
+dt_nest <- w2l_nest(
+  data = iris,                   # Input dataset
+  cols2l = 1:2                   # Nest first 2 columns
+)
+
+# Example 1: Basic 2-fold cross-validation
+nest_cv(
+  nest_dt = dt_nest,             # Input nested data.table
+  v = 2                          # Number of folds (2-fold CV)
+)
+
+# Example 2: Repeated 2-fold cross-validation
+nest_cv(
+  nest_dt = dt_nest,             # Input nested data.table
+  v = 2,                         # Number of folds (2-fold CV)
+  repeats = 2                    # Number of repetitions
+)
 ```
 
-  
-  
+
+
+
 # top_perc
     
   
@@ -297,22 +608,17 @@ top_perc(iris,
          by = "Species")            # Group by Species
 
 # Example 3: Complex example with multiple percentages and grouping variables
-# Uses pipe operator and transformed data
-iris |>
-  # Reshape data from wide to long format for Sepal.Length and Sepal.Width
-  tidyr::pivot_longer(1:2,                  # Transform first two columns
-                     names_to = "names",     # New column for original column names
-                     values_to = "values") |># New column for values
-  # Apply top_perc function on reshaped data
+# Reshape data from wide to long format for Sepal.Length and Sepal.Width
+iris |> 
+  tidyr::pivot_longer(1:2,
+                      names_to = "names", 
+                      values_to = "values") |> 
   mintyr::top_perc(
-    perc = c(0.1, -0.2),           # Select top 10% AND bottom 20%
-    trait = "values",               # Analyze the 'values' column
-    by = c("Species", "names"),     # Group by both Species and measurement type
-    type = "mean_sd")               # Calculate mean and standard deviation
-
+    perc = c(0.1, -0.2),
+    trait = "values",
+    by = c("Species", "names"),
+    type = "mean_sd")
 ```
-
-
 
 
 

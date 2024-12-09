@@ -3,7 +3,7 @@
 #' Get path to one example
 #' 
 #' vroom comes bundled with a number of sample files in
-#' its 'inst/extdata' directory. Use `vroom_examples()` to list all the
+#' its 'inst/extdata' directory. Use `mintyr_examples()` to list all the
 #' available examples.
 #' 
 #' @param pattern A regular expression of filenames to match. If `NULL`, all available files are returned.
@@ -11,6 +11,17 @@
 #' @export
 #' @examples
 #' mintyr_examples()
-mintyr_examples <- function (pattern = NULL) {
+mintyr_examples <- function(pattern = NULL) {
+  # Validate pattern if provided
+  if (!is.null(pattern)) {
+    if (!is.character(pattern)) {
+      stop("'pattern' must be a character string or NULL", call. = FALSE)
+    }
+    if (length(pattern) != 1) {
+      stop("'pattern' must be a single character string", call. = FALSE)
+    }
+  }
+  
+  # Get files from extdata directory
   list.files(system.file("extdata", package = "mintyr"), pattern = pattern)
 }

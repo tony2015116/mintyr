@@ -3,7 +3,7 @@
 #' Convert Nested Columns Between `data.frame` and `data.table`
 #'
 #' @description
-#' Transforms a `data.frame` or `data.table` by converting nested columns 
+#' The `convert_nest` function transforms a `data.frame` or `data.table` by converting nested columns 
 #' to either `data.frame` or `data.table` format while preserving the original data structure.
 #'
 #' @param data A `data.frame` or `data.table` containing nested columns
@@ -20,7 +20,15 @@
 #'   \item Selective conversion of specified nested columns
 #'   \item Non-destructive transformation with data copying
 #' }
-#'
+#' 
+#' Input Validation and Error Handling:
+#' \itemize{
+#'   \item Validates existence of specified nested columns
+#'   \item Verifies that specified columns are actually list columns
+#'   \item Provides informative error messages for invalid inputs
+#'   \item Ensures data integrity through comprehensive checks
+#' }
+#' 
 #' Conversion Strategies:
 #' \enumerate{
 #'   \item Nested column identification based on `is.list()` detection
@@ -49,10 +57,12 @@
 #'   \item Minimal performance overhead
 #' }
 #'
-#' @seealso
+#' Error Conditions:
 #' \itemize{
-#'   \item [`data.table::as.data.table()`]
-#'   \item [`tibble::as_tibble()`]
+#'   \item Throws error if specified columns don't exist in the input data
+#'   \item Throws error if specified columns are not list columns
+#'   \item Provides clear error messages for troubleshooting
+#'   \item Validates input parameters before processing
 #' }
 #'
 #' @importFrom data.table as.data.table copy
@@ -60,28 +70,64 @@
 #' 
 #' @export
 #' @examples
-#' # Convert a data frame with nested columns to data table
+#' # Example 1: Create nested data structures
+#' # Create single nested column
 #' df_nest1 <- iris |> 
-#'   dplyr::group_nest(Species)
-#' df_nest1
+#'   dplyr::group_nest(Species)     # Group and nest by Species
+#'
+#' # Create multiple nested columns
 #' df_nest2 <- iris |>
-#'   dplyr::group_nest(Species) |>
-#'   dplyr::mutate(data2 = purrr::map(data, dplyr::mutate, c=2))
-#' df_nest2
-#' # Convert a data table with specific nested columns to data frame
-#' convert_nest(df_nest1, to = "dt", nest_cols = c("data"))
-#' convert_nest(df_nest2, to = "dt", nest_cols = c("data", "data2"))
-#' # Convert a data table with nested columns to data frame
-#' dt_nest <- mintyr::w2l_nest(data = iris, cols2l = 1:2, by = "Species")
-#' convert_nest(dt_nest, to = "df", nest_cols = c("data"))
+#'   dplyr::group_nest(Species) |>  # Group and nest by Species
+#'   dplyr::mutate(
+#'     data2 = purrr::map(          # Create second nested column
+#'       data,
+#'       dplyr::mutate, 
+#'       c = 2
+#'     )
+#'   )
+#'
+#' # Example 2: Convert nested structures
+#' # Convert data frame to data table
+#' convert_nest(
+#'   df_nest1,                      # Input nested data frame
+#'   to = "dt"                      # Convert to data.table
+#' )
+#'
+#' # Convert specific nested columns
+#' convert_nest(
+#'   df_nest2,                      # Input nested data frame
+#'   to = "dt",                     # Convert to data.table
+#'   nest_cols = "data"             # Only convert 'data' column
+#' )
+#'
+#' # Example 3: Convert data table to data frame
+#' dt_nest <- mintyr::w2l_nest(
+#'   data = iris,                   # Input dataset
+#'   cols2l = 1:2                   # Columns to nest
+#' )
+#' convert_nest(
+#'   dt_nest,                       # Input nested data table
+#'   to = "df"                      # Convert to data frame
+#' )
 convert_nest <- function(data, to = c("df", "dt"), nest_cols = NULL) {
   to <- match.arg(to)
-
+  
   # Automatically detect nested columns (list columns) if not specified
   if (is.null(nest_cols)) {
     nest_cols <- names(data)[sapply(data, is.list)]
   }
-
+  # Validate nest_cols
+  invalid_cols <- setdiff(nest_cols, names(data))
+  if (length(invalid_cols) > 0) {
+    stop("Column(s) not found in data: ", paste(invalid_cols, collapse = ", "))
+  }
+  
+  # Check if specified columns are actually list columns
+  non_list_cols <- nest_cols[!sapply(data[, nest_cols, with = FALSE], is.list)]
+  if (length(non_list_cols) > 0) {
+    stop("Column(s) are not nested (list) columns: ", paste(non_list_cols, collapse = ", "))
+  }
+  
   if (to == "df") {
     # If data is data.table, convert to data.frame and copy to avoid modifying original data
     if (inherits(data, "data.table")) {
@@ -117,6 +163,6 @@ convert_nest <- function(data, to = c("df", "dt"), nest_cols = NULL) {
       })
     }
   }
-
+  
   return(data)
 }

@@ -4,22 +4,43 @@
 \alias{w2l_nest}
 \title{Reshape Wide Data to Long Format and Nest by Specified Columns}
 \usage{
-w2l_nest(data, cols2l, by = NULL, nest_type = "dt")
+w2l_nest(data, cols2l = NULL, by = NULL, nest_type = "dt")
 }
 \arguments{
-\item{data}{A \code{data.frame} or \code{data.table}. The input data in wide format.}
+\item{data}{\code{data.frame} or \code{data.table}
+\itemize{
+\item Input dataset in wide format
+\item Automatically converted to \code{data.table} if necessary
+}}
 
-\item{cols2l}{A numeric or character vector. Specifies the columns to reshape from wide to long format.
-Can be either numeric indices or column names.}
+\item{cols2l}{\code{numeric} or \code{character} columns to transform
+\itemize{
+\item Specifies columns for wide-to-long conversion
+\item Can be column indices or column names
+\item Default is \code{NULL}
+}}
 
-\item{by}{An optional character vector. Specifies the columns to group by. Default is \code{NULL}.}
+\item{by}{\code{numeric} or \code{character} grouping variables
+\itemize{
+\item Optional columns for additional data stratification
+\item Can be column indices or column names
+\item Used to create hierarchical nested structures
+\item Default is \code{NULL}
+}}
 
-\item{nest_type}{A character string, either \code{"dt"} or \code{"df"}. Specifies the type of object to nest in the
-result: \code{"dt"} for \code{data.table}, \code{"df"} for \code{data.frame}. Default is \code{"dt"}.}
+\item{nest_type}{\code{character} output data type
+\itemize{
+\item Defines nested data object type
+\item Possible values:
+\itemize{
+\item \code{"dt"}: nested \code{data.table}
+\item \code{"df"}: nested \code{data.frame}
+}
+\item Default is \code{"dt"}
+}}
 }
 \value{
-A \code{data.table} with nested data in long format, grouped by specified columns if provided.
-Each row contains a nested \code{data.table} or \code{data.frame} under the column \code{data}, depending on \code{nest_type}.
+\code{data.table} with nested data in long format, grouped by specified columns if provided. Each row contains a nested \code{data.table} or \code{data.frame} under the column data, depending on nest_type.
 \itemize{
 \item If \code{by} is \code{NULL}, returns a \code{data.table} nested by \code{name}.
 \item If \code{by} is specified, returns a \code{data.table} nested by \code{name} and the grouping variables.
@@ -30,33 +51,52 @@ The \code{w2l_nest} function reshapes wide-format data into long-format and nest
 It handles both \code{data.frame} and \code{data.table} objects and provides options for grouping and nesting the data.
 }
 \details{
-The function performs the following key operations:
-\enumerate{
-\item Melts the specified wide columns into long format
-\item Nests the resulting data by the \code{name} column
-\item Optionally groups by additional variables specified in \code{by}
-\item Allows flexible output format (\code{data.table} or \code{data.frame})
-}
+The function melts the specified wide columns into long format and nests the resulting data by the \code{name}
+column and any additional grouping variables specified in \code{by}. The nested data can be in the form of
+\code{data.table} or \code{data.frame} objects, controlled by the \code{nest_type} parameter.
 
-Transformation Strategy:
-\itemize{
-\item Converts input to \code{data.table} if necessary
-\item Validates input columns and grouping variables
-\item Reshapes data using \code{data.table::melt()}
-\item Nests data with flexible grouping options
-}
+Both \code{cols2l} and \code{by} parameters accept either column indices or column names, providing flexible ways
+to specify the columns for transformation and grouping.
 }
 \note{
-Important Considerations:
 \itemize{
-\item The \code{cols2l} parameter should be either numeric indices or a character vector of column names present in \code{data}.
-\item Ensure all grouping variables specified in \code{by} are present in \code{data}.
+\item Both \code{cols2l} and \code{by} parameters can be specified using either numeric indices or character column names.
+\item When using numeric indices, they must be valid column positions in the data (1 to ncol(data)).
+\item When using character names, all specified columns must exist in the data.
 \item The function converts \code{data.frame} to \code{data.table} if necessary.
 \item The \code{nest_type} parameter controls whether nested data are \code{data.table} (\code{"dt"}) or \code{data.frame} (\code{"df"}) objects.
 \item If \code{nest_type} is not \code{"dt"} or \code{"df"}, the function will stop with an error.
 }
 }
 \examples{
-w2l_nest(data = iris, cols2l = 1:4)
-w2l_nest(data = iris, cols2l = c("Sepal.Length", "Sepal.Width", "Petal.Length"), by = "Species")
+# Example: Wide to long format nesting demonstrations
+
+# Example 1: Basic nesting by group
+w2l_nest(
+  data = iris,                    # Input dataset
+  by = "Species"                  # Group by Species column
+)
+
+# Example 2: Nest specific columns with numeric indices
+w2l_nest(
+  data = iris,                    # Input dataset
+  cols2l = 1:4,                   # Select first 4 columns to nest
+  by = "Species"                  # Group by Species column
+)
+
+# Example 3: Nest specific columns with column names
+w2l_nest(
+  data = iris,                    # Input dataset
+  cols2l = c("Sepal.Length",      # Select columns by name
+             "Sepal.Width", 
+             "Petal.Length"),
+  by = 5                          # Group by column index 5 (Species)
+)
+# Returns similar structure to Example 2
+}
+\seealso{
+Related functions and packages:
+\itemize{
+\item \code{\link[tidytable:nest_by]{tidytable::nest_by()}} Nest data.tables by group
+}
 }

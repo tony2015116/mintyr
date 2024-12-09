@@ -5,8 +5,8 @@
 #' @description
 #' A robust cross-validation splitting utility for multiple datasets with advanced stratification and configuration options.
 #'
-#' @param split_dt 'list' of input datasets
-#'   - Must contain 'data.frame' or 'data.table' elements
+#' @param split_dt `list` of input datasets
+#'   - Must contain `data.frame` or `data.table` elements
 #'   - Supports multiple dataset processing
 #'   - Cannot be empty
 #' @inheritParams rsample::vfold_cv
@@ -27,26 +27,17 @@
 #'   \item Generates reproducible cross-validation splits
 #' }
 #'
-#' Computational Considerations:
-#' \itemize{
-#'   \item Computational complexity increases with 'v' and 'repeats'
-#'   \item Memory efficiency for large datasets
-#'   \item Preserves original data structure
-#' }
-#'
-#' @return 'list' of 'data.table' objects containing:
+#' @return `list` of `data.table` objects containing:
 #'   \itemize{
-#'     \item 'splits': Cross-validation split objects
-#'     \item 'id': Fold identifiers
-#'     \item 'id2': Repeat identifiers
-#'     \item 'train': Training dataset subsets
-#'     \item 'validate': Validation dataset subsets
+#'     \item `splits`: Cross-validation split objects
+#'     \item `train`: Training dataset subsets
+#'     \item `validate`: Validation dataset subsets
 #'   }
 #'
 #' @note Important Constraints:
 #' \itemize{
 #'   \item Requires non-empty input datasets
-#'   \item All datasets must be 'data.frame' or 'data.table'
+#'   \item All datasets must be `data.frame` or `data.table`
 #'   \item Strata column must exist if specified
 #'   \item Computational resources impact large dataset processing
 #' }
@@ -60,91 +51,113 @@
 #' @importFrom rsample vfold_cv
 #' @export
 #' @examples
-#' dt_split <- w2l_split(data = iris, cols2l = 1:2, by = "Species")
-#' split_cv(split_dt = dt_split, v = 3, repeats = 2)
+#' # Prepare example data: Convert first 3 columns of iris dataset to long format and split
+#' dt_split <- w2l_split(data = iris, cols2l = 1:3)
+#' # dt_split is now a list containing 3 data tables for Sepal.Length, Sepal.Width, and Petal.Length
+#'
+#' # Example 1: Single cross-validation (no repeats)
+#' split_cv(
+#'   split_dt = dt_split,  # Input list of split data
+#'   v = 3,                # Set 3-fold cross-validation
+#'   repeats = 1           # Perform cross-validation once (no repeats)
+#' )
+#' # Returns a list where each element contains:
+#' # - splits: rsample split objects
+#' # - id: fold numbers (Fold1, Fold2, Fold3)
+#' # - train: training set data
+#' # - validate: validation set data
+#'
+#' # Example 2: Repeated cross-validation
+#' split_cv(
+#'   split_dt = dt_split,  # Input list of split data
+#'   v = 3,                # Set 3-fold cross-validation
+#'   repeats = 2           # Perform cross-validation twice
+#' )
+#' # Returns a list where each element contains:
+#' # - splits: rsample split objects
+#' # - id: repeat numbers (Repeat1, Repeat2)
+#' # - id2: fold numbers (Fold1, Fold2, Fold3)
+#' # - train: training set data
+#' # - validate: validation set data
 split_cv <- function(split_dt, v = 10, repeats = 1, strata = NULL, breaks = 4, pool = 0.1, ...) {
-  splits <- NULL
+  id <- splits <- NULL
   # Input validation
   if (!is.list(split_dt)) {
     stop("split_dt must be a list")
   }
-
+  
   if (length(split_dt) == 0) {
     stop("The input split_dt cannot be empty")
   }
-
+  
   # Check if all elements are data.frames or data.tables
   is_valid <- all(sapply(split_dt, function(x) {
     inherits(x, c("data.frame", "data.table"))
   }))
-
+  
   if (!is_valid) {
     stop("All elements in split_dt must be data.frames or data.tables")
   }
-
+  
   # Initialize result list
   result <- vector("list", length(split_dt))
   names(result) <- names(split_dt)
-
+  
   # Process each element in the list
   for (i in seq_along(split_dt)) {
     current_data <- split_dt[[i]]
-
+    
     # Convert to data.table if not already
     if (!data.table::is.data.table(current_data)) {
       current_data <- data.table::as.data.table(current_data)
     }
-
-    # Create CV splits
+    
+    # Create CV splits arguments
+    cv_args <- list(
+      data = current_data,
+      v = v,
+      repeats = repeats,
+      breaks = breaks,
+      pool = pool,
+      ...
+    )
+    
+    # Add strata to arguments if provided and exists in data
     if (!is.null(strata)) {
-      if (!strata %in% names(current_data)) {
+      if (strata %in% names(current_data)) {
+        cv_args$strata <- strata
+      } else {
         warning(sprintf("Strata variable '%s' not found in dataset %s, performing unstratified CV",
                         strata, names(split_dt)[i]))
-        cv_obj <- rsample::vfold_cv(
-          data = current_data,
-          v = v,
-          repeats = repeats,
-          breaks = breaks,
-          pool = pool,
-          ...
-        )
-      } else {
-        cv_obj <- rsample::vfold_cv(
-          data = current_data,
-          v = v,
-          repeats = repeats,
-          strata = strata,
-          breaks = breaks,
-          pool = pool,
-          ...
-        )
       }
-    } else {
-      cv_obj <- rsample::vfold_cv(
-        data = current_data,
-        v = v,
-        repeats = repeats,
-        breaks = breaks,
-        pool = pool,
-        ...
-      )
     }
-
+    
+    # Perform cross-validation
+    cv_obj <- do.call(rsample::vfold_cv, cv_args)
+    
     # Create result data.table
     result_dt <- data.table::data.table(
-      splits = cv_obj$splits,
-      id = cv_obj$id,
-      id2 = cv_obj$id2
+      splits = cv_obj$splits
     )
-
-    # Add train and validate sets
+    
+    # Set id and id2 based on repeats
+    if (repeats == 1) {
+      result_dt[, id := cv_obj$id]    # fold column
+    } else {
+      result_dt[, `:=`(
+        id = cv_obj$id,    # repeat column
+        id2 = cv_obj$id2   # fold column
+      )]
+    }
+    
+    # Add train and validation sets
     result_dt[, `:=`(
       train = lapply(splits, function(x) rsample::training(x)),
       validate = lapply(splits, function(x) rsample::testing(x))
     )]
-
+    
     result[[i]] <- result_dt
   }
-
+  
   return(result)
 }

@@ -15,9 +15,9 @@ split_cv(
 )
 }
 \arguments{
-\item{split_dt}{'list' of input datasets
+\item{split_dt}{\code{list} of input datasets
 \itemize{
-\item Must contain 'data.frame' or 'data.table' elements
+\item Must contain \code{data.frame} or \code{data.table} elements
 \item Supports multiple dataset processing
 \item Cannot be empty
 }}
@@ -41,13 +41,11 @@ of stratifying groups that are too small.}
 \item{...}{These dots are for future extensions and must be empty.}
 }
 \value{
-'list' of 'data.table' objects containing:
+\code{list} of \code{data.table} objects containing:
 \itemize{
-\item 'splits': Cross-validation split objects
-\item 'id': Fold identifiers
-\item 'id2': Repeat identifiers
-\item 'train': Training dataset subsets
-\item 'validate': Validation dataset subsets
+\item \code{splits}: Cross-validation split objects
+\item \code{train}: Training dataset subsets
+\item \code{validate}: Validation dataset subsets
 }
 }
 \description{
@@ -68,26 +66,45 @@ Sampling Strategies:
 \item Handles stratified and unstratified sampling
 \item Generates reproducible cross-validation splits
 }
-
-Computational Considerations:
-\itemize{
-\item Computational complexity increases with 'v' and 'repeats'
-\item Memory efficiency for large datasets
-\item Preserves original data structure
-}
 }
 \note{
 Important Constraints:
 \itemize{
 \item Requires non-empty input datasets
-\item All datasets must be 'data.frame' or 'data.table'
+\item All datasets must be \code{data.frame} or \code{data.table}
 \item Strata column must exist if specified
 \item Computational resources impact large dataset processing
 }
 }
 \examples{
-dt_split <- w2l_split(data = iris, cols2l = 1:2, by = "Species")
-split_cv(split_dt = dt_split, v = 3, repeats = 2)
+# Prepare example data: Convert first 3 columns of iris dataset to long format and split
+dt_split <- w2l_split(data = iris, cols2l = 1:3)
+# dt_split is now a list containing 3 data tables for Sepal.Length, Sepal.Width, and Petal.Length
+
+# Example 1: Single cross-validation (no repeats)
+split_cv(
+  split_dt = dt_split,  # Input list of split data
+  v = 3,                # Set 3-fold cross-validation
+  repeats = 1           # Perform cross-validation once (no repeats)
+)
+# Returns a list where each element contains:
+# - splits: rsample split objects
+# - id: fold numbers (Fold1, Fold2, Fold3)
+# - train: training set data
+# - validate: validation set data
+
+# Example 2: Repeated cross-validation
+split_cv(
+  split_dt = dt_split,  # Input list of split data
+  v = 3,                # Set 3-fold cross-validation
+  repeats = 2           # Perform cross-validation twice
+)
+# Returns a list where each element contains:
+# - splits: rsample split objects
+# - id: repeat numbers (Repeat1, Repeat2)
+# - id2: fold numbers (Fold1, Fold2, Fold3)
+# - train: training set data
+# - validate: validation set data
 }
 \seealso{
 \itemize{

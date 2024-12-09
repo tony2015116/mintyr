@@ -6,33 +6,36 @@
 #' A sophisticated data transformation tool for generating column pair combinations 
 #' and creating nested data structures with advanced configuration options.
 #'
-#' @param data Input 'data frame' or 'data table'
+#' @param data Input `data frame` or `data table`
 #'   - Must contain valid columns for transformation
 #'   - Supports multiple data types
 #'
-#' @param cols2bind 'character' vector of column names for pair generation
-#'   - Specifies target columns for combination
-#'   - Must be existing columns in the dataset
+#' @param cols2bind Column specification for pair generation
+#'   - Can be a `character` vector of column names
+#'   - Can be a `numeric` vector of column indices
+#'   - Must reference existing columns in the dataset
 #'
-#' @param by Optional 'character' vector for grouping
+#' @param by Optional grouping specification
+#'   - Can be a `character` vector of column names
+#'   - Can be a `numeric` vector of column indices
 #'   - Enables hierarchical nested transformations
 #'   - Supports multi-level aggregation
 #'   - Default is `NULL`
 #'
-#' @param pairs_n 'numeric' indicating combination size
+#' @param pairs_n `numeric` indicating combination size
 #'   - Minimum value: 2
 #'   - Maximum value: Length of `cols2bind`
 #'   - Controls column pair complexity
 #'   - Default is 2
 #'
-#' @param sep 'character' separator for pair naming
+#' @param sep `character` separator for pair naming
 #'   - Used in generating combination identifiers
 #'   - Must be a single character
 #'   - Default is "-"
 #'
 #' @param nest_type Output nesting format
-#'   - `'dt'`: Returns nested 'data table' (default)
-#'   - `'df'`: Returns nested 'data frame'
+#'   - `"dt"`: Returns nested `data table` (default)
+#'   - `"df"`: Returns nested `data frame`
 #'
 #' @details
 #' Advanced Transformation Mechanism:
@@ -45,28 +48,30 @@
 #'
 #' Transformation Process:
 #' \itemize{
-#'   \item Validate input parameters
+#'   \item Validate input parameters and column specifications
+#'   \item Convert numeric indices to column names if necessary
 #'   \item Generate column combinations
 #'   \item Create subset data tables
 #'   \item Merge and nest transformed data
 #' }
 #'
-#' Combination Strategy:
+#' Column Specification:
 #' \itemize{
-#'   \item Supports variable-length column combinations
-#'   \item Generates all possible column pair permutations
-#'   \item Maintains original data context
+#'   \item Supports both column names and numeric indices
+#'   \item Numeric indices must be within valid range (1 to ncol)
+#'   \item Column names must exist in the dataset
+#'   \item Flexible specification for both cols2bind and by parameters
 #' }
 #'
-#' @return 'data table' containing nested transformation results
-#'   - Includes 'pairs' column identifying column combinations
-#'   - Contains 'data' column storing nested data structures
+#' @return `data table` containing nested transformation results
+#'   - Includes `pairs` column identifying column combinations
+#'   - Contains `data` column storing nested data structures
 #'   - Supports optional grouping variables
 #'
 #' @note Key Operation Constraints:
 #' \itemize{
 #'   \item Requires non-empty input data
-#'   \item `cols2bind` must specify existing columns
+#'   \item Column specifications must be valid (either names or indices)
 #'   \item Supports flexible combination strategies
 #'   \item Computational complexity increases with combination size
 #' }
@@ -74,17 +79,38 @@
 #' @seealso
 #' \itemize{
 #'   \item [`utils::combn()`] Combination generation
-#'   \item [`data.table::rbindlist()`] List binding utility
-#'   \item [`data.table::copy()`] Data copying mechanism
 #' }
 #'
 #' @import data.table
 #' @importFrom utils combn
 #' @export
 #' @examples
+#' # Example data preparation: Define column names for combination
 #' col_names <- c("Sepal.Length", "Sepal.Width", "Petal.Length")
-#' c2p_nest(iris, cols2bind = col_names, pairs_n = 2, sep = "&")
-#' c2p_nest(iris, cols2bind = col_names, pairs_n = 2, by = "Species")
+#'
+#' # Example 1: Basic column-to-pairs nesting with custom separator
+#' c2p_nest(
+#'   iris,                   # Input iris dataset
+#'   cols2bind = col_names,  # Columns to be combined as pairs
+#'   pairs_n = 2,            # Create pairs of 2 columns
+#'   sep = "&"               # Custom separator for pair names
+#' )
+#' # Returns a nested data.table where:
+#' # - pairs: combined column names (e.g., "Sepal.Length&Sepal.Width")
+#' # - data: list column containing data.tables with value1, value2 columns
+#'
+#' # Example 2: Column-to-pairs nesting with numeric indices and grouping
+#' c2p_nest(
+#'   iris,                   # Input iris dataset
+#'   cols2bind = 1:3,        # First 3 columns to be combined
+#'   pairs_n = 2,            # Create pairs of 2 columns
+#'   by = 5                  # Group by 5th column (Species)
+#' )
+#' # Returns a nested data.table where:
+#' # - pairs: combined column names
+#' # - Species: grouping variable
+#' # - data: list column containing data.tables grouped by Species
+
 c2p_nest <- function(data, cols2bind, by = NULL, pairs_n = 2, sep = "-", nest_type = "dt") {
   . <- pairs <- NULL  # For data.table's NSE
   
@@ -94,12 +120,37 @@ c2p_nest <- function(data, cols2bind, by = NULL, pairs_n = 2, sep = "-", nest_ty
   }
   data <- data.table::as.data.table(data)
   
+  # Handle numeric indices for cols2bind
+  if (is.numeric(cols2bind)) {
+    if (any(cols2bind > ncol(data) | cols2bind < 1)) {
+      stop("Invalid column indices in cols2bind")
+    }
+    cols2bind <- names(data)[cols2bind]
+  }
+  
   if (!is.character(cols2bind)) {
-    stop("cols2bind must be a character vector")
+    stop("cols2bind must be either a character vector or numeric vector")
   }
   missing_cols <- cols2bind[!cols2bind %in% names(data)]
   if (length(missing_cols) > 0) {
     stop("Some columns specified in cols2bind are not present in the data: ", paste(missing_cols, collapse=", "))
+  }
+  
+  # Handle numeric indices for by parameter
+  if (!is.null(by)) {
+    if (is.numeric(by)) {
+      if (any(by > ncol(data) | by < 1)) {
+        stop("Invalid column indices in by")
+      }
+      by <- names(data)[by]
+    }
+    if (!is.character(by)) {
+      stop("'by' must be either a character vector or numeric vector of column indices")
+    }
+    missing_by_vars <- by[!by %in% names(data)]
+    if (length(missing_by_vars) > 0) {
+      stop("Grouping variables not present in data: ", paste(missing_by_vars, collapse=", "))
+    }
   }
   
   # Validate pairs_n
@@ -117,33 +168,19 @@ c2p_nest <- function(data, cols2bind, by = NULL, pairs_n = 2, sep = "-", nest_ty
     stop("sep must be a single character string")
   }
   
-  if (!is.null(by)) {
-    if (!is.character(by)) {
-      stop("'by' must be a character vector of column names.")
-    }
-    missing_by_vars <- by[!by %in% names(data)]
-    if (length(missing_by_vars) > 0) {
-      stop("Grouping variables not present in data: ", paste(missing_by_vars, collapse=", "))
-    }
-  }
-  
   if (!nest_type %in% c("dt", "df")) {
     stop("Invalid nest_type provided. It must be either 'dt' or 'df'.")
   }
   
   # Prepare data for combination operations
-  dt <- data.table::copy(data)  # Copy the data to avoid modifying the original
-  
+  dt <- data.table::copy(data)
   fixed_cols <- setdiff(names(dt), cols2bind)
   comb_cols_list <- combn(cols2bind, pairs_n, simplify=FALSE)
   
   list_of_dts <- lapply(comb_cols_list, function(comb) {
     dt_subset <- dt[, c(fixed_cols, comb), with=FALSE]
-    # Create pairs identifier
     pairs_name <- paste(comb, collapse=sep)
-    # Rename the combination columns to 'value1', 'value2', etc.
     data.table::setnames(dt_subset, comb, paste0('value', seq_along(comb)))
-    # Add 'pairs' column
     dt_subset[, pairs := pairs_name]
     dt_subset
   })
@@ -162,8 +199,6 @@ c2p_nest <- function(data, cols2bind, by = NULL, pairs_n = 2, sep = "-", nest_ty
     result <- dt_bind[, .(data = list(.SD)), by = groupby]
   } else if (nest_type == "df") {
     result <- dt_bind[, .(data = list(as.data.frame(.SD))), by = groupby]
-  } else {
-    stop("Invalid nest_type provided. It must be either 'dt' or 'df'.")
   }
   
   return(result)

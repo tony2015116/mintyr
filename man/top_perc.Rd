@@ -2,7 +2,7 @@
 % Please edit documentation in R/top_perc.R
 \name{top_perc}
 \alias{top_perc}
-\title{Advanced Top Percentage Selection and Statistical Summarization}
+\title{Select Top Percentage of Data and Statistical Summarization}
 \usage{
 top_perc(data, perc, trait, by = NULL, type = "mean_sd", keep_data = FALSE)
 }
@@ -49,43 +49,24 @@ top_perc(data, perc, trait, by = NULL, type = "mean_sd", keep_data = FALSE)
 }}
 }
 \value{
-Depending on \code{keep_data}:
+A list or data frame:
 \itemize{
-\item \code{FALSE}: A \code{data.frame} with summary statistics
-\item \code{TRUE}: A \code{list} with summary statistics and selected data
+\item If \code{keep_data} is FALSE, a data frame with summary statistics.
+\item If \code{keep_data} is TRUE, a list where each element is a list containing summary statistics (\code{stat}) and the selected top data (\code{data}).
 }
 }
 \description{
-A sophisticated function for selecting top or bottom percentiles of data
-and computing comprehensive statistical summaries with high flexibility.
-}
-\details{
-Comprehensive Data Selection and Analysis Workflow:
-\enumerate{
-\item Input validation and preprocessing
-\item Flexible percentage-based data selection
-\item Optional group-level analysis
-\item Statistical summary computation
-\item Configurable output generation
-}
-
-Key Features:
-\itemize{
-\item Multi-percentile selection support
-\item Stratified analysis capabilities
-\item Robust error handling
-\item Flexible statistical summarization
-\item Optional data retention
-}
+The \code{top_perc} function selects the top percentage of data based on a specified trait and computes summary statistics.
+It allows for grouping by additional columns and offers flexibility in the type of statistics calculated.
+The function can also retain the selected data if needed.
 }
 \note{
-Operational Considerations:
 \itemize{
-\item Percentage selection range: \code{-1} to \code{1}
-\item Supports complex grouping strategies
-\item Leverages \code{rstatix} for statistical computations
-\item Handles multiple percentile selections
-\item Provides detailed error messages for invalid inputs
+\item The \code{perc} parameter accepts values between -1 and 1. Positive values select the top percentage, while negative values select the bottom percentage.
+\item The function performs initial checks to ensure required arguments are provided and valid.
+\item Grouping by additional columns (\code{by}) is optional and allows for more granular analysis.
+\item The \code{type} parameter specifies the type of summary statistics to compute, with "mean_sd" as the default.
+\item If \code{keep_data} is set to TRUE, the function will return both the summary statistics and the selected top data for each percentage.
 }
 }
 \examples{
@@ -106,19 +87,16 @@ top_perc(iris,
          by = "Species")            # Group by Species
 
 # Example 3: Complex example with multiple percentages and grouping variables
-# Uses pipe operator and transformed data
-iris |>
-  # Reshape data from wide to long format for Sepal.Length and Sepal.Width
-  tidyr::pivot_longer(1:2,                  # Transform first two columns
-                     names_to = "names",     # New column for original column names
-                     values_to = "values") |># New column for values
-  # Apply top_perc function on reshaped data
+# Reshape data from wide to long format for Sepal.Length and Sepal.Width
+iris |> 
+  tidyr::pivot_longer(1:2,
+                      names_to = "names", 
+                      values_to = "values") |> 
   mintyr::top_perc(
-    perc = c(0.1, -0.2),           # Select top 10\% AND bottom 20\%
-    trait = "values",               # Analyze the 'values' column
-    by = c("Species", "names"),     # Group by both Species and measurement type
-    type = "mean_sd")               # Calculate mean and standard deviation
-
+    perc = c(0.1, -0.2),
+    trait = "values",
+    by = c("Species", "names"),
+    type = "mean_sd")
 }
 \seealso{
 \itemize{

@@ -2,12 +2,12 @@
 % Please edit documentation in R/export_list.R
 \name{export_list}
 \alias{export_list}
-\title{Export List of \code{data.frame}s/\code{data.table}s with Advanced Directory Management}
+\title{Export List with Advanced Directory Management}
 \usage{
 export_list(split_dt, export_path = tempdir(), file_type = "txt")
 }
 \arguments{
-\item{split_dt}{A \code{list} of \code{data.frame}s, \code{data.table}s, or compatible data structures
+\item{split_dt}{A \code{list} of \code{data.frame}, \code{data.table}, or compatible data structures
 to be exported.}
 
 \item{export_path}{Base directory path for file export. Defaults to a temporary directory
@@ -20,7 +20,7 @@ Defaults to \code{"txt"}.}
 An \code{integer} representing the total number of files exported successfully.
 }
 \description{
-Exports a list of \code{data.frame}s, \code{data.table}s, or compatible data structures
+The \code{export_list} function exports a list of \code{data.frame}, \code{data.table}, or compatible data structures
 with sophisticated directory handling, flexible naming, and multiple file format support.
 }
 \details{
@@ -32,20 +32,6 @@ Comprehensive List Export Features:
 \item Hierarchical directory creation with nested path names
 \item Multi-format file export with intelligent separator selection
 \item Robust error handling and input validation
-}
-
-Naming and Directory Creation Strategy:
-\enumerate{
-\item Unnamed list elements automatically assigned default names (e.g., \code{"split_1"})
-\item Nested path names (containing \code{"/"}) dynamically create corresponding subdirectories
-\item Automatic generation of required export directories
-}
-
-Data Conversion and Processing Characteristics:
-\enumerate{
-\item Automatic conversion to \code{data.table} for consistent processing
-\item Preservation of original data structure during export
-\item Flexible support for various input data types
 }
 
 File Export Capabilities:
@@ -66,12 +52,35 @@ Key Capabilities:
 }
 }
 \examples{
-# Data Nesting Operation
-dt_split <- w2l_split(data = iris, cols2l = 1:2, by = "Species")
-# Export Nested Data
-export_list(split_dt = dt_split)
-# Check Export Results
-files <- list.files(path = tempdir(), pattern = "txt", recursive = TRUE, full.names = TRUE)
-files
-file.remove(files)
+# Example: Export split data to files
+
+# Step 1: Create split data structure
+dt_split <- w2l_split(
+  data = iris,              # Input iris dataset
+  cols2l = 1:2,             # Columns to be split
+  by = "Species"            # Grouping variable
+)
+
+# Step 2: Export split data to files
+export_list(
+  split_dt = dt_split       # Input list of data.tables
+)
+# Returns the number of files created
+# Files are saved in tempdir() with .txt extension
+
+# Check exported files
+list.files(
+  path = tempdir(),         # Default export directory
+  pattern = "txt",          # File type pattern to search
+  recursive = TRUE          # Search in subdirectories
+)
+
+# Clean up exported files
+files <- list.files(
+  path = tempdir(),         # Default export directory
+  pattern = "txt",          # File type pattern to search
+  recursive = TRUE,         # Search in subdirectories
+  full.names = TRUE         # Return full file paths
+)
+file.remove(files)          # Remove all exported files
 }

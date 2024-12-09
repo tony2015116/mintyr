@@ -2,7 +2,7 @@
 % Please edit documentation in R/import_xlsx.R
 \name{import_xlsx}
 \alias{import_xlsx}
-\title{Import Data from \code{Excel} Files with Advanced Handling}
+\title{Import Data from \code{XLSX} Files with Advanced Handling}
 \usage{
 import_xlsx(file, rbind = TRUE, sheet = NULL, ...)
 }
@@ -38,33 +38,18 @@ Depends on the \code{rbind} parameter:
 }
 \description{
 A robust and flexible function for importing data from one or multiple
-\code{Excel} files, offering comprehensive options for sheet selection,
+\code{XLSX} files, offering comprehensive options for sheet selection,
 data combination, and source tracking.
 }
 \details{
-Advanced \code{Excel} Data Import Features:
+The function provides a comprehensive solution for importing Excel data with the
+following features:
 \itemize{
-\item Multi-file and multi-sheet data extraction
-\item Intelligent source tracking for files and sheets
-\item Flexible data combination strategies
-\item Automatic handling of inconsistent column structures
-\item Preservation of original data types
-}
-
-Comprehensive Import Strategies:
-\enumerate{
-\item Dynamic sheet selection
-\item Automatic file and sheet metadata tracking
-\item Seamless handling of disparate data structures
-\item Configurable import and combination methods
-}
-
-Data Transformation Capabilities:
-\itemize{
-\item Supports single and multiple \code{Excel} file imports
-\item Handles partial or complete sheet imports
-\item Manages missing columns through intelligent filling
-\item Provides granular control over import process
+\item Supports multiple files and sheets
+\item Automatic source tracking for files and sheets
+\item Flexible combining options
+\item Handles missing columns across sheets when combining
+\item Preserves original data types through readxl
 }
 }
 \note{
@@ -78,9 +63,25 @@ Critical Import Considerations:
 }
 }
 \examples{
-xlsx_files <- mintyr_example(mintyr_examples("xlsx_test"))
-xlsx_files
-import_xlsx(xlsx_files)
+# Example: Excel file import demonstrations
+
+# Setup test files
+xlsx_files <- mintyr_example(
+  mintyr_examples("xlsx_test")    # Get example Excel files
+)
+
+# Example 1: Import and combine all sheets from all files
+import_xlsx(
+  xlsx_files,                     # Input Excel file paths
+  rbind = TRUE                    # Combine all sheets into one data.table
+)
+
+# Example 2: Import specific sheets separately
+import_xlsx(
+  xlsx_files,                     # Input Excel file paths
+  rbind = FALSE,                  # Keep sheets as separate data.tables
+  sheet = 2                       # Only import first sheet
+)
 }
 \seealso{
 \itemize{

@@ -32,7 +32,9 @@ Imports:
 Suggests: 
     knitr,
     rmarkdown,
-    tidyr
+    testthat,
+    tidyr,
+    tools
 VignetteBuilder: 
     knitr
 Config/fusen/version: 0.6.0

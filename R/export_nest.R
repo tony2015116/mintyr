@@ -3,7 +3,7 @@
 #' Export Nested Data with Advanced Grouping and Flexible Handling
 #'
 #' @description
-#' Exports nested data from a `data.frame` or `data.table` with sophisticated grouping 
+#' The `export_list` function exports nested data from a `data.frame` or `data.table` with sophisticated grouping 
 #' capabilities, supporting multiple nested column types and flexible file export options.
 #'
 #' @param nest_dt A `data.frame` or `data.table` containing nested columns of `data.frame`s, 
@@ -60,45 +60,43 @@
 #'   \item Provides comprehensive column selection feedback
 #' }
 #'
-#' @examples
-#' \dontrun{
-#' library(data.table)
-#'
-#' # Create sample nested data
-#' nested_data <- `data.table`(
-#'   group = c("A", "B", "A"),
-#'   subgroup = c(1, 2, 3),
-#'   data = list(
-#'     `data.frame`(x = 1:3, y = 4:6),
-#'     `data.frame`(x = 7:9, y = 10:12),
-#'     `data.frame`(x = 13:15, y = 16:18)
-#'   )
-#' )
-#'
-#' # Export nested data with default settings
-#' export_nest(nested_data)
-#'
-#' # Export with specific grouping and file type
-#' export_nest(
-#'   nested_data, 
-#'   group_cols = c("group"),
-#'   nest_col = "data", 
-#'   file_type = `"csv"`
-#' )
-#' }
-#'
-#' # Data Nesting Operation
-#' dt_nest <- w2l_nest(data = iris, cols2l = 1:2, by = "Species")
-#' # Export Nested Data
-#' export_nest(nest_dt = dt_nest, nest_col = "data",
-#'             group_cols = c("name", "Species"))
-#' # Check Export Results
-#' files <- list.files(path = tempdir(), pattern = "txt", recursive = TRUE, full.names = TRUE)
-#' files
-#' file.remove(files)
 #' @importFrom data.table as.data.table fwrite
 #' @importFrom parallel detectCores
 #' @export
+#' @examples
+#' # Example 1: Basic nested data export workflow
+#' # Step 1: Create nested data structure
+#' dt_nest <- w2l_nest(
+#'   data = iris,              # Input iris dataset
+#'   cols2l = 1:2,             # Columns to be nested
+#'   by = "Species"            # Grouping variable
+#' )
+#'
+#' # Step 2: Export nested data to files
+#' export_nest(
+#'   nest_dt = dt_nest,        # Input nested data.table
+#'   nest_col = "data",        # Column containing nested data
+#'   group_cols = c("name", "Species")  # Columns to create directory structure
+#' )
+#' # Returns the number of files created
+#' # Creates directory structure: tempdir()/name/Species/data.txt
+#'
+#' # Check exported files
+#' list.files(
+#'   path = tempdir(),         # Default export directory
+#'   pattern = "txt",          # File type pattern to search
+#'   recursive = TRUE          # Search in subdirectories
+#' )
+#' # Returns list of created files and their paths
+#'
+#' # Clean up exported files
+#' files <- list.files(
+#'   path = tempdir(),         # Default export directory
+#'   pattern = "txt",          # File type pattern to search
+#'   recursive = TRUE,         # Search in subdirectories
+#'   full.names = TRUE         # Return full file paths
+#' )
+#' file.remove(files)          # Remove all exported files
 export_nest <- function(nest_dt, group_cols = NULL, nest_col = NULL,
                         export_path = tempdir(), file_type = "txt") {
   # Basic input validation

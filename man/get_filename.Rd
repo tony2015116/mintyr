@@ -2,7 +2,7 @@
 % Please edit documentation in R/get_filename.R
 \name{get_filename}
 \alias{get_filename}
-\title{Advanced Filename Extraction from File Paths}
+\title{Extract Filenames from File Paths}
 \usage{
 get_filename(paths, rm_extension = TRUE, rm_path = TRUE)
 }
@@ -28,56 +28,56 @@ Default is \code{TRUE}.
 A \code{character} vector of processed filenames with applied transformations.
 }
 \description{
-A robust \code{filename} extraction utility providing comprehensive path processing
-with granular control over filename transformation.
+The \code{get_filename} function extracts filenames from file paths with options to remove file extensions
+and/or directory paths.
 }
 \details{
-Comprehensive Path Processing Features:
+The function performs the following operations:
 \itemize{
-\item Intelligent input validation
-\item Flexible filename transformation
-\item Robust handling of diverse path formats
-\item Configurable extraction strategies
-\item Minimal performance overhead
-}
-
-Processing Workflow:
-\enumerate{
-\item Validates input path vector
-\item Handles empty input scenarios
-\item Optionally removes directory paths using \code{\link[base:basename]{base::basename()}}
-\item Optionally strips file extensions via regex substitution
-}
-
-Extension Handling Strategies:
-\itemize{
-\item Supports multi-dot filenames
-\item Removes the last file extension
-\item Preserves complex filename structures
-\item Compatible with various file naming conventions
+\item Validates input paths
+\item Handles empty input vectors
+\item Optionally removes directory paths using \code{\link[base]{basename}}
+\item Optionally removes file extensions using regex substitution
 }
 }
 \note{
-Critical Behavioral Considerations:
 \itemize{
-\item Requires valid \code{character} input paths
-\item Supports processing multiple file paths simultaneously
-\item Warns when no transformations are requested
-\item Handles edge cases like empty vectors gracefully
-\item Preserves original input order
+\item If both \code{rm_extension} and \code{rm_path} are FALSE,
+a warning is issued and the original paths are returned
+\item Supports multiple file paths in the input vector
 }
 }
 \examples{
-xlsx_files <- mintyr_example(mintyr_examples("xlsx_test"))
-xlsx_files
-get_filename(xlsx_files) # Keep only file names
-get_filename(xlsx_files, rm_extension = FALSE) # Keep extension
-get_filename(xlsx_files, rm_path = FALSE) # Keep path
+# Example: File path processing demonstrations
+
+# Setup test files
+xlsx_files <- mintyr_example(
+  mintyr_examples("xlsx_test")    # Get example Excel files
+)
+
+# Example 1: Extract filenames without extensions
+get_filename(
+  xlsx_files,                     # Input file paths
+  rm_extension = TRUE,            # Remove file extensions
+  rm_path = TRUE                  # Remove directory paths
+)
+
+# Example 2: Keep file extensions
+get_filename(
+  xlsx_files,                     # Input file paths
+  rm_extension = FALSE,           # Keep file extensions
+  rm_path = TRUE                  # Remove directory paths
+)
+
+# Example 3: Keep full paths without extensions
+get_filename(
+  xlsx_files,                     # Input file paths
+  rm_extension = TRUE,            # Remove file extensions
+  rm_path = FALSE                 # Keep directory paths
+)
 }
 \seealso{
 \itemize{
 \item \code{\link[base:basename]{base::basename()}} for basic filename extraction
-\item \code{\link[base:file.path]{base::file.path()}} for path manipulation
-\item \code{\link[tools:fileutils]{tools::file_ext()}} for extension handling
 }
 }

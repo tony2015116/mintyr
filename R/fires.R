@@ -3,7 +3,7 @@
 #' Update Fire Dataset with Current Date
 #'
 #' @description
-#' This function creates a copy of the fire dataset and adjusts the dates 
+#' The `fires` function creates a copy of the fire dataset and adjusts the dates 
 #' to align with the current date while maintaining the original date patterns.
 #'
 #' @details

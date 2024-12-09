@@ -2,66 +2,111 @@
 % Please edit documentation in R/w2l_split.R
 \name{w2l_split}
 \alias{w2l_split}
-\title{Wide to Long Data Splitting with Advanced Transformation Capabilities}
+\title{Reshape Wide Data to Long Format and Split into List}
 \usage{
-w2l_split(data, cols2l, by = NULL, split_type = "dt", sep = "_")
+w2l_split(data, cols2l = NULL, by = NULL, split_type = "dt", sep = "_")
 }
 \arguments{
-\item{data}{A \code{data.frame} or \code{data.table} to be transformed and split.}
+\item{data}{\code{data.frame} or \code{data.table}
+\itemize{
+\item Input dataset in wide format
+\item Automatically converted to \code{data.table} if necessary
+}}
 
-\item{cols2l}{Columns to be transformed from wide to long format.
-Can be specified as numeric indices or column names.}
+\item{cols2l}{\code{numeric} or \code{character} columns to transform
+\itemize{
+\item Specifies columns for wide-to-long conversion
+\item Can be column indices or column names
+\item Default is \code{NULL}
+}}
 
-\item{by}{Optional grouping columns for additional data stratification.}
+\item{by}{\code{numeric} or \code{character} grouping variables
+\itemize{
+\item Optional columns for data splitting
+\item Can be column indices or column names
+\item Used to create hierarchical split structure
+\item Default is \code{NULL}
+}}
 
-\item{split_type}{Output format for split data, either \code{"dt"} (\code{data.table})
-or \code{"df"} (\code{data.frame}). Defaults to \code{"dt"}.}
+\item{split_type}{\code{character} output data type
+\itemize{
+\item Defines split data object type
+\item Possible values:
+\itemize{
+\item \code{"dt"}: split \code{data.table} objects
+\item \code{"df"}: split \code{data.frame} objects
+}
+\item Default is \code{"dt"}
+}}
 
-\item{sep}{Separator used for generating list names when grouping.
-Defaults to \code{"_"}.}
+\item{sep}{\code{character} separator
+\itemize{
+\item Used for combining split names
+\item Default is \code{"_"}
+}}
 }
 \value{
-A list of \code{data.table}s or \code{data.frame}s, split according to specified parameters.
+A list of \code{data.table} or \code{data.frame} objects (depending on \code{split_type}), split by variable
+names and optional grouping columns.
+\itemize{
+\item If \code{by} is \code{NULL}, returns a list split by variable names only.
+\item If \code{by} is specified, returns a list split by both variable names and grouping variables.
+}
 }
 \description{
-Transforms wide-format data to long format with flexible splitting
-and grouping options, supporting multiple data type conversions.
+The \code{w2l_split} function reshapes wide-format data into long-format and splits it into a list
+by variable names and optional grouping columns. It handles both \code{data.frame} and \code{data.table} objects.
 }
 \details{
-The function provides comprehensive wide-to-long data transformation
-with the following advanced features:
-\itemize{
-\item Flexible column specification (numeric indices or names)
-\item Automatic data type conversion
-\item Intelligent handling of grouping variables
-\item Customizable output data type
-\item Robust error checking and validation
-}
+The function melts the specified wide columns into long format and splits the resulting data
+into a list based on the variable names and any additional grouping variables specified in \code{by}.
+The split data can be in the form of \code{data.table} or \code{data.frame} objects, controlled by the
+\code{split_type} parameter.
 
-Transformation Strategy:
-\enumerate{
-\item Converts input to \code{data.table} format
-\item Melts specified columns to long format
-\item Splits data based on optional grouping variables
-\item Generates list names using grouping values
-}
-
-Column Specification Options:
-\itemize{
-\item Numeric indices of columns to transform
-\item Character vector of column names
-\item Comprehensive validation of provided columns
-}
+Both \code{cols2l} and \code{by} parameters accept either column indices or column names, providing flexible ways
+to specify the columns for transformation and splitting.
 }
 \note{
 \itemize{
-\item Supports complex data transformation scenarios
-\item Handles mixed input data types
-\item Provides detailed error messages for invalid inputs
-\item Efficient data manipulation using \code{data.table}
+\item Both \code{cols2l} and \code{by} parameters can be specified using either numeric indices or character column names.
+\item When using numeric indices, they must be valid column positions in the data (1 to ncol(data)).
+\item When using character names, all specified columns must exist in the data.
+\item The function converts \code{data.frame} to \code{data.table} if necessary.
+\item The \code{split_type} parameter controls whether split data are \code{data.table} (\code{"dt"}) or \code{data.frame} (\code{"df"}) objects.
+\item If \code{split_type} is not \code{"dt"} or \code{"df"}, the function will stop with an error.
 }
 }
 \examples{
-w2l_split(data = iris, cols2l = 1:3)
-w2l_split(data = iris, cols2l = c("Sepal.Length", "Sepal.Width"))
+# Example: Wide to long format splitting demonstrations
+
+# Example 1: Basic splitting by Species
+w2l_split(
+  data = iris,                    # Input dataset
+  by = "Species"                  # Split by Species column
+) |> 
+  lapply(head)                    # Show first 6 rows of each split
+
+# Example 2: Split specific columns using numeric indices
+w2l_split(
+  data = iris,                    # Input dataset
+  cols2l = 1:3,                   # Select first 3 columns to split
+  by = 5                          # Split by column index 5 (Species)
+) |> 
+  lapply(head)                    # Show first 6 rows of each split
+
+# Example 3: Split specific columns using column names
+list_res <- w2l_split(
+  data = iris,                    # Input dataset
+  cols2l = c("Sepal.Length",      # Select columns by name
+             "Sepal.Width"),
+  by = "Species"                  # Split by Species column
+)
+lapply(list_res, head)            # Show first 6 rows of each split
+# Returns similar structure to Example 2
+}
+\seealso{
+Related functions and packages:
+\itemize{
+\item \code{\link[tidytable:group_split]{tidytable::group_split()}} Split data frame by groups
+}
 }

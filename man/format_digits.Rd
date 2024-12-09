@@ -48,15 +48,26 @@ The function performs the following steps:
 }
 }
 \examples{
-# Create example data
+# Example: Number formatting demonstrations
+
+# Setup test data
 dt <- data.table::data.table(
-  a = c(0.1234, 0.5678),
-  b = c(0.2345, 0.6789),
-  c = c("text1", "text2")
+  a = c(0.1234, 0.5678),      # Numeric column 1
+  b = c(0.2345, 0.6789),      # Numeric column 2
+  c = c("text1", "text2")     # Text column
 )
-dt
-# Format without percentage
-format_digits(dt, cols = c("a", "b"))
-# Format with percentage
-format_digits(dt, cols = c("a"), percentage = TRUE)
+
+# Example 1: Format all numeric columns
+format_digits(
+  dt,                         # Input data table
+  digits = 2                  # Round to 2 decimal places
+)
+
+# Example 2: Format specific column as percentage
+format_digits(
+  dt,                         # Input data table
+  cols = c("a"),              # Only format column 'a'
+  digits = 2,                 # Round to 2 decimal places
+  percentage = TRUE           # Convert to percentage
+)
 }

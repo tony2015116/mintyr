@@ -10,7 +10,7 @@ fires()
 A data.table with updated dates, shifted to the current date
 }
 \description{
-This function creates a copy of the fire dataset and adjusts the dates
+The \code{fires} function creates a copy of the fire dataset and adjusts the dates
 to align with the current date while maintaining the original date patterns.
 }
 \details{

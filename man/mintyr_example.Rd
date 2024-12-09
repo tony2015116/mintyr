@@ -11,7 +11,7 @@ mintyr_example(path)
 }
 \description{
 mintyr comes bundled with a number of sample files in
-its 'inst/extdata' directory. Use \code{vroom_example()} to retrieve the path to one
+its \code{inst/extdata} directory. Use \code{mintyr_example()} to retrieve the path to one
 example.
 }
 \examples{

@@ -2,21 +2,21 @@
 % Please edit documentation in R/nedaps.R
 \name{nedaps}
 \alias{nedaps}
-\title{Update NEDAPS Dataset with Current Date}
+\title{Update Nedap Dataset with Current Date}
 \usage{
 nedaps()
 }
 \value{
-A data.table with updated visit times, shifted to the current date
+A \code{data.table} with updated visit times, shifted to the current date
 }
 \description{
-This function creates a copy of the NEDAPS dataset and adjusts the visit times
+The \code{nedaps} function creates a copy of the Nedap dataset and adjusts the visit times
 to align with the current date while maintaining the original time patterns.
 }
 \details{
 The function performs the following operations:
 \itemize{
-\item Creates a copy of the NEDAPS dataset from the mintyr package
+\item Creates a copy of the Nedap dataset from the mintyr package
 \item Calculates the number of days between the last recorded visit and the previous day
 \item Shifts all visit times forward by the calculated number of days
 \item Preserves the original time patterns of the visits

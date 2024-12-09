@@ -19,7 +19,7 @@ If \code{NULL}, the function automatically detects list columns.}
 A transformed \code{data.frame} or \code{data.table} with nested columns converted to the specified format.
 }
 \description{
-Transforms a \code{data.frame} or \code{data.table} by converting nested columns
+The \code{convert_nest} function transforms a \code{data.frame} or \code{data.table} by converting nested columns
 to either \code{data.frame} or \code{data.table} format while preserving the original data structure.
 }
 \details{
@@ -29,6 +29,14 @@ Advanced Nested Column Conversion Features:
 \item Comprehensive conversion of entire data structure
 \item Selective conversion of specified nested columns
 \item Non-destructive transformation with data copying
+}
+
+Input Validation and Error Handling:
+\itemize{
+\item Validates existence of specified nested columns
+\item Verifies that specified columns are actually list columns
+\item Provides informative error messages for invalid inputs
+\item Ensures data integrity through comprehensive checks
 }
 
 Conversion Strategies:
@@ -55,26 +63,53 @@ Conversion Characteristics:
 \item Intelligent type detection and conversion
 \item Minimal performance overhead
 }
+
+Error Conditions:
+\itemize{
+\item Throws error if specified columns don't exist in the input data
+\item Throws error if specified columns are not list columns
+\item Provides clear error messages for troubleshooting
+\item Validates input parameters before processing
+}
 }
 \examples{
-# Convert a data frame with nested columns to data table
+# Example 1: Create nested data structures
+# Create single nested column
 df_nest1 <- iris |> 
-  dplyr::group_nest(Species)
-df_nest1
+  dplyr::group_nest(Species)     # Group and nest by Species
+
+# Create multiple nested columns
 df_nest2 <- iris |>
-  dplyr::group_nest(Species) |>
-  dplyr::mutate(data2 = purrr::map(data, dplyr::mutate, c=2))
-df_nest2
-# Convert a data table with specific nested columns to data frame
-convert_nest(df_nest1, to = "dt", nest_cols = c("data"))
-convert_nest(df_nest2, to = "dt", nest_cols = c("data", "data2"))
-# Convert a data table with nested columns to data frame
-dt_nest <- mintyr::w2l_nest(data = iris, cols2l = 1:2, by = "Species")
-convert_nest(dt_nest, to = "df", nest_cols = c("data"))
-}
-\seealso{
-\itemize{
-\item \code{\link[data.table:as.data.table]{data.table::as.data.table()}}
-\item \code{\link[tibble:as_tibble]{tibble::as_tibble()}}
-}
+  dplyr::group_nest(Species) |>  # Group and nest by Species
+  dplyr::mutate(
+    data2 = purrr::map(          # Create second nested column
+      data,
+      dplyr::mutate, 
+      c = 2
+    )
+  )
+
+# Example 2: Convert nested structures
+# Convert data frame to data table
+convert_nest(
+  df_nest1,                      # Input nested data frame
+  to = "dt"                      # Convert to data.table
+)
+
+# Convert specific nested columns
+convert_nest(
+  df_nest2,                      # Input nested data frame
+  to = "dt",                     # Convert to data.table
+  nest_cols = "data"             # Only convert 'data' column
+)
+
+# Example 3: Convert data table to data frame
+dt_nest <- mintyr::w2l_nest(
+  data = iris,                   # Input dataset
+  cols2l = 1:2                   # Columns to nest
+)
+convert_nest(
+  dt_nest,                       # Input nested data table
+  to = "df"                      # Convert to data frame
+)
 }

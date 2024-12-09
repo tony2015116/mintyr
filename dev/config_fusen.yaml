@@ -21,7 +21,24 @@ flat_teaching.Rmd:
   - R/top_perc.R
   - R/w2l_nest.R
   - R/w2l_split.R
-  tests: []
+  tests:
+  - tests/testthat/test-split_cv.R
+  - tests/testthat/test-c2p_nest.R
+  - tests/testthat/test-r2p_nest.R
+  - tests/testthat/test-export_nest.R
+  - tests/testthat/test-export_list.R
+  - tests/testthat/test-convert_nest.R
+  - tests/testthat/test-get_path_segment.R
+  - tests/testthat/test-format_digits.R
+  - tests/testthat/test-mintyr_example.R
+  - tests/testthat/test-mintyr_examples.R
+  - tests/testthat/test-import_xlsx.R
+  - tests/testthat/test-import_csv.R
+  - tests/testthat/test-get_filename.R
+  - tests/testthat/test-w2l_nest.R
+  - tests/testthat/test-w2l_split.R
+  - tests/testthat/test-nest_cv.R
+  - tests/testthat/test-top_perc.R
   vignettes: vignettes/get-started.Rmd
   inflate:
     flat_file: dev/flat_teaching.Rmd

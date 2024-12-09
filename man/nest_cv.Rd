@@ -2,7 +2,7 @@
 % Please edit documentation in R/nest_cv.R
 \name{nest_cv}
 \alias{nest_cv}
-\title{Advanced Cross-Validation for Nested Datasets}
+\title{Apply Cross-Validation to Nested Data}
 \usage{
 nest_cv(
   nest_dt,
@@ -41,49 +41,60 @@ of stratifying groups that are too small.}
 \item{...}{These dots are for future extensions and must be empty.}
 }
 \value{
-Enhanced \code{data.table} containing:
+A \code{data.table} containing the cross-validation splits for each nested dataset. It includes:
 \itemize{
-\item Original non-nested columns
-\item \code{splits}: Cross-validation split objects
-\item \code{train}: Training datasets for each split
-\item \code{validate}: Validation datasets for each split
+\item Original non-nested columns from \code{nest_dt}.
+\item \code{splits}: The cross-validation split objects returned by \code{rsample::vfold_cv}.
+\item \code{train}: The training data for each split.
+\item \code{validate}: The validation data for each split.
 }
 }
 \description{
-Provides a flexible and powerful cross-validation strategy for nested datasets,
-supporting complex machine learning and statistical modeling workflows.
+The \code{nest_cv} function applies cross-validation splits to nested data frames or data tables within a data table. It uses the \code{rsample} package's \code{vfold_cv} function to create cross-validation splits for predictive modeling and analysis on nested datasets.
 }
 \details{
-Cross-Validation Processing Workflow:
+The function performs the following steps:
 \enumerate{
-\item Input data validation
-\item Identify nested data columns
-\item Perform cross-validation splits for each nested dataset
-\item Generate training and validation sets
-\item Preserve original non-nested column context
+\item Checks if the input \code{nest_dt} is non-empty and contains at least one nested column of \code{data.frame}s or \code{data.table}s.
+\item Identifies the nested columns and non-nested columns within \code{nest_dt}.
+\item Applies \code{rsample::vfold_cv} to each nested data frame in the specified nested column(s), creating the cross-validation splits.
+\item Expands the cross-validation splits and associates them with the non-nested columns.
+\item Extracts the training and validation data for each split and adds them to the output data table.
 }
 
-Key Features:
-\itemize{
-\item Supports complex nested data structures
-\item Flexible stratified sampling strategies
-\item High-performance data processing
-\item Seamless integration with \code{rsample}
-\item Preserves original data context
-}
+If the \code{strata} parameter is provided, stratified sampling is performed during the cross-validation. Additional arguments can be passed to \code{rsample::vfold_cv} via \code{...}.
 }
 \note{
-Usage Considerations:
 \itemize{
-\item Input data must contain at least one nested \code{data.frame} or \code{data.table}
-\item Internally converts to \code{data.table} for performance optimization
-\item Stratification variable must exist in all nested data frames
-\item Supports additional parameter passing to \code{\link[rsample:vfold_cv]{rsample::vfold_cv()}} via \code{...}
+\item The \code{nest_dt} must contain at least one nested column of \code{data.frame}s or \code{data.table}s.
+\item The function converts \code{nest_dt} to a \code{data.table} internally to ensure efficient data manipulation.
+\item The \code{strata} parameter should be a column name present in the nested data frames.
+\item If \code{strata} is specified, ensure that the specified column exists in all nested data frames.
+\item The \code{breaks} and \code{pool} parameters are used when \code{strata} is a numeric variable and control how stratification is handled.
+\item Additional arguments passed through \code{...} are forwarded to \code{rsample::vfold_cv}.
 }
 }
 \examples{
-dt_nest <- w2l_nest(data = iris, cols2l = 1:2, by = "Species")
-nest_cv(nest_dt = dt_nest, v = 2, repeats = 2)
+# Example: Cross-validation for nested data.table demonstrations
+
+# Setup test data
+dt_nest <- w2l_nest(
+  data = iris,                   # Input dataset
+  cols2l = 1:2                   # Nest first 2 columns
+)
+
+# Example 1: Basic 2-fold cross-validation
+nest_cv(
+  nest_dt = dt_nest,             # Input nested data.table
+  v = 2                          # Number of folds (2-fold CV)
+)
+
+# Example 2: Repeated 2-fold cross-validation
+nest_cv(
+  nest_dt = dt_nest,             # Input nested data.table
+  v = 2,                         # Number of folds (2-fold CV)
+  repeats = 2                    # Number of repetitions
+)
 }
 \seealso{
 \itemize{

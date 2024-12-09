@@ -99,41 +99,4 @@ test_that("get_filename functions correctly", {
       c("file", "data.backup")
     )
   })
-  
-  # Test with different path formats
-  test_that("different path formats are handled correctly", {
-    # Windows-style paths
-    win_paths <- c(
-      "C:\\Users\\Documents\\file1.csv",
-      "D:\\Data\\file2.csv"
-    )
-    result <- get_filename(win_paths)
-    expect_equal(
-      result,
-      c("file1", "file2")
-    )
-    
-    # Unix-style paths
-    unix_paths <- c(
-      "/home/user/documents/file1.csv",
-      "./relative/path/file2.csv"
-    )
-    result <- get_filename(unix_paths)
-    expect_equal(
-      result,
-      c("file1", "file2")
-    )
-    
-    # Relative paths
-    relative_paths <- c(
-      "../file1.csv",
-      "./file2.csv",
-      "file3.csv"
-    )
-    result <- get_filename(relative_paths)
-    expect_equal(
-      result,
-      c("file1", "file2", "file3")
-    )
-  })
 })

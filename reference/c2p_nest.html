@@ -53,7 +53,7 @@ and creating nested data structures with advanced configuration options."><meta 
 </li>
 <li>
   <a href="https://github.com/tony2015116/mintyr/discussions" class="external-link">
-    <span class="fa fa-users"></span>
+    <span class="fa fa-users fa-lg"></span>
 
   </a>
 </li>
@@ -85,26 +85,29 @@ and creating nested data structures with advanced configuration options.</p>
 
 
 <dl><dt id="arg-data">data<a class="anchor" aria-label="anchor" href="#arg-data"></a></dt>
-<dd><p>Input 'data frame' or 'data table'</p><ul><li><p>Must contain valid columns for transformation</p></li>
+<dd><p>Input <code>data frame</code> or <code>data table</code></p><ul><li><p>Must contain valid columns for transformation</p></li>
 <li><p>Supports multiple data types</p></li>
 </ul></dd>
 
 
 <dt id="arg-cols-bind">cols2bind<a class="anchor" aria-label="anchor" href="#arg-cols-bind"></a></dt>
-<dd><p>'character' vector of column names for pair generation</p><ul><li><p>Specifies target columns for combination</p></li>
-<li><p>Must be existing columns in the dataset</p></li>
+<dd><p>Column specification for pair generation</p><ul><li><p>Can be a <code>character</code> vector of column names</p></li>
+<li><p>Can be a <code>numeric</code> vector of column indices</p></li>
+<li><p>Must reference existing columns in the dataset</p></li>
 </ul></dd>
 
 
 <dt id="arg-by">by<a class="anchor" aria-label="anchor" href="#arg-by"></a></dt>
-<dd><p>Optional 'character' vector for grouping</p><ul><li><p>Enables hierarchical nested transformations</p></li>
+<dd><p>Optional grouping specification</p><ul><li><p>Can be a <code>character</code> vector of column names</p></li>
+<li><p>Can be a <code>numeric</code> vector of column indices</p></li>
+<li><p>Enables hierarchical nested transformations</p></li>
 <li><p>Supports multi-level aggregation</p></li>
 <li><p>Default is <code>NULL</code></p></li>
 </ul></dd>
 
 
 <dt id="arg-pairs-n">pairs_n<a class="anchor" aria-label="anchor" href="#arg-pairs-n"></a></dt>
-<dd><p>'numeric' indicating combination size</p><ul><li><p>Minimum value: 2</p></li>
+<dd><p><code>numeric</code> indicating combination size</p><ul><li><p>Minimum value: 2</p></li>
 <li><p>Maximum value: Length of <code>cols2bind</code></p></li>
 <li><p>Controls column pair complexity</p></li>
 <li><p>Default is 2</p></li>
@@ -112,22 +115,22 @@ and creating nested data structures with advanced configuration options.</p>
 
 
 <dt id="arg-sep">sep<a class="anchor" aria-label="anchor" href="#arg-sep"></a></dt>
-<dd><p>'character' separator for pair naming</p><ul><li><p>Used in generating combination identifiers</p></li>
+<dd><p><code>character</code> separator for pair naming</p><ul><li><p>Used in generating combination identifiers</p></li>
 <li><p>Must be a single character</p></li>
 <li><p>Default is "-"</p></li>
 </ul></dd>
 
 
 <dt id="arg-nest-type">nest_type<a class="anchor" aria-label="anchor" href="#arg-nest-type"></a></dt>
-<dd><p>Output nesting format</p><ul><li><p><code>'dt'</code>: Returns nested 'data table' (default)</p></li>
-<li><p><code>'df'</code>: Returns nested 'data frame'</p></li>
+<dd><p>Output nesting format</p><ul><li><p><code>"dt"</code>: Returns nested <code>data table</code> (default)</p></li>
+<li><p><code>"df"</code>: Returns nested <code>data frame</code></p></li>
 </ul></dd>
 
 </dl></div>
     <div id="value">
     <h2>Value</h2>
-    <p>'data table' containing nested transformation results</p><ul><li><p>Includes 'pairs' column identifying column combinations</p></li>
-<li><p>Contains 'data' column storing nested data structures</p></li>
+    <p><code>data table</code> containing nested transformation results</p><ul><li><p>Includes <code>pairs</code> column identifying column combinations</p></li>
+<li><p>Contains <code>data</code> column storing nested data structures</p></li>
 <li><p>Supports optional grouping variables</p></li>
 </ul></div>
     <div id="details">
@@ -136,18 +139,20 @@ and creating nested data structures with advanced configuration options.</p>
 <li><p>Dynamic column combination generation</p></li>
 <li><p>Flexible pair transformation</p></li>
 <li><p>Nested data structure creation</p></li>
-</ol><p>Transformation Process:</p><ul><li><p>Validate input parameters</p></li>
+</ol><p>Transformation Process:</p><ul><li><p>Validate input parameters and column specifications</p></li>
+<li><p>Convert numeric indices to column names if necessary</p></li>
 <li><p>Generate column combinations</p></li>
 <li><p>Create subset data tables</p></li>
 <li><p>Merge and nest transformed data</p></li>
-</ul><p>Combination Strategy:</p><ul><li><p>Supports variable-length column combinations</p></li>
-<li><p>Generates all possible column pair permutations</p></li>
-<li><p>Maintains original data context</p></li>
+</ul><p>Column Specification:</p><ul><li><p>Supports both column names and numeric indices</p></li>
+<li><p>Numeric indices must be within valid range (1 to ncol)</p></li>
+<li><p>Column names must exist in the dataset</p></li>
+<li><p>Flexible specification for both cols2bind and by parameters</p></li>
 </ul></div>
     <div id="note">
     <h2>Note</h2>
     <p>Key Operation Constraints:</p><ul><li><p>Requires non-empty input data</p></li>
-<li><p><code>cols2bind</code> must specify existing columns</p></li>
+<li><p>Column specifications must be valid (either names or indices)</p></li>
 <li><p>Supports flexible combination strategies</p></li>
 <li><p>Computational complexity increases with combination size</p></li>
 </ul></div>
@@ -155,21 +160,37 @@ and creating nested data structures with advanced configuration options.</p>
     <h2>See also</h2>
     <div class="dont-index">
 <ul><li><p><code><a href="https://rdrr.io/r/utils/combn.html" class="external-link">utils::combn()</a></code> Combination generation</p></li>
-<li><p><code><a href="https://rdrr.io/pkg/data.table/man/rbindlist.html" class="external-link">data.table::rbindlist()</a></code> List binding utility</p></li>
-<li><p><code><a href="https://rdrr.io/pkg/data.table/man/copy.html" class="external-link">data.table::copy()</a></code> Data copying mechanism</p></li>
 </ul></div>
     </div>
 
     <div id="ref-examples">
     <h2>Examples</h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="va">col_names</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"Sepal.Length"</span>, <span class="st">"Sepal.Width"</span>, <span class="st">"Petal.Length"</span><span class="op">)</span></span></span>
-<span class="r-in"><span><span class="fu">c2p_nest</span><span class="op">(</span><span class="va">iris</span>, cols2bind <span class="op">=</span> <span class="va">col_names</span>, pairs_n <span class="op">=</span> <span class="fl">2</span>, sep <span class="op">=</span> <span class="st">"&amp;"</span><span class="op">)</span></span></span>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="co"># Example data preparation: Define column names for combination</span></span></span>
+<span class="r-in"><span><span class="va">col_names</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"Sepal.Length"</span>, <span class="st">"Sepal.Width"</span>, <span class="st">"Petal.Length"</span><span class="op">)</span></span></span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># Example 1: Basic column-to-pairs nesting with custom separator</span></span></span>
+<span class="r-in"><span><span class="fu">c2p_nest</span><span class="op">(</span></span></span>
+<span class="r-in"><span>  <span class="va">iris</span>,                   <span class="co"># Input iris dataset</span></span></span>
+<span class="r-in"><span>  cols2bind <span class="op">=</span> <span class="va">col_names</span>,  <span class="co"># Columns to be combined as pairs</span></span></span>
+<span class="r-in"><span>  pairs_n <span class="op">=</span> <span class="fl">2</span>,            <span class="co"># Create pairs of 2 columns</span></span></span>
+<span class="r-in"><span>  sep <span class="op">=</span> <span class="st">"&amp;"</span>               <span class="co"># Custom separator for pair names</span></span></span>
+<span class="r-in"><span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>                        pairs                data</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>                       &lt;char&gt;              &lt;list&gt;</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> 1:  Sepal.Length&amp;Sepal.Width &lt;data.table[150x4]&gt;</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> 2: Sepal.Length&amp;Petal.Length &lt;data.table[150x4]&gt;</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> 3:  Sepal.Width&amp;Petal.Length &lt;data.table[150x4]&gt;</span>
-<span class="r-in"><span><span class="fu">c2p_nest</span><span class="op">(</span><span class="va">iris</span>, cols2bind <span class="op">=</span> <span class="va">col_names</span>, pairs_n <span class="op">=</span> <span class="fl">2</span>, by <span class="op">=</span> <span class="st">"Species"</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="co"># Returns a nested data.table where:</span></span></span>
+<span class="r-in"><span><span class="co"># - pairs: combined column names (e.g., "Sepal.Length&amp;Sepal.Width")</span></span></span>
+<span class="r-in"><span><span class="co"># - data: list column containing data.tables with value1, value2 columns</span></span></span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># Example 2: Column-to-pairs nesting with numeric indices and grouping</span></span></span>
+<span class="r-in"><span><span class="fu">c2p_nest</span><span class="op">(</span></span></span>
+<span class="r-in"><span>  <span class="va">iris</span>,                   <span class="co"># Input iris dataset</span></span></span>
+<span class="r-in"><span>  cols2bind <span class="op">=</span> <span class="fl">1</span><span class="op">:</span><span class="fl">3</span>,        <span class="co"># First 3 columns to be combined</span></span></span>
+<span class="r-in"><span>  pairs_n <span class="op">=</span> <span class="fl">2</span>,            <span class="co"># Create pairs of 2 columns</span></span></span>
+<span class="r-in"><span>  by <span class="op">=</span> <span class="fl">5</span>                  <span class="co"># Group by 5th column (Species)</span></span></span>
+<span class="r-in"><span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>                        pairs    Species               data</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>                       &lt;char&gt;     &lt;fctr&gt;             &lt;list&gt;</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> 1:  Sepal.Length-Sepal.Width     setosa &lt;data.table[50x3]&gt;</span>
@@ -181,6 +202,10 @@ and creating nested data structures with advanced configuration options.</p>
 <span class="r-out co"><span class="r-pr">#&gt;</span> 7:  Sepal.Width-Petal.Length     setosa &lt;data.table[50x3]&gt;</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> 8:  Sepal.Width-Petal.Length versicolor &lt;data.table[50x3]&gt;</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> 9:  Sepal.Width-Petal.Length  virginica &lt;data.table[50x3]&gt;</span>
+<span class="r-in"><span><span class="co"># Returns a nested data.table where:</span></span></span>
+<span class="r-in"><span><span class="co"># - pairs: combined column names</span></span></span>
+<span class="r-in"><span><span class="co"># - Species: grouping variable</span></span></span>
+<span class="r-in"><span><span class="co"># - data: list column containing data.tables grouped by Species</span></span></span>
 </code></pre></div>
     </div>
   </div>

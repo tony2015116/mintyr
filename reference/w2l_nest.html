@@ -53,7 +53,7 @@ It handles both data.frame and data.table objects and provides options for group
 </li>
 <li>
   <a href="https://github.com/tony2015116/mintyr/discussions" class="external-link">
-    <span class="fa fa-users"></span>
+    <span class="fa fa-users fa-lg"></span>
 
   </a>
 </li>
@@ -77,7 +77,7 @@ It handles both <code>data.frame</code> and <code>data.table</code> objects and 
     </div>
 
     <div id="ref-usage">
-    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">w2l_nest</span><span class="op">(</span><span class="va">data</span>, <span class="va">cols2l</span>, by <span class="op">=</span> <span class="cn">NULL</span>, nest_type <span class="op">=</span> <span class="st">"dt"</span><span class="op">)</span></span></code></pre></div>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">w2l_nest</span><span class="op">(</span><span class="va">data</span>, cols2l <span class="op">=</span> <span class="cn">NULL</span>, by <span class="op">=</span> <span class="cn">NULL</span>, nest_type <span class="op">=</span> <span class="st">"dt"</span><span class="op">)</span></span></code></pre></div>
     </div>
 
     <div id="arguments">
@@ -85,59 +85,108 @@ It handles both <code>data.frame</code> and <code>data.table</code> objects and 
 
 
 <dl><dt id="arg-data">data<a class="anchor" aria-label="anchor" href="#arg-data"></a></dt>
-<dd><p>A <code>data.frame</code> or <code>data.table</code>. The input data in wide format.</p></dd>
+<dd><p><code>data.frame</code> or <code>data.table</code></p><ul><li><p>Input dataset in wide format</p></li>
+<li><p>Automatically converted to <code>data.table</code> if necessary</p></li>
+</ul></dd>
 
 
 <dt id="arg-cols-l">cols2l<a class="anchor" aria-label="anchor" href="#arg-cols-l"></a></dt>
-<dd><p>A numeric or character vector. Specifies the columns to reshape from wide to long format.
-Can be either numeric indices or column names.</p></dd>
+<dd><p><code>numeric</code> or <code>character</code> columns to transform</p><ul><li><p>Specifies columns for wide-to-long conversion</p></li>
+<li><p>Can be column indices or column names</p></li>
+<li><p>Default is <code>NULL</code></p></li>
+</ul></dd>
 
 
 <dt id="arg-by">by<a class="anchor" aria-label="anchor" href="#arg-by"></a></dt>
-<dd><p>An optional character vector. Specifies the columns to group by. Default is <code>NULL</code>.</p></dd>
+<dd><p><code>numeric</code> or <code>character</code> grouping variables</p><ul><li><p>Optional columns for additional data stratification</p></li>
+<li><p>Can be column indices or column names</p></li>
+<li><p>Used to create hierarchical nested structures</p></li>
+<li><p>Default is <code>NULL</code></p></li>
+</ul></dd>
 
 
 <dt id="arg-nest-type">nest_type<a class="anchor" aria-label="anchor" href="#arg-nest-type"></a></dt>
-<dd><p>A character string, either <code>"dt"</code> or <code>"df"</code>. Specifies the type of object to nest in the
-result: <code>"dt"</code> for <code>data.table</code>, <code>"df"</code> for <code>data.frame</code>. Default is <code>"dt"</code>.</p></dd>
+<dd><p><code>character</code> output data type</p><ul><li><p>Defines nested data object type</p></li>
+<li><p>Possible values:</p><ul><li><p><code>"dt"</code>: nested <code>data.table</code></p></li>
+<li><p><code>"df"</code>: nested <code>data.frame</code></p></li>
+</ul></li>
+<li><p>Default is <code>"dt"</code></p></li>
+</ul></dd>
 
 </dl></div>
     <div id="value">
     <h2>Value</h2>
-    <p>A <code>data.table</code> with nested data in long format, grouped by specified columns if provided.
-Each row contains a nested <code>data.table</code> or <code>data.frame</code> under the column <code>data</code>, depending on <code>nest_type</code>.</p><ul><li><p>If <code>by</code> is <code>NULL</code>, returns a <code>data.table</code> nested by <code>name</code>.</p></li>
+    <p><code>data.table</code> with nested data in long format, grouped by specified columns if provided. Each row contains a nested <code>data.table</code> or <code>data.frame</code> under the column data, depending on nest_type.</p><ul><li><p>If <code>by</code> is <code>NULL</code>, returns a <code>data.table</code> nested by <code>name</code>.</p></li>
 <li><p>If <code>by</code> is specified, returns a <code>data.table</code> nested by <code>name</code> and the grouping variables.</p></li>
 </ul></div>
     <div id="details">
     <h2>Details</h2>
-    <p>The function performs the following key operations:</p><ol><li><p>Melts the specified wide columns into long format</p></li>
-<li><p>Nests the resulting data by the <code>name</code> column</p></li>
-<li><p>Optionally groups by additional variables specified in <code>by</code></p></li>
-<li><p>Allows flexible output format (<code>data.table</code> or <code>data.frame</code>)</p></li>
-</ol><p>Transformation Strategy:</p><ul><li><p>Converts input to <code>data.table</code> if necessary</p></li>
-<li><p>Validates input columns and grouping variables</p></li>
-<li><p>Reshapes data using <code><a href="https://rdrr.io/pkg/data.table/man/melt.data.table.html" class="external-link">data.table::melt()</a></code></p></li>
-<li><p>Nests data with flexible grouping options</p></li>
-</ul></div>
+    <p>The function melts the specified wide columns into long format and nests the resulting data by the <code>name</code>
+column and any additional grouping variables specified in <code>by</code>. The nested data can be in the form of
+<code>data.table</code> or <code>data.frame</code> objects, controlled by the <code>nest_type</code> parameter.</p>
+<p>Both <code>cols2l</code> and <code>by</code> parameters accept either column indices or column names, providing flexible ways
+to specify the columns for transformation and grouping.</p>
+    </div>
     <div id="note">
     <h2>Note</h2>
-    <p>Important Considerations:</p><ul><li><p>The <code>cols2l</code> parameter should be either numeric indices or a character vector of column names present in <code>data</code>.</p></li>
-<li><p>Ensure all grouping variables specified in <code>by</code> are present in <code>data</code>.</p></li>
+
+<ul><li><p>Both <code>cols2l</code> and <code>by</code> parameters can be specified using either numeric indices or character column names.</p></li>
+<li><p>When using numeric indices, they must be valid column positions in the data (1 to ncol(data)).</p></li>
+<li><p>When using character names, all specified columns must exist in the data.</p></li>
 <li><p>The function converts <code>data.frame</code> to <code>data.table</code> if necessary.</p></li>
 <li><p>The <code>nest_type</code> parameter controls whether nested data are <code>data.table</code> (<code>"dt"</code>) or <code>data.frame</code> (<code>"df"</code>) objects.</p></li>
 <li><p>If <code>nest_type</code> is not <code>"dt"</code> or <code>"df"</code>, the function will stop with an error.</p></li>
 </ul></div>
+    <div id="see-also">
+    <h2>See also</h2>
+    <div class="dont-index"><p>Related functions and packages:</p><ul><li><p><code>tidytable::nest_by()</code> Nest data.tables by group</p></li>
+</ul></div>
+    </div>
 
     <div id="ref-examples">
     <h2>Examples</h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="fu">w2l_nest</span><span class="op">(</span>data <span class="op">=</span> <span class="va">iris</span>, cols2l <span class="op">=</span> <span class="fl">1</span><span class="op">:</span><span class="fl">4</span><span class="op">)</span></span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>            name                data</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>          &lt;fctr&gt;              &lt;list&gt;</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 1: Sepal.Length &lt;data.table[150x2]&gt;</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 2:  Sepal.Width &lt;data.table[150x2]&gt;</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 3: Petal.Length &lt;data.table[150x2]&gt;</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 4:  Petal.Width &lt;data.table[150x2]&gt;</span>
-<span class="r-in"><span><span class="fu">w2l_nest</span><span class="op">(</span>data <span class="op">=</span> <span class="va">iris</span>, cols2l <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"Sepal.Length"</span>, <span class="st">"Sepal.Width"</span>, <span class="st">"Petal.Length"</span><span class="op">)</span>, by <span class="op">=</span> <span class="st">"Species"</span><span class="op">)</span></span></span>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="co"># Example: Wide to long format nesting demonstrations</span></span></span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># Example 1: Basic nesting by group</span></span></span>
+<span class="r-in"><span><span class="fu">w2l_nest</span><span class="op">(</span></span></span>
+<span class="r-in"><span>  data <span class="op">=</span> <span class="va">iris</span>,                    <span class="co"># Input dataset</span></span></span>
+<span class="r-in"><span>  by <span class="op">=</span> <span class="st">"Species"</span>                  <span class="co"># Group by Species column</span></span></span>
+<span class="r-in"><span><span class="op">)</span></span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>       Species               data</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>        &lt;fctr&gt;             &lt;list&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 1:     setosa &lt;data.table[50x4]&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 2: versicolor &lt;data.table[50x4]&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 3:  virginica &lt;data.table[50x4]&gt;</span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># Example 2: Nest specific columns with numeric indices</span></span></span>
+<span class="r-in"><span><span class="fu">w2l_nest</span><span class="op">(</span></span></span>
+<span class="r-in"><span>  data <span class="op">=</span> <span class="va">iris</span>,                    <span class="co"># Input dataset</span></span></span>
+<span class="r-in"><span>  cols2l <span class="op">=</span> <span class="fl">1</span><span class="op">:</span><span class="fl">4</span>,                   <span class="co"># Select first 4 columns to nest</span></span></span>
+<span class="r-in"><span>  by <span class="op">=</span> <span class="st">"Species"</span>                  <span class="co"># Group by Species column</span></span></span>
+<span class="r-in"><span><span class="op">)</span></span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>             name    Species               data</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>           &lt;fctr&gt;     &lt;fctr&gt;             &lt;list&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  1: Sepal.Length     setosa &lt;data.table[50x1]&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  2: Sepal.Length versicolor &lt;data.table[50x1]&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  3: Sepal.Length  virginica &lt;data.table[50x1]&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  4:  Sepal.Width     setosa &lt;data.table[50x1]&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  5:  Sepal.Width versicolor &lt;data.table[50x1]&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  6:  Sepal.Width  virginica &lt;data.table[50x1]&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  7: Petal.Length     setosa &lt;data.table[50x1]&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  8: Petal.Length versicolor &lt;data.table[50x1]&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  9: Petal.Length  virginica &lt;data.table[50x1]&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 10:  Petal.Width     setosa &lt;data.table[50x1]&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 11:  Petal.Width versicolor &lt;data.table[50x1]&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 12:  Petal.Width  virginica &lt;data.table[50x1]&gt;</span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># Example 3: Nest specific columns with column names</span></span></span>
+<span class="r-in"><span><span class="fu">w2l_nest</span><span class="op">(</span></span></span>
+<span class="r-in"><span>  data <span class="op">=</span> <span class="va">iris</span>,                    <span class="co"># Input dataset</span></span></span>
+<span class="r-in"><span>  cols2l <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"Sepal.Length"</span>,      <span class="co"># Select columns by name</span></span></span>
+<span class="r-in"><span>             <span class="st">"Sepal.Width"</span>, </span></span>
+<span class="r-in"><span>             <span class="st">"Petal.Length"</span><span class="op">)</span>,</span></span>
+<span class="r-in"><span>  by <span class="op">=</span> <span class="fl">5</span>                          <span class="co"># Group by column index 5 (Species)</span></span></span>
+<span class="r-in"><span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>            name    Species               data</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>          &lt;fctr&gt;     &lt;fctr&gt;             &lt;list&gt;</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> 1: Sepal.Length     setosa &lt;data.table[50x2]&gt;</span>
@@ -149,6 +198,7 @@ Each row contains a nested <code>data.table</code> or <code>data.frame</code> un
 <span class="r-out co"><span class="r-pr">#&gt;</span> 7: Petal.Length     setosa &lt;data.table[50x2]&gt;</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> 8: Petal.Length versicolor &lt;data.table[50x2]&gt;</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> 9: Petal.Length  virginica &lt;data.table[50x2]&gt;</span>
+<span class="r-in"><span><span class="co"># Returns similar structure to Example 2</span></span></span>
 </code></pre></div>
     </div>
   </div>

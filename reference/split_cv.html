@@ -52,7 +52,7 @@
 </li>
 <li>
   <a href="https://github.com/tony2015116/mintyr/discussions" class="external-link">
-    <span class="fa fa-users"></span>
+    <span class="fa fa-users fa-lg"></span>
 
   </a>
 </li>
@@ -91,7 +91,7 @@
 
 
 <dl><dt id="arg-split-dt">split_dt<a class="anchor" aria-label="anchor" href="#arg-split-dt"></a></dt>
-<dd><p>'list' of input datasets</p><ul><li><p>Must contain 'data.frame' or 'data.table' elements</p></li>
+<dd><p><code>list</code> of input datasets</p><ul><li><p>Must contain <code>data.frame</code> or <code>data.table</code> elements</p></li>
 <li><p>Supports multiple dataset processing</p></li>
 <li><p>Cannot be empty</p></li>
 </ul></dd>
@@ -129,11 +129,9 @@ of stratifying groups that are too small.</p></dd>
 </dl></div>
     <div id="value">
     <h2>Value</h2>
-    <p>'list' of 'data.table' objects containing:</p><ul><li><p>'splits': Cross-validation split objects</p></li>
-<li><p>'id': Fold identifiers</p></li>
-<li><p>'id2': Repeat identifiers</p></li>
-<li><p>'train': Training dataset subsets</p></li>
-<li><p>'validate': Validation dataset subsets</p></li>
+    <p><code>list</code> of <code>data.table</code> objects containing:</p><ul><li><p><code>splits</code>: Cross-validation split objects</p></li>
+<li><p><code>train</code>: Training dataset subsets</p></li>
+<li><p><code>validate</code>: Validation dataset subsets</p></li>
 </ul></div>
     <div id="details">
     <h2>Details</h2>
@@ -144,14 +142,11 @@ of stratifying groups that are too small.</p></dd>
 </ol><p>Sampling Strategies:</p><ul><li><p>Supports multiple dataset processing</p></li>
 <li><p>Handles stratified and unstratified sampling</p></li>
 <li><p>Generates reproducible cross-validation splits</p></li>
-</ul><p>Computational Considerations:</p><ul><li><p>Computational complexity increases with 'v' and 'repeats'</p></li>
-<li><p>Memory efficiency for large datasets</p></li>
-<li><p>Preserves original data structure</p></li>
 </ul></div>
     <div id="note">
     <h2>Note</h2>
     <p>Important Constraints:</p><ul><li><p>Requires non-empty input datasets</p></li>
-<li><p>All datasets must be 'data.frame' or 'data.table'</p></li>
+<li><p>All datasets must be <code>data.frame</code> or <code>data.table</code></p></li>
 <li><p>Strata column must exist if specified</p></li>
 <li><p>Computational resources impact large dataset processing</p></li>
 </ul></div>
@@ -164,116 +159,109 @@ of stratifying groups that are too small.</p></dd>
 
     <div id="ref-examples">
     <h2>Examples</h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="va">dt_split</span> <span class="op">&lt;-</span> <span class="fu"><a href="w2l_split.html">w2l_split</a></span><span class="op">(</span>data <span class="op">=</span> <span class="va">iris</span>, cols2l <span class="op">=</span> <span class="fl">1</span><span class="op">:</span><span class="fl">2</span>, by <span class="op">=</span> <span class="st">"Species"</span><span class="op">)</span></span></span>
-<span class="r-in"><span><span class="fu">split_cv</span><span class="op">(</span>split_dt <span class="op">=</span> <span class="va">dt_split</span>, v <span class="op">=</span> <span class="fl">3</span>, repeats <span class="op">=</span> <span class="fl">2</span><span class="op">)</span></span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> $Sepal.Length_setosa</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>                       splits      id    id2              train</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>                       &lt;list&gt;  &lt;char&gt; &lt;char&gt;             &lt;list&gt;</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 1: &lt;vfold_split[33x17x50x3]&gt; Repeat1  Fold1 &lt;data.table[33x3]&gt;</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 2: &lt;vfold_split[33x17x50x3]&gt; Repeat1  Fold2 &lt;data.table[33x3]&gt;</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 3: &lt;vfold_split[34x16x50x3]&gt; Repeat1  Fold3 &lt;data.table[34x3]&gt;</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 4: &lt;vfold_split[33x17x50x3]&gt; Repeat2  Fold1 &lt;data.table[33x3]&gt;</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 5: &lt;vfold_split[33x17x50x3]&gt; Repeat2  Fold2 &lt;data.table[33x3]&gt;</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 6: &lt;vfold_split[34x16x50x3]&gt; Repeat2  Fold3 &lt;data.table[34x3]&gt;</span>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="co"># Prepare example data: Convert first 3 columns of iris dataset to long format and split</span></span></span>
+<span class="r-in"><span><span class="va">dt_split</span> <span class="op">&lt;-</span> <span class="fu"><a href="w2l_split.html">w2l_split</a></span><span class="op">(</span>data <span class="op">=</span> <span class="va">iris</span>, cols2l <span class="op">=</span> <span class="fl">1</span><span class="op">:</span><span class="fl">3</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="co"># dt_split is now a list containing 3 data tables for Sepal.Length, Sepal.Width, and Petal.Length</span></span></span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># Example 1: Single cross-validation (no repeats)</span></span></span>
+<span class="r-in"><span><span class="fu">split_cv</span><span class="op">(</span></span></span>
+<span class="r-in"><span>  split_dt <span class="op">=</span> <span class="va">dt_split</span>,  <span class="co"># Input list of split data</span></span></span>
+<span class="r-in"><span>  v <span class="op">=</span> <span class="fl">3</span>,                <span class="co"># Set 3-fold cross-validation</span></span></span>
+<span class="r-in"><span>  repeats <span class="op">=</span> <span class="fl">1</span>           <span class="co"># Perform cross-validation once (no repeats)</span></span></span>
+<span class="r-in"><span><span class="op">)</span></span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $Sepal.Length</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>                         splits     id               train           validate</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>                         &lt;list&gt; &lt;char&gt;              &lt;list&gt;             &lt;list&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 1: &lt;vfold_split[100x50x150x3]&gt;  Fold1 &lt;data.table[100x3]&gt; &lt;data.table[50x3]&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 2: &lt;vfold_split[100x50x150x3]&gt;  Fold2 &lt;data.table[100x3]&gt; &lt;data.table[50x3]&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 3: &lt;vfold_split[100x50x150x3]&gt;  Fold3 &lt;data.table[100x3]&gt; &lt;data.table[50x3]&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $Sepal.Width</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>                         splits     id               train           validate</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>                         &lt;list&gt; &lt;char&gt;              &lt;list&gt;             &lt;list&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 1: &lt;vfold_split[100x50x150x3]&gt;  Fold1 &lt;data.table[100x3]&gt; &lt;data.table[50x3]&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 2: &lt;vfold_split[100x50x150x3]&gt;  Fold2 &lt;data.table[100x3]&gt; &lt;data.table[50x3]&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 3: &lt;vfold_split[100x50x150x3]&gt;  Fold3 &lt;data.table[100x3]&gt; &lt;data.table[50x3]&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $Petal.Length</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>                         splits     id               train           validate</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>                         &lt;list&gt; &lt;char&gt;              &lt;list&gt;             &lt;list&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 1: &lt;vfold_split[100x50x150x3]&gt;  Fold1 &lt;data.table[100x3]&gt; &lt;data.table[50x3]&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 2: &lt;vfold_split[100x50x150x3]&gt;  Fold2 &lt;data.table[100x3]&gt; &lt;data.table[50x3]&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 3: &lt;vfold_split[100x50x150x3]&gt;  Fold3 &lt;data.table[100x3]&gt; &lt;data.table[50x3]&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-in"><span><span class="co"># Returns a list where each element contains:</span></span></span>
+<span class="r-in"><span><span class="co"># - splits: rsample split objects</span></span></span>
+<span class="r-in"><span><span class="co"># - id: fold numbers (Fold1, Fold2, Fold3)</span></span></span>
+<span class="r-in"><span><span class="co"># - train: training set data</span></span></span>
+<span class="r-in"><span><span class="co"># - validate: validation set data</span></span></span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># Example 2: Repeated cross-validation</span></span></span>
+<span class="r-in"><span><span class="fu">split_cv</span><span class="op">(</span></span></span>
+<span class="r-in"><span>  split_dt <span class="op">=</span> <span class="va">dt_split</span>,  <span class="co"># Input list of split data</span></span></span>
+<span class="r-in"><span>  v <span class="op">=</span> <span class="fl">3</span>,                <span class="co"># Set 3-fold cross-validation</span></span></span>
+<span class="r-in"><span>  repeats <span class="op">=</span> <span class="fl">2</span>           <span class="co"># Perform cross-validation twice</span></span></span>
+<span class="r-in"><span><span class="op">)</span></span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $Sepal.Length</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>                         splits      id    id2               train</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>                         &lt;list&gt;  &lt;char&gt; &lt;char&gt;              &lt;list&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 1: &lt;vfold_split[100x50x150x3]&gt; Repeat1  Fold1 &lt;data.table[100x3]&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 2: &lt;vfold_split[100x50x150x3]&gt; Repeat1  Fold2 &lt;data.table[100x3]&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 3: &lt;vfold_split[100x50x150x3]&gt; Repeat1  Fold3 &lt;data.table[100x3]&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 4: &lt;vfold_split[100x50x150x3]&gt; Repeat2  Fold1 &lt;data.table[100x3]&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 5: &lt;vfold_split[100x50x150x3]&gt; Repeat2  Fold2 &lt;data.table[100x3]&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 6: &lt;vfold_split[100x50x150x3]&gt; Repeat2  Fold3 &lt;data.table[100x3]&gt;</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>              validate</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>                &lt;list&gt;</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 1: &lt;data.table[17x3]&gt;</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 2: &lt;data.table[17x3]&gt;</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 3: &lt;data.table[16x3]&gt;</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 4: &lt;data.table[17x3]&gt;</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 5: &lt;data.table[17x3]&gt;</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 6: &lt;data.table[16x3]&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 1: &lt;data.table[50x3]&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 2: &lt;data.table[50x3]&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 3: &lt;data.table[50x3]&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 4: &lt;data.table[50x3]&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 5: &lt;data.table[50x3]&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 6: &lt;data.table[50x3]&gt;</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> $Sepal.Length_versicolor</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>                       splits      id    id2              train</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>                       &lt;list&gt;  &lt;char&gt; &lt;char&gt;             &lt;list&gt;</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 1: &lt;vfold_split[33x17x50x3]&gt; Repeat1  Fold1 &lt;data.table[33x3]&gt;</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 2: &lt;vfold_split[33x17x50x3]&gt; Repeat1  Fold2 &lt;data.table[33x3]&gt;</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 3: &lt;vfold_split[34x16x50x3]&gt; Repeat1  Fold3 &lt;data.table[34x3]&gt;</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 4: &lt;vfold_split[33x17x50x3]&gt; Repeat2  Fold1 &lt;data.table[33x3]&gt;</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 5: &lt;vfold_split[33x17x50x3]&gt; Repeat2  Fold2 &lt;data.table[33x3]&gt;</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 6: &lt;vfold_split[34x16x50x3]&gt; Repeat2  Fold3 &lt;data.table[34x3]&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $Sepal.Width</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>                         splits      id    id2               train</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>                         &lt;list&gt;  &lt;char&gt; &lt;char&gt;              &lt;list&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 1: &lt;vfold_split[100x50x150x3]&gt; Repeat1  Fold1 &lt;data.table[100x3]&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 2: &lt;vfold_split[100x50x150x3]&gt; Repeat1  Fold2 &lt;data.table[100x3]&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 3: &lt;vfold_split[100x50x150x3]&gt; Repeat1  Fold3 &lt;data.table[100x3]&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 4: &lt;vfold_split[100x50x150x3]&gt; Repeat2  Fold1 &lt;data.table[100x3]&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 5: &lt;vfold_split[100x50x150x3]&gt; Repeat2  Fold2 &lt;data.table[100x3]&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 6: &lt;vfold_split[100x50x150x3]&gt; Repeat2  Fold3 &lt;data.table[100x3]&gt;</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>              validate</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>                &lt;list&gt;</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 1: &lt;data.table[17x3]&gt;</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 2: &lt;data.table[17x3]&gt;</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 3: &lt;data.table[16x3]&gt;</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 4: &lt;data.table[17x3]&gt;</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 5: &lt;data.table[17x3]&gt;</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 6: &lt;data.table[16x3]&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 1: &lt;data.table[50x3]&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 2: &lt;data.table[50x3]&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 3: &lt;data.table[50x3]&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 4: &lt;data.table[50x3]&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 5: &lt;data.table[50x3]&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 6: &lt;data.table[50x3]&gt;</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> $Sepal.Length_virginica</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>                       splits      id    id2              train</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>                       &lt;list&gt;  &lt;char&gt; &lt;char&gt;             &lt;list&gt;</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 1: &lt;vfold_split[33x17x50x3]&gt; Repeat1  Fold1 &lt;data.table[33x3]&gt;</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 2: &lt;vfold_split[33x17x50x3]&gt; Repeat1  Fold2 &lt;data.table[33x3]&gt;</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 3: &lt;vfold_split[34x16x50x3]&gt; Repeat1  Fold3 &lt;data.table[34x3]&gt;</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 4: &lt;vfold_split[33x17x50x3]&gt; Repeat2  Fold1 &lt;data.table[33x3]&gt;</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 5: &lt;vfold_split[33x17x50x3]&gt; Repeat2  Fold2 &lt;data.table[33x3]&gt;</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 6: &lt;vfold_split[34x16x50x3]&gt; Repeat2  Fold3 &lt;data.table[34x3]&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $Petal.Length</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>                         splits      id    id2               train</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>                         &lt;list&gt;  &lt;char&gt; &lt;char&gt;              &lt;list&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 1: &lt;vfold_split[100x50x150x3]&gt; Repeat1  Fold1 &lt;data.table[100x3]&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 2: &lt;vfold_split[100x50x150x3]&gt; Repeat1  Fold2 &lt;data.table[100x3]&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 3: &lt;vfold_split[100x50x150x3]&gt; Repeat1  Fold3 &lt;data.table[100x3]&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 4: &lt;vfold_split[100x50x150x3]&gt; Repeat2  Fold1 &lt;data.table[100x3]&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 5: &lt;vfold_split[100x50x150x3]&gt; Repeat2  Fold2 &lt;data.table[100x3]&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 6: &lt;vfold_split[100x50x150x3]&gt; Repeat2  Fold3 &lt;data.table[100x3]&gt;</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>              validate</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>                &lt;list&gt;</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 1: &lt;data.table[17x3]&gt;</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 2: &lt;data.table[17x3]&gt;</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 3: &lt;data.table[16x3]&gt;</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 4: &lt;data.table[17x3]&gt;</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 5: &lt;data.table[17x3]&gt;</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 6: &lt;data.table[16x3]&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 1: &lt;data.table[50x3]&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 2: &lt;data.table[50x3]&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 3: &lt;data.table[50x3]&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 4: &lt;data.table[50x3]&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 5: &lt;data.table[50x3]&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 6: &lt;data.table[50x3]&gt;</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> $Sepal.Width_setosa</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>                       splits      id    id2              train</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>                       &lt;list&gt;  &lt;char&gt; &lt;char&gt;             &lt;list&gt;</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 1: &lt;vfold_split[33x17x50x3]&gt; Repeat1  Fold1 &lt;data.table[33x3]&gt;</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 2: &lt;vfold_split[33x17x50x3]&gt; Repeat1  Fold2 &lt;data.table[33x3]&gt;</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 3: &lt;vfold_split[34x16x50x3]&gt; Repeat1  Fold3 &lt;data.table[34x3]&gt;</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 4: &lt;vfold_split[33x17x50x3]&gt; Repeat2  Fold1 &lt;data.table[33x3]&gt;</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 5: &lt;vfold_split[33x17x50x3]&gt; Repeat2  Fold2 &lt;data.table[33x3]&gt;</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 6: &lt;vfold_split[34x16x50x3]&gt; Repeat2  Fold3 &lt;data.table[34x3]&gt;</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>              validate</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>                &lt;list&gt;</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 1: &lt;data.table[17x3]&gt;</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 2: &lt;data.table[17x3]&gt;</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 3: &lt;data.table[16x3]&gt;</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 4: &lt;data.table[17x3]&gt;</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 5: &lt;data.table[17x3]&gt;</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 6: &lt;data.table[16x3]&gt;</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> $Sepal.Width_versicolor</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>                       splits      id    id2              train</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>                       &lt;list&gt;  &lt;char&gt; &lt;char&gt;             &lt;list&gt;</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 1: &lt;vfold_split[33x17x50x3]&gt; Repeat1  Fold1 &lt;data.table[33x3]&gt;</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 2: &lt;vfold_split[33x17x50x3]&gt; Repeat1  Fold2 &lt;data.table[33x3]&gt;</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 3: &lt;vfold_split[34x16x50x3]&gt; Repeat1  Fold3 &lt;data.table[34x3]&gt;</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 4: &lt;vfold_split[33x17x50x3]&gt; Repeat2  Fold1 &lt;data.table[33x3]&gt;</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 5: &lt;vfold_split[33x17x50x3]&gt; Repeat2  Fold2 &lt;data.table[33x3]&gt;</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 6: &lt;vfold_split[34x16x50x3]&gt; Repeat2  Fold3 &lt;data.table[34x3]&gt;</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>              validate</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>                &lt;list&gt;</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 1: &lt;data.table[17x3]&gt;</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 2: &lt;data.table[17x3]&gt;</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 3: &lt;data.table[16x3]&gt;</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 4: &lt;data.table[17x3]&gt;</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 5: &lt;data.table[17x3]&gt;</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 6: &lt;data.table[16x3]&gt;</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> $Sepal.Width_virginica</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>                       splits      id    id2              train</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>                       &lt;list&gt;  &lt;char&gt; &lt;char&gt;             &lt;list&gt;</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 1: &lt;vfold_split[33x17x50x3]&gt; Repeat1  Fold1 &lt;data.table[33x3]&gt;</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 2: &lt;vfold_split[33x17x50x3]&gt; Repeat1  Fold2 &lt;data.table[33x3]&gt;</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 3: &lt;vfold_split[34x16x50x3]&gt; Repeat1  Fold3 &lt;data.table[34x3]&gt;</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 4: &lt;vfold_split[33x17x50x3]&gt; Repeat2  Fold1 &lt;data.table[33x3]&gt;</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 5: &lt;vfold_split[33x17x50x3]&gt; Repeat2  Fold2 &lt;data.table[33x3]&gt;</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 6: &lt;vfold_split[34x16x50x3]&gt; Repeat2  Fold3 &lt;data.table[34x3]&gt;</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>              validate</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>                &lt;list&gt;</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 1: &lt;data.table[17x3]&gt;</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 2: &lt;data.table[17x3]&gt;</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 3: &lt;data.table[16x3]&gt;</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 4: &lt;data.table[17x3]&gt;</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 5: &lt;data.table[17x3]&gt;</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 6: &lt;data.table[16x3]&gt;</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-in"><span><span class="co"># Returns a list where each element contains:</span></span></span>
+<span class="r-in"><span><span class="co"># - splits: rsample split objects</span></span></span>
+<span class="r-in"><span><span class="co"># - id: repeat numbers (Repeat1, Repeat2)</span></span></span>
+<span class="r-in"><span><span class="co"># - id2: fold numbers (Fold1, Fold2, Fold3)</span></span></span>
+<span class="r-in"><span><span class="co"># - train: training set data</span></span></span>
+<span class="r-in"><span><span class="co"># - validate: validation set data</span></span></span>
 </code></pre></div>
     </div>
   </div>

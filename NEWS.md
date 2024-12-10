@@ -1,3 +1,3 @@
-# mintyr 0.0.1
+# mintyr 0.1.0
 
 * Initial CRAN submission.

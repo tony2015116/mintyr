@@ -5,17 +5,19 @@ Authors@R: c(
     person("Guo Meng", , , "tony2015116@163.com", role = c("aut", "cre")),
     person("Guo Meng", role = "cph")
   )
-Description: Provides fresh and efficient solutions for data processing,
-    with a focus on animal breeding data. The package offers streamlined
-    functionality for handling multi-breed and multi-trait data in genomic
-    selection, leveraging nested data structures for clear model
-    iteration.  Built primarily with 'data.table' and base R for
-    performance, the package delivers a comprehensive collection of
-    utility functions that balance efficiency with user-friendly data
-    manipulation approaches.Detailed documentation and examples are
-    available through the package website at
+Description: `mintyr` is an R package offering fresh and efficient
+    solutions for data processing, with a focus on animal breeding data.
+    It provides streamlined functionality for handling multi-breed and
+    multi-trait data in genomic selection, leveraging nested data
+    structures for clear model iteration. Built primarily with
+    `data.table` and base R for performance, the package delivers a
+    comprehensive collection of utility functions that balance efficiency
+    with user-friendly data manipulation approaches.Detailed documentation
+    and examples are available through the package website at
     <https://tony2015116.github.io/mintyr>.
 License: MIT + file LICENSE
+URL: https://tony2015116.github.io/mintyr
+BugReports: https://github.com/tony2015116/mintyr/issues
 Depends: 
     R (>= 3.5.0)
 Imports: 

@@ -31,16 +31,17 @@ fusen::fill_description(
   pkg = here::here(),
   fields = list(
     Title = "Fresh and Efficient Data Processing Tools",
-    Description = "`mintyr` is an R package offering fresh and efficient solutions for data processing, with a focus on animal breeding data. It provides streamlined functionality for handling multi-breed and multi-trait data in genomic selection, leveraging nested data structures for clear model iteration. Built primarily with `data.table` and base R for performance, the package delivers a comprehensive collection of utility functions that balance efficiency with user-friendly data manipulation approaches.",
+    Description = "`mintyr` is an R package offering fresh and efficient solutions for data processing, with a focus on animal breeding data. It provides streamlined functionality for handling multi-breed and multi-trait data in genomic selection, leveraging nested data structures for clear model iteration. Built primarily with `data.table` and base R for performance, the package delivers a comprehensive collection of utility functions that balance efficiency with user-friendly data manipulation approaches.Detailed documentation and examples are available through the package website at <https://tony2015116.github.io/mintyr>.",
     `Authors@R` = c(
       person("Guo Meng", email = "tony2015116@163.com", role = c("aut", "cre")),
       person(given = "Guo Meng", role = "cph")
     )
-  ), overwrite = T
+  ), overwrite = TRUE
 )
 # Define License with use_*_license()
 usethis::use_mit_license("Guo Meng")
 ```
+
 
 
 # split_cv

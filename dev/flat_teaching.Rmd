@@ -2656,20 +2656,31 @@ test_that("format_digits handles data.frame to data.table conversion", {
 ```{r function-mintyr_example}
 #' Get path to mintyr examples
 #' 
-#' mintyr comes bundled with a number of sample files in
-#' its `inst/extdata` directory. Use `mintyr_example()` to retrieve the path to one
-#' example.
+#' `mintyr` comes bundled with a number of sample files in
+#' its `inst/extdata` directory. Use `mintyr_example()` to retrieve the full file path to a 
+#' specific example file.
 #' 
-#' @param path Name of file.
-#' @seealso [mintyr::mintyr_examples()]
+#' @param path Name of the example file to locate. If NULL or missing,
+#'   returns the directory path containing the examples.
+#' @return Character string containing the full path to the requested example file.
+#' @seealso [mintyr::mintyr_examples()] to list all available example files
 #' @export
-mintyr_example <- function(path) {
-  # Call system.file with validated parameters
-  system.file("extdata", path, package = "mintyr", mustWork = TRUE)
+mintyr_example <- function(path = NULL) {
+  # Handle case when path is NULL or missing
+  if (is.null(path)) {
+    return(system.file("extdata", package = "mintyr", mustWork = TRUE))
+  }
+  
+  
+  # Get the file path
+  file_path <- system.file("extdata", path, package = "mintyr", mustWork = TRUE)
+  
+  return(file_path)
 }
 ```
   
 ```{r example-mintyr_example}
+# Get path to an example file
 mintyr_example("csv_test1.csv")
 ```
 
@@ -2700,14 +2711,18 @@ test_that("mintyr_example returns correct path for existing files", {
 # mintyr_examples
     
 ```{r function-mintyr_examples}
-#' Get path to one example
+#' List all available example files in mintyr package
 #' 
-#' vroom comes bundled with a number of sample files in
-#' its 'inst/extdata' directory. Use `mintyr_examples()` to list all the
-#' available examples.
+#' `mintyr` comes bundled with a number of sample files in its `inst/extdata` 
+#' directory. This function lists all available example files, optionally filtered
+#' by a pattern.
 #' 
-#' @param pattern A regular expression of filenames to match. If `NULL`, all available files are returned.
-#' @seealso [mintyr::mintyr_example()]
+#' @param pattern A regular expression to filter filenames. If `NULL` (default),
+#'   all available files are returned.
+#' @return A character vector containing the names of example files. If no files
+#'   match the pattern or if the example directory is empty, returns a zero-length
+#'   character vector.
+#' @seealso [mintyr::mintyr_example()] to get the full path of a specific example file
 #' @export
 mintyr_examples <- function(pattern = NULL) {
   # Validate pattern if provided
@@ -2715,17 +2730,23 @@ mintyr_examples <- function(pattern = NULL) {
     if (!is.character(pattern)) {
       stop("'pattern' must be a character string or NULL", call. = FALSE)
     }
-    if (length(pattern) != 1) {
-      stop("'pattern' must be a single character string", call. = FALSE)
-    }
   }
   
-  # Get files from extdata directory
-  list.files(system.file("extdata", package = "mintyr"), pattern = pattern)
+  # Get the example directory path
+  example_dir <- system.file("extdata", package = "mintyr")
+  
+  # Check if directory exists
+  if (example_dir == "") {
+    return(character(0))
+  }
+  
+  # Get and return matching files
+  list.files(example_dir, pattern = pattern)
 }
 ```
   
 ```{r example-mintyr_examples}
+# List all example files
 mintyr_examples()
 ```
 
@@ -2759,9 +2780,6 @@ test_that("mintyr_examples validates pattern parameter", {
   # Test invalid pattern types
   expect_error(mintyr_examples(pattern = 123))
   expect_error(mintyr_examples(pattern = list()))
-  
-  # Test multiple patterns
-  expect_error(mintyr_examples(pattern = c("*.csv", "*.txt")))
 })
 
 # Test edge cases

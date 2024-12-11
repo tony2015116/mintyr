@@ -12,7 +12,9 @@ Description: Provides fresh and efficient solutions for data processing,
     iteration.  Built primarily with 'data.table' and base R for
     performance, the package delivers a comprehensive collection of
     utility functions that balance efficiency with user-friendly data
-    manipulation approaches.
+    manipulation approaches.Detailed documentation and examples are
+    available through the package website at
+    <https://tony2015116.github.io/mintyr>.
 License: MIT + file LICENSE
 Depends: 
     R (>= 3.5.0)

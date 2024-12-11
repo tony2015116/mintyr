@@ -71,11 +71,7 @@ articles:
     contents:
       - get-started
 
-  - title: 高级主题
-    contents:
-      - get-started
-
-  # 使用正则表达式匹配文章
-  - title: all
-    contents:
-      - starts_with("get-")
+  # other
+  # - title: all
+  #   contents:
+  #     - starts_with("get-")

@@ -4,19 +4,24 @@
 \alias{mintyr_example}
 \title{Get path to mintyr examples}
 \usage{
-mintyr_example(path)
+mintyr_example(path = NULL)
 }
 \arguments{
-\item{path}{Name of file.}
+\item{path}{Name of the example file to locate. If NULL or missing,
+returns the directory path containing the examples.}
+}
+\value{
+Character string containing the full path to the requested example file.
 }
 \description{
-mintyr comes bundled with a number of sample files in
-its \code{inst/extdata} directory. Use \code{mintyr_example()} to retrieve the path to one
-example.
+\code{mintyr} comes bundled with a number of sample files in
+its \code{inst/extdata} directory. Use \code{mintyr_example()} to retrieve the full file path to a
+specific example file.
 }
 \examples{
+# Get path to an example file
 mintyr_example("csv_test1.csv")
 }
 \seealso{
-\code{\link[=mintyr_examples]{mintyr_examples()}}
+\code{\link[=mintyr_examples]{mintyr_examples()}} to list all available example files
 }

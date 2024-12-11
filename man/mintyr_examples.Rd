@@ -2,21 +2,28 @@
 % Please edit documentation in R/mintyr_examples.R
 \name{mintyr_examples}
 \alias{mintyr_examples}
-\title{Get path to one example}
+\title{List all available example files in mintyr package}
 \usage{
 mintyr_examples(pattern = NULL)
 }
 \arguments{
-\item{pattern}{A regular expression of filenames to match. If \code{NULL}, all available files are returned.}
+\item{pattern}{A regular expression to filter filenames. If \code{NULL} (default),
+all available files are returned.}
+}
+\value{
+A character vector containing the names of example files. If no files
+match the pattern or if the example directory is empty, returns a zero-length
+character vector.
 }
 \description{
-vroom comes bundled with a number of sample files in
-its 'inst/extdata' directory. Use \code{mintyr_examples()} to list all the
-available examples.
+\code{mintyr} comes bundled with a number of sample files in its \code{inst/extdata}
+directory. This function lists all available example files, optionally filtered
+by a pattern.
 }
 \examples{
+# List all example files
 mintyr_examples()
 }
 \seealso{
-\code{\link[=mintyr_example]{mintyr_example()}}
+\code{\link[=mintyr_example]{mintyr_example()}} to get the full path of a specific example file
 }

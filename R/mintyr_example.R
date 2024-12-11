@@ -2,16 +2,27 @@
 
 #' Get path to mintyr examples
 #' 
-#' mintyr comes bundled with a number of sample files in
-#' its `inst/extdata` directory. Use `mintyr_example()` to retrieve the path to one
-#' example.
+#' `mintyr` comes bundled with a number of sample files in
+#' its `inst/extdata` directory. Use `mintyr_example()` to retrieve the full file path to a 
+#' specific example file.
 #' 
-#' @param path Name of file.
-#' @seealso [mintyr::mintyr_examples()]
+#' @param path Name of the example file to locate. If NULL or missing,
+#'   returns the directory path containing the examples.
+#' @return Character string containing the full path to the requested example file.
+#' @seealso [mintyr::mintyr_examples()] to list all available example files
 #' @export
 #' @examples
+#' # Get path to an example file
 #' mintyr_example("csv_test1.csv")
-mintyr_example <- function(path) {
-  # Call system.file with validated parameters
-  system.file("extdata", path, package = "mintyr", mustWork = TRUE)
+mintyr_example <- function(path = NULL) {
+  # Handle case when path is NULL or missing
+  if (is.null(path)) {
+    return(system.file("extdata", package = "mintyr", mustWork = TRUE))
+  }
+  
+  
+  # Get the file path
+  file_path <- system.file("extdata", path, package = "mintyr", mustWork = TRUE)
+  
+  return(file_path)
 }

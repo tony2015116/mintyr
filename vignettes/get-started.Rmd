@@ -379,6 +379,7 @@ format_digits(
     
   
 ```{r example-mintyr_example}
+# Get path to an example file
 mintyr_example("csv_test1.csv")
 ```
 
@@ -388,6 +389,7 @@ mintyr_example("csv_test1.csv")
     
   
 ```{r example-mintyr_examples}
+# List all example files
 mintyr_examples()
 ```
 

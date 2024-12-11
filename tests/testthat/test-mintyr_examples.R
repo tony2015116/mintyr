@@ -28,9 +28,6 @@ test_that("mintyr_examples validates pattern parameter", {
   # Test invalid pattern types
   expect_error(mintyr_examples(pattern = 123))
   expect_error(mintyr_examples(pattern = list()))
-  
-  # Test multiple patterns
-  expect_error(mintyr_examples(pattern = c("*.csv", "*.txt")))
 })
 
 # Test edge cases

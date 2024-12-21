@@ -23,15 +23,15 @@ navbar:
 # development:
 #   mode: release
 reference:
-- title: import functions
+# - title: import functions
+#   desc: |
+#     import csv or xlsx
+#   contents:
+#   - '`import_csv`'
+#   - '`import_xlsx`'
+- title: Genome selcetion with mintyr
   desc: |
-    import csv or xlsx
-  contents:
-  - '`import_csv`'
-  - '`import_xlsx`'
-- title: main functions
-  desc: |
-    main functions
+    Streamlines iterative models when working with `ASReml-R` package
   contents:
   - '`w2l_nest`'
   - '`w2l_split`'
@@ -47,17 +47,19 @@ reference:
 #     stat functions
 #   contents:
 #   - '`top_perc`'
-- title: other useful functions
+- title: Useful functions for animal breeders
   desc: |
-    other useful functions
+    Utility functions for phenotypic data processing commonly used
   contents:
+  - '`import_csv`'
+  - '`import_xlsx`'
   - '`top_perc`'
   - '`get_filename`'
   - '`get_path_segment`'
   - '`format_digits`'
-- title: data example functions
+- title: Data example
   desc: |
-    data example functions
+    Pig performance test examples and other example or example functions
   contents:
   - '`mintyr_example`'
   - '`mintyr_examples`'

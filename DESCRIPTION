@@ -1,22 +1,17 @@
 Package: mintyr
-Title: Fresh and Efficient Data Processing Tools
+Title: Streamlined Data Processing Tools for Genomic Selection
 Version: 0.1.0
 Authors@R: c(
     person("Guo Meng", , , "tony2015116@163.com", role = c("aut", "cre")),
     person("Guo Meng", role = "cph")
   )
-Description: `mintyr` is an R package offering fresh and efficient
-    solutions for data processing, with a focus on animal breeding data.
-    It provides streamlined functionality for handling multi-breed and
-    multi-trait data in genomic selection, leveraging nested data
-    structures for clear model iteration. Built primarily with
-    `data.table` and base R for performance, the package delivers a
-    comprehensive collection of utility functions that balance efficiency
-    with user-friendly data manipulation approaches.Detailed documentation
-    and examples are available through the package website at
-    <https://tony2015116.github.io/mintyr>.
+Description: A toolkit for genomic selection in animal breeding with
+    emphasis on multi-breed and multi-trait nested grouping operations.
+    Streamlines iterative analysis workflows when working with 'ASReml-R'
+    package.  Includes utility functions for phenotypic data processing
+    commonly used by animal breeders.
 License: MIT + file LICENSE
-URL: https://tony2015116.github.io/mintyr
+URL: https://tony2015116.github.io/mintyr/
 BugReports: https://github.com/tony2015116/mintyr/issues
 Depends: 
     R (>= 3.5.0)

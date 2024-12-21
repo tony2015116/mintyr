@@ -25,7 +25,7 @@ install.packages("mintyr")
 pak::pak("tony2015116/mintyr")
 ```
 ## Cheat sheet
-<a href='man/figures/cheatsheet.svg' target="_blank"><img src='man/figures/cheatsheet.svg' width="800" align="center" /></a>
+<a href='https://tony2015116.github.io/mintyr/man/figures/cheatsheet.svg' target="_blank"><img src='https://tony2015116.github.io/mintyr/man/figures/cheatsheet.svg' width="800" align="center" /></a>
 
 
 ## Acknowledgments

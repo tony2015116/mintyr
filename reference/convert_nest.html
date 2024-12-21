@@ -63,7 +63,7 @@ to either data.frame or data.table format while preserving the original data str
   <div class="col-md-9 contents">
     <div class="page-header">
     <h1>Convert Nested Columns Between <code>data.frame</code> and <code>data.table</code></h1>
-    <small class="dont-index">Source: <a href="https://github.com/tony2015116/mintyr/blob/main/R/convert_nest.R" class="external-link"><code>R/convert_nest.R</code></a></small>
+    <small class="dont-index">Source: <a href="https://github.com/tony2015116/mintyr/blob/v0.1.0/R/convert_nest.R" class="external-link"><code>R/convert_nest.R</code></a></small>
     <div class="hidden name"><code>convert_nest.Rd</code></div>
     </div>
 
@@ -165,6 +165,27 @@ If <code>NULL</code>, the function automatically detects list columns.</p></dd>
 <span class="r-in"><span>  to <span class="op">=</span> <span class="st">"dt"</span>,                     <span class="co"># Convert to data.table</span></span></span>
 <span class="r-in"><span>  nest_cols <span class="op">=</span> <span class="st">"data"</span>             <span class="co"># Only convert 'data' column</span></span></span>
 <span class="r-in"><span><span class="op">)</span></span></span>
+<span class="r-wrn co"><span class="r-pr">#&gt;</span> <span class="warning">Warning: </span>`...` must be empty in `format.tbl()`</span>
+<span class="r-wrn co"><span class="r-pr">#&gt;</span> Caused by error in `format_tbl()`:</span>
+<span class="r-wrn co"><span class="r-pr">#&gt;</span> <span style="color: #BBBB00;">!</span> `...` must be empty.</span>
+<span class="r-wrn co"><span class="r-pr">#&gt;</span> <span style="color: #BB0000;">✖</span> Problematic arguments:</span>
+<span class="r-wrn co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">•</span> na.encode = FALSE</span>
+<span class="r-wrn co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">•</span> timezone = timezone</span>
+<span class="r-wrn co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">•</span> justify = justify</span>
+<span class="r-wrn co"><span class="r-pr">#&gt;</span> <span class="warning">Warning: </span>`...` must be empty in `format.tbl()`</span>
+<span class="r-wrn co"><span class="r-pr">#&gt;</span> Caused by error in `format_tbl()`:</span>
+<span class="r-wrn co"><span class="r-pr">#&gt;</span> <span style="color: #BBBB00;">!</span> `...` must be empty.</span>
+<span class="r-wrn co"><span class="r-pr">#&gt;</span> <span style="color: #BB0000;">✖</span> Problematic arguments:</span>
+<span class="r-wrn co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">•</span> na.encode = FALSE</span>
+<span class="r-wrn co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">•</span> timezone = timezone</span>
+<span class="r-wrn co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">•</span> justify = justify</span>
+<span class="r-wrn co"><span class="r-pr">#&gt;</span> <span class="warning">Warning: </span>`...` must be empty in `format.tbl()`</span>
+<span class="r-wrn co"><span class="r-pr">#&gt;</span> Caused by error in `format_tbl()`:</span>
+<span class="r-wrn co"><span class="r-pr">#&gt;</span> <span style="color: #BBBB00;">!</span> `...` must be empty.</span>
+<span class="r-wrn co"><span class="r-pr">#&gt;</span> <span style="color: #BB0000;">✖</span> Problematic arguments:</span>
+<span class="r-wrn co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">•</span> na.encode = FALSE</span>
+<span class="r-wrn co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">•</span> timezone = timezone</span>
+<span class="r-wrn co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">•</span> justify = justify</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>       Species               data          data2</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>        &lt;fctr&gt;             &lt;list&gt;         &lt;list&gt;</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> 1:     setosa &lt;data.table[50x4]&gt; &lt;tbl_df[50x5]&gt;</span>

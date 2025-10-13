@@ -2,79 +2,133 @@
 % Please edit documentation in R/export_nest.R
 \name{export_nest}
 \alias{export_nest}
-\title{Export Nested Data with Advanced Grouping and Flexible Handling}
+\title{Export Nested Data Structures with Hierarchical Organization}
 \usage{
 export_nest(
   nest_dt,
   group_cols = NULL,
-  nest_col = NULL,
+  nest_cols = NULL,
   export_path = tempdir(),
   file_type = "txt"
 )
 }
 \arguments{
-\item{nest_dt}{A \code{data.frame} or \code{data.table} containing nested columns of \code{data.frame}s,
-\code{data.table}s, or lists to be exported.}
+\item{nest_dt}{A \code{data.frame} or \code{data.table} containing one or more nested columns.
+Exportable nested columns contain \code{data.frame} or \code{data.table} objects. Non-exportable
+columns contain custom objects such as \code{rsplit} from the rsample package or other
+list-based structures. The input cannot be empty.}
 
-\item{group_cols}{Optional character vector specifying grouping columns.
-If \code{NULL}, uses all non-nested columns as grouping variables.}
+\item{group_cols}{Optional character vector specifying column names to use for hierarchical
+grouping. These columns determine the directory structure for exported files.
+If \code{NULL} (default), automatically uses all non-nested columns as grouping variables.
+Missing or invalid columns are handled gracefully with informative warnings.}
 
-\item{nest_col}{Optional character string indicating the nested column to export.
-If \code{NULL}, automatically selects the first nested column.}
+\item{nest_cols}{Optional character vector specifying which nested columns to export.
+If \code{NULL} (default), automatically processes only columns containing \code{data.frame} or
+\code{data.table} objects. Custom object list columns (e.g., \code{rsplit}, \code{vfold_split} from rsample)
+are identified and reported but NOT exported. Specifying non-data.frame columns in \code{nest_cols}
+triggers a warning and those columns are skipped.}
 
-\item{export_path}{Base directory path for file export. Defaults to a temporary directory
-created by \code{tempdir()}.}
+\item{export_path}{Character string specifying the base directory for file export.
+Defaults to \code{tempdir()}. The function creates this directory recursively if it does not exist.}
 
-\item{file_type}{File export format, either \code{"txt"} (tab-separated) or \code{"csv"}.
-Defaults to \code{"txt"}.}
+\item{file_type}{Character string indicating export format: \code{"txt"} for tab-separated values
+or \code{"csv"} for comma-separated values. Defaults to \code{"txt"}. Case-insensitive.}
 }
 \value{
-An \code{integer} representing the total number of files exported successfully.
+An invisible \code{integer} representing the total number of files successfully exported.
+Returns \code{0} if no exportable data.frame/data.table columns are found or if all nested
+data are empty/NULL.
 }
 \description{
-The \code{export_list} function exports nested data from a \code{data.frame} or \code{data.table} with sophisticated grouping
-capabilities, supporting multiple nested column types and flexible file export options.
+Intelligently exports nested data from \code{data.frame} or \code{data.table} objects with sophisticated
+grouping capabilities and flexible handling of multiple nested column types. This function
+distinguishes between exportable data.frame/data.table columns and non-exportable custom object
+list columns (such as rsample cross-validation splits), processing only the appropriate types
+by default.
 }
 \details{
-Comprehensive Nested Data Export Features:
+\strong{Nested Column Type Detection:}
+The function automatically detects and categorizes nested columns into two types:
 \itemize{
-\item Automatic detection and handling of different nested column types
-\item Flexible grouping strategies with intelligent column selection
-\item Hierarchical directory structure generation based on grouping columns
-\item Support for mixed nested column types (\code{data.frame}, \code{data.table}, \code{list})
-\item Multi-threaded file writing for enhanced performance
-\item Informative messaging and warning system
+\item \strong{Exportable columns (Data.frame/data.table)}: Columns containing \code{data.frame}
+or \code{data.table} objects. These are the only columns exported to files by default.
+\item \strong{Non-exportable columns (Custom objects)}: Columns containing other list-type objects
+such as \code{rsplit} (rsample cross-validation splits), \code{vfold_split}, empty lists, or other
+custom S3/S4 objects. These columns are identified and reported but cannot be exported
+as txt/csv files.
 }
 
-Nested Column Detection Hierarchy:
-\enumerate{
-\item Prioritizes \code{data.frame}/\code{data.table} nested columns
-\item Falls back to regular \code{list} columns if no \code{data.frame} columns exist
-}
-
-Grouping Column Selection Strategy:
-\enumerate{
-\item When \code{group_cols} is \code{NULL}, uses all non-nested columns
-\item Provides warnings about unused non-nested columns
-\item Validates provided group columns
-}
-
-File Export Characteristics:
+\strong{Grouping Strategy:}
 \itemize{
-\item Supports \code{"txt"} (tab-separated) and \code{"csv"} formats
-\item Uses multi-threading via \code{parallel::detectCores()}
-\item Creates nested directory structure based on grouping variables
+\item When \code{group_cols = NULL}, all non-nested columns automatically become grouping variables.
+\item Grouping columns create a hierarchical directory structure where each unique combination
+of group values generates a separate subdirectory.
+\item Files are organized as: \code{export_path/group1_value/group2_value/nest_col.ext}
+\item If no valid group columns exist, files export to the root \code{export_path}.
 }
+
+\strong{File Organization:}
+\itemize{
+\item One file is generated per exportable nested column per row
+(e.g., row 1 with 2 data.frame columns generates 2 files).
+\item Only data.frame/data.table nested columns are written; custom object columns are skipped.
+\item Filenames follow the pattern: \verb{\{nested_column_name\}.\{file_type\}} (e.g., \code{data.txt}, \code{results.csv}).
+\item Files are written using \code{data.table::fwrite()} for efficient I/O.
+\item Empty or \code{NULL} nested data are silently skipped without interrupting the export process.
+}
+
+\strong{Error Handling:}
+\itemize{
+\item Parameter validation occurs early, with informative error messages for invalid inputs.
+\item Missing group columns trigger warnings but do not halt execution.
+\item Custom object columns are identified and reported when \code{nest_cols = NULL},
+allowing users to be aware of non-exportable data.
+\item Invalid or non-data.frame nested columns in \code{nest_cols} are skipped with warnings.
+\item Individual row export failures generate warnings but continue processing remaining rows.
+}
+
+\strong{Data.table Requirement:}
+The data.table package is required. The function automatically checks for its availability
+and converts input data to \code{data.table} format if necessary.
 }
 \note{
-Key Capabilities:
 \itemize{
-\item Handles complex nested data structures
-\item Performs type conversion for nested content
-\item Utilizes multi-threaded file export for optimal performance
-\item Provides comprehensive column selection feedback
+\item The function does not modify the input \code{nest_dt}; it is non-destructive.
+\item Empty input data.frames trigger an error; use \verb{if (nrow(nest_dt) > 0)} to validate
+input first.
+\item Custom object columns detected when \code{nest_cols = NULL} are reported as informational
+messages; no error occurs.
+\item Attempting to export custom object columns via \code{nest_cols} will skip them with a warning.
+\item All messages and warnings are printed to console; capture output programmatically
+if needed via \code{capture.output()} or similar functions.
+\item File paths are constructed using \code{file.path()}, ensuring cross-platform compatibility.
 }
 }
+\section{Dependencies}{
+
+Requires the \code{data.table} package for efficient data manipulation and I/O operations.
+}
+
+\section{Limitations}{
+
+Custom object columns (e.g., \code{rsplit} from rsample, cross-validation folds) cannot be
+exported as txt/csv files because they are not standard data structures. These columns are
+identified automatically and reported to the console. If you need to export rsample split
+information, consider extracting the indices or data using rsample utility functions first.
+}
+
+\section{Use Cases}{
+
+\itemize{
+\item Exporting structured data from tidymodels workflows that also contain cross-validation splits
+\item Batch exporting multiple nested data.frame columns with automatic hierarchical organization
+\item Creating organized file hierarchies based on grouping variables (e.g., by experiment,
+participant, or time period)
+\item Integration with reproducible research workflows
+}
+}
+
 \examples{
 # Example 1: Basic nested data export workflow
 # Step 1: Create nested data structure
@@ -87,7 +141,7 @@ dt_nest <- w2l_nest(
 # Step 2: Export nested data to files
 export_nest(
   nest_dt = dt_nest,        # Input nested data.table
-  nest_col = "data",        # Column containing nested data
+  nest_cols = "data",       # Column containing nested data
   group_cols = c("name", "Species")  # Columns to create directory structure
 )
 # Returns the number of files created
@@ -109,4 +163,7 @@ files <- list.files(
   full.names = TRUE         # Return full file paths
 )
 file.remove(files)          # Remove all exported files
+}
+\seealso{
+\code{\link[data.table]{fwrite}} for details on file writing,
 }

@@ -1,11 +1,11 @@
-# mintyr <a href='https://tony2015116.github.io/mintyr/'><img src='man/figures/logo.svg'  width="120" align="right" />
+# mintyr <a href='https://tony2015116.github.io/mintyr/'><img src='man/figures/logo.svg' alt="mintyr package logo" width="120" align="right" />
 <!--apple-touch-icon-120x120.png-->
 <!-- <picture><source srcset="reference/figures/apple-touch-icon-120x120.png" media="(prefers-color-scheme: dark)"></picture> -->
 
 <!-- badges: start -->
 [![CRAN status](https://www.r-pkg.org/badges/version/mintyr)](https://CRAN.R-project.org/package=mintyr)
 [![CRAN total downloads](https://cranlogs.r-pkg.org/badges/grand-total/mintyr)](https://CRAN.R-project.org/package=mintyr)
-[![Dev Version](https://img.shields.io/badge/devel%20version-0.1.0.9000-purple.svg)](https://github.com/tony2015116/mintyr)
+[![Dev Version](https://img.shields.io/badge/devel%20version-0.1.1.9000-purple.svg)](https://github.com/tony2015116/mintyr)
 [![Lifecycle: experimental](https://img.shields.io/badge/lifecycle-experimental-orange.svg)](https://lifecycle.r-lib.org/articles/stages.html#experimental)
 [![R-CMD-check](https://github.com/tony2015116/mintyr/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/tony2015116/mintyr/actions/workflows/R-CMD-check.yaml)
 [![GitHub last commit](https://img.shields.io/github/last-commit/tony2015116/mintyr)](#)
@@ -25,7 +25,7 @@ install.packages("mintyr")
 pak::pak("tony2015116/mintyr")
 ```
 ## Cheat sheet
-<a href='https://raw.githubusercontent.com/tony2015116/mintyr/main/man/figures/cheatsheet.svg' target="_blank"><img src='https://raw.githubusercontent.com/tony2015116/mintyr/main/man/figures/cheatsheet.svg' width="800" align="center" /></a>
+<a href='https://raw.githubusercontent.com/tony2015116/mintyr/main/man/figures/cheatsheet.svg' target="_blank"><img src='https://raw.githubusercontent.com/tony2015116/mintyr/main/man/figures/cheatsheet.svg' alt="mintyr package quick reference guide and cheatsheet" width="800" align="center" /></a>
 
 
 ## Acknowledgments

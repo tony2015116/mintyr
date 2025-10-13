@@ -63,10 +63,6 @@ reference:
   contents:
   - '`mintyr_example`'
   - '`mintyr_examples`'
-  - '`nedaps`'
-  - '`fires`'
-  - '`nedap`'
-  - '`fire`'
 articles:
   - title: step0
     navbar: tutorial

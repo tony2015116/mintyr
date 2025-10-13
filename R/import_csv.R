@@ -15,14 +15,20 @@
 #'   Determines the underlying reading mechanism.
 #'
 #' @param rbind A `logical` value controlling data combination strategy:
-#'   - `TRUE`: Combines all files into a single data object
+#'   - `TRUE`: Combines all files into a single data object (default)
 #'   - `FALSE`: Returns a list of individual data objects
-#'   Default is `TRUE`.
 #'
 #' @param rbind_label A `character` string or `NULL` for source file tracking:
-#'   - `character`: Specifies the column name for file source labeling
+#'   - `character`: Specifies the column name for file source labeling (default: `"_file"`)
 #'   - `NULL`: Disables source file tracking
-#'   Default is `"_file"`.
+#'
+#' @param full_path A `logical` value controlling path display in file labels:
+#'   - `TRUE`: Uses full file path
+#'   - `FALSE`: Uses only filename (default)
+#'
+#' @param keep_ext A `logical` value controlling file extension in labels:
+#'   - `TRUE`: Retains file extension (e.g., `.csv`)
+#'   - `FALSE`: Removes file extension (default)
 #'
 #' @param ... Additional arguments passed to backend-specific reading functions 
 #'   (e.g., `col_types`, `na.strings`, `skip`).
@@ -31,25 +37,33 @@
 #' The function provides a unified interface for reading CSV files using either data.table
 #' or arrow package. When reading multiple files, it can either combine them into a single
 #' data object or return them as a list. File source tracking is supported through the
-#' rbind_label parameter.
+#' `rbind_label` parameter.
+#'
+#' File labeling behavior is controlled by `full_path` and `keep_ext` parameters:
+#' \itemize{
+#'   \item `full_path = FALSE, keep_ext = FALSE`: Filename without extension (e.g., `"data"`)
+#'   \item `full_path = FALSE, keep_ext = TRUE`: Filename with extension (e.g., `"data.csv"`)
+#'   \item `full_path = TRUE, keep_ext = FALSE`: Full path without extension (e.g., `"/path/to/data"`)
+#'   \item `full_path = TRUE, keep_ext = TRUE`: Full path with extension (e.g., `"/path/to/data.csv"`)
+#' }
 #'
 #' @return 
 #' Depends on the `rbind` parameter:
 #' \itemize{
 #'   \item If `rbind = TRUE`: A single data object (from chosen package) 
-#'     containing all imported data
+#'     containing all imported data, with source file information in `rbind_label` column
 #'   \item If `rbind = FALSE`: A named list of data objects with names 
-#'     derived from input file names (without extensions)
+#'     derived from input file paths based on `full_path` and `keep_ext` settings
 #' }
 #'
 #' @note
 #' Critical Import Considerations:
 #' \itemize{
 #'   \item Requires all specified files to be accessible `CSV/TXT` files
-#'   \item Supports flexible backend selection
-#'   \item `rbind = TRUE` assumes compatible data structures
-#'   \item Missing columns are automatically aligned
-#'   \item File extensions are automatically removed in tracking columns
+#'   \item Supports flexible backend selection via `package` parameter
+#'   \item `rbind = TRUE` assumes compatible data structures across files
+#'   \item Missing columns are automatically aligned when combining data
+#'   \item File labeling is customizable through `full_path` and `keep_ext` parameters
 #' }
 #'
 #' @seealso
@@ -76,7 +90,9 @@
 #'   csv_files,                      # Input CSV file paths
 #'   package = "data.table",         # Use data.table for reading
 #'   rbind = TRUE,                   # Combine all files into one data.table
-#'   rbind_label = "_file"           # Column name for file source
+#'   rbind_label = "_file",          # Column name for file source
+#'   keep_ext = TRUE,                # Include .csv extension in _file column
+#'   full_path = TRUE                # Show complete file paths in _file column
 #' )
 #'
 #' # Example 2: Import files separately using arrow
@@ -85,42 +101,49 @@
 #'   package = "arrow",              # Use arrow for reading
 #'   rbind = FALSE                   # Keep files as separate data.tables
 #' )
-import_csv <- function (file, package = "data.table", rbind = TRUE, rbind_label = "_file", ...) {
+import_csv <- function (file, package = "data.table", rbind = TRUE, rbind_label = "_file", 
+                        full_path = FALSE, keep_ext = FALSE, ...) {
   # Validations
   if (!is.character(file) || !all(file.exists(file))) {
     stop("file must be a vector of existing file paths.")
   }
-
   if (!package %in% c("data.table", "arrow")) {
     stop("package must be one of 'data.table', 'arrow'.")
   }
-
-  # Function to remove file extension
-  remove_extension <- function(filename) {
-    sub("\\.[^.]*$", "", basename(filename))
+  if (!is.logical(full_path) || !is.logical(keep_ext)) {
+    stop("full_path and keep_ext must be logical (TRUE or FALSE).")
   }
-
+  
+  # Function to process file name/path
+  process_filename <- function(filename) {
+    # Step 1: Path handling
+    processed <- if (full_path) filename else basename(filename)
+    
+    # Step 2: Extension handling
+    if (!keep_ext) {
+      processed <- sub("\\.[^.]*$", "", processed)
+    }
+    
+    return(processed)
+  }
+  
   # Read Functionality with naming
   read_files <- function(read_function) {
     file_data <- lapply(file, function(file_path) {
       df <- read_function(file_path, ...)
       if (!is.null(rbind_label) && rbind && length(file) > 1) {
-        # Add a column with the label indicating the file origin, without extension
-        df <- cbind(stats::setNames(data.frame(remove_extension(file_path)), rbind_label), df)
+        df <- cbind(stats::setNames(data.frame(process_filename(file_path)), rbind_label), df)
       }
       return(df)
     })
-
     if (rbind && length(file) > 1) {
-      # Combine all data into a single data table/data frame
       return(data.table::rbindlist(file_data, use.names = TRUE, fill = TRUE))
     } else {
-      # When rbind is FALSE, name the list elements with file names
-      names(file_data) <- remove_extension(file)
+      names(file_data) <- process_filename(file)
       return(file_data)
     }
   }
-
+  
   # Package specific operations
   if (package == "data.table") {
     return(read_files(data.table::fread))

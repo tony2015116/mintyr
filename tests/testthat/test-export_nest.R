@@ -86,11 +86,14 @@ test_that("export_nest handles automatic nest_col detection", {
   
   temp_dir <- file.path(tempdir(), "export_test_auto_nest")
   
-  # Test without specifying nest_col
+  # Test without specifying nest_cols
   expect_message(
     export_nest(dt, export_path = temp_dir),
-    "Using first nested data.frame/data.table column"
+    "Processing all data.frame/data.table nested columns"
   )
+  
+  # Verify file was created
+  expect_true(file.exists(file.path(temp_dir, "A", "data.txt")))
   
   # Clean up
   unlink(temp_dir, recursive = TRUE)
@@ -110,14 +113,14 @@ test_that("export_nest handles errors appropriately", {
     "The input nest_dt must contain at least one nested column"
   )
   
-  # Test invalid nest_col
+  # Test invalid nest_cols
   dt <- data.table(
     group = "A",
     data = list(data.table(x = 1:3))
   )
   expect_error(
-    export_nest(dt, nest_col = "invalid"),
-    "Specified nest_col is not a valid nested column"
+    export_nest(dt, nest_cols = "invalid"),
+    "The following specified nest columns do not exist"
   )
   
   # Test invalid file_type
@@ -127,9 +130,13 @@ test_that("export_nest handles errors appropriately", {
   )
   
   # Test invalid group_cols
-  expect_error(
-    export_nest(dt, group_cols = "invalid"),
-    "The following group columns are missing: invalid"
+  dt2 <- data.table(
+    group = "A",
+    data = list(data.table(x = 1:3))
+  )
+  expect_warning(
+    export_nest(dt2, group_cols = "invalid"),
+    "The following group columns are missing and will be ignored"
   )
 })
 
@@ -150,39 +157,119 @@ test_that("export_nest handles complex nested structures", {
   
   temp_dir <- file.path(tempdir(), "export_test_complex")
   
-  # Test export with list column
+  # Test export with data.frame column only (list_col should be skipped)
   expect_message(
-    export_nest(dt, nest_col = "list_col", export_path = temp_dir),
+    export_nest(dt, nest_cols = "df_col", export_path = temp_dir),
     "Using all non-nested columns as groups"
   )
   
-  # Test export with data.frame column
-  expect_message(
-    export_nest(dt, nest_col = "df_col", export_path = temp_dir),
-    "Using all non-nested columns as groups"
-  )
+  # Verify files were created correctly
+  expect_true(file.exists(file.path(temp_dir, "A", "df_col.txt")))
+  expect_true(file.exists(file.path(temp_dir, "B", "df_col.txt")))
   
   # Clean up
   unlink(temp_dir, recursive = TRUE)
 })
 
-# Test warn handling
-test_that("export_nest warns about unused columns", {
+# Test warning about non-dataframe nested columns
+test_that("export_nest warns about non-dataframe nested columns", {
   dt <- data.table(
-    group1 = "A",
-    group2 = "B",
-    unused = "C",
-    data = list(data.table(x = 1:3))
+    group = c("A", "B"),
+    list_col = list(
+      list(x = 1, y = "a"),
+      list(x = 2, y = "b")
+    ),
+    df_col = list(
+      data.table(x = 1:2, y = letters[1:2]),
+      data.table(x = 3:4, y = letters[3:4])
+    )
   )
   
   temp_dir <- file.path(tempdir(), "export_test_warning")
   
-  # Test warning about unused columns
-  expect_warning(
-    export_nest(dt, group_cols = c("group1", "group2"), export_path = temp_dir),
-    "Not all non-nested columns are used as group columns"
+  # Test warning about list columns with custom objects
+  expect_message(
+    export_nest(dt, export_path = temp_dir),
+    "Note: The following list columns contain custom objects and will not be processed"
   )
+  
+  # Verify only df_col was exported
+  expect_true(file.exists(file.path(temp_dir, "A", "df_col.txt")))
+  expect_true(file.exists(file.path(temp_dir, "B", "df_col.txt")))
+  expect_false(file.exists(file.path(temp_dir, "A", "list_col.txt")))
   
   # Clean up
   unlink(temp_dir, recursive = TRUE)
 })
+
+# Test multiple nested columns
+test_that("export_nest handles multiple nested columns", {
+  dt <- data.table(
+    group = "A",
+    data1 = list(data.table(x = 1:2)),
+    data2 = list(data.table(y = 3:4))
+  )
+  
+  temp_dir <- file.path(tempdir(), "export_test_multi")
+  
+  # Test processing multiple nested columns
+  result <- export_nest(dt, export_path = temp_dir)
+  
+  # Should export 2 files
+  expect_equal(result, 2)
+  expect_true(file.exists(file.path(temp_dir, "A", "data1.txt")))
+  expect_true(file.exists(file.path(temp_dir, "A", "data2.txt")))
+  
+  # Clean up
+  unlink(temp_dir, recursive = TRUE)
+})
+
+# Test CSV export
+test_that("export_nest exports to CSV format", {
+  dt <- data.table(
+    group = "A",
+    data = list(data.table(x = 1:3, y = 4:6))
+  )
+  
+  temp_dir <- file.path(tempdir(), "export_test_csv")
+  
+  # Test CSV export
+  result <- export_nest(dt, export_path = temp_dir, file_type = "csv")
+  
+  expect_equal(result, 1)
+  expect_true(file.exists(file.path(temp_dir, "A", "data.csv")))
+  expect_false(file.exists(file.path(temp_dir, "A", "data.txt")))
+  
+  # Verify CSV content
+  exported_data <- data.table::fread(file.path(temp_dir, "A", "data.csv"))
+  expect_equal(nrow(exported_data), 3)
+  expect_equal(ncol(exported_data), 2)
+  
+  # Clean up
+  unlink(temp_dir, recursive = TRUE)
+})
+
+# Test empty nested data handling
+test_that("export_nest handles empty nested data", {
+  dt <- data.table(
+    group = c("A", "B"),
+    data = list(
+      data.table(x = 1:3),
+      data.table()  # Empty data.table
+    )
+  )
+  
+  temp_dir <- file.path(tempdir(), "export_test_empty")
+  
+  # Test handling of empty nested data
+  result <- export_nest(dt, export_path = temp_dir)
+  
+  # Only one file should be exported (for group A)
+  expect_equal(result, 1)
+  expect_true(file.exists(file.path(temp_dir, "A", "data.txt")))
+  expect_false(file.exists(file.path(temp_dir, "B", "data.txt")))
+  
+  # Clean up
+  unlink(temp_dir, recursive = TRUE)
+})
+

@@ -45,8 +45,9 @@ test_that("import_csv reads CSV files correctly", {
     # Check return type
     expect_type(result, "list")
     
-    # Check list names
-    expect_equal(names(result), tools::file_path_sans_ext(basename(csv_files)))
+    # Check list names (basename without extension by default)
+    expected_names <- tools::file_path_sans_ext(basename(csv_files))
+    expect_equal(names(result), expected_names)
     
     # Check each element is a data.table
     expect_true(all(sapply(result, data.table::is.data.table)))
@@ -81,6 +82,18 @@ test_that("import_csv handles errors appropriately", {
     import_csv(csv_files, package = "invalid"),
     "package must be one of 'data.table', 'arrow'"
   )
+  
+  # Test invalid full_path parameter
+  expect_error(
+    import_csv(csv_files, full_path = "invalid"),
+    "full_path and keep_ext must be logical"
+  )
+  
+  # Test invalid keep_ext parameter
+  expect_error(
+    import_csv(csv_files, keep_ext = 1),
+    "full_path and keep_ext must be logical"
+  )
 })
 
 # Test edge cases
@@ -103,12 +116,55 @@ test_that("import_csv handles edge cases", {
     expect_s3_class(result, "data.table")
     expect_false("_file" %in% names(result))
   })
+})
+
+# Test file labeling parameters
+test_that("import_csv file labeling works correctly", {
+  # Setup test files
+  csv_files <- mintyr_example(
+    mintyr_examples(pattern = "\\.csv$")
+  )
   
-  # Test with empty CSV files (if applicable)
-  # Note: This test depends on your test file structure
+  if (length(csv_files) > 1) {
+    # Test default: basename without extension
+    test_that("import_csv default file labels (basename, no ext)", {
+      result <- import_csv(csv_files, full_path = FALSE, keep_ext = FALSE)
+      expected <- tools::file_path_sans_ext(basename(csv_files))
+      expect_equal(unique(result$`_file`), expected)
+    })
+    
+    # Test: basename with extension
+    test_that("import_csv file labels with extension", {
+      result <- import_csv(csv_files, full_path = FALSE, keep_ext = TRUE)
+      expected <- basename(csv_files)
+      expect_equal(unique(result$`_file`), expected)
+    })
+    
+    # Test: full path without extension
+    test_that("import_csv file labels with full path", {
+      result <- import_csv(csv_files, full_path = TRUE, keep_ext = FALSE)
+      expected <- tools::file_path_sans_ext(csv_files)
+      expect_equal(unique(result$`_file`), expected)
+    })
+    
+    # Test: full path with extension
+    test_that("import_csv file labels with full path and extension", {
+      result <- import_csv(csv_files, full_path = TRUE, keep_ext = TRUE)
+      expect_equal(unique(result$`_file`), csv_files)
+    })
+  }
   
-  # Test with different column structures (if applicable)
-  # Note: This test depends on your test file structure
+  # Test rbind = FALSE with different labeling options
+  test_that("import_csv list names respect labeling parameters", {
+    # With keep_ext = TRUE
+    result_with_ext <- import_csv(csv_files, rbind = FALSE, keep_ext = TRUE)
+    expect_equal(names(result_with_ext), basename(csv_files))
+    
+    # With full_path = TRUE
+    result_full <- import_csv(csv_files, rbind = FALSE, full_path = TRUE)
+    expected_full <- tools::file_path_sans_ext(csv_files)
+    expect_equal(names(result_full), expected_full)
+  })
 })
 
 # Test additional parameters

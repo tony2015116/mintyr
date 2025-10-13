@@ -9,6 +9,8 @@ import_csv(
   package = "data.table",
   rbind = TRUE,
   rbind_label = "_file",
+  full_path = FALSE,
+  keep_ext = FALSE,
   ...
 )
 }
@@ -25,16 +27,26 @@ Determines the underlying reading mechanism.
 
 \item{rbind}{A \code{logical} value controlling data combination strategy:
 \itemize{
-\item \code{TRUE}: Combines all files into a single data object
+\item \code{TRUE}: Combines all files into a single data object (default)
 \item \code{FALSE}: Returns a list of individual data objects
-Default is \code{TRUE}.
 }}
 
 \item{rbind_label}{A \code{character} string or \code{NULL} for source file tracking:
 \itemize{
-\item \code{character}: Specifies the column name for file source labeling
+\item \code{character}: Specifies the column name for file source labeling (default: \code{"_file"})
 \item \code{NULL}: Disables source file tracking
-Default is \code{"_file"}.
+}}
+
+\item{full_path}{A \code{logical} value controlling path display in file labels:
+\itemize{
+\item \code{TRUE}: Uses full file path
+\item \code{FALSE}: Uses only filename (default)
+}}
+
+\item{keep_ext}{A \code{logical} value controlling file extension in labels:
+\itemize{
+\item \code{TRUE}: Retains file extension (e.g., \code{.csv})
+\item \code{FALSE}: Removes file extension (default)
 }}
 
 \item{...}{Additional arguments passed to backend-specific reading functions
@@ -44,9 +56,9 @@ Default is \code{"_file"}.
 Depends on the \code{rbind} parameter:
 \itemize{
 \item If \code{rbind = TRUE}: A single data object (from chosen package)
-containing all imported data
+containing all imported data, with source file information in \code{rbind_label} column
 \item If \code{rbind = FALSE}: A named list of data objects with names
-derived from input file names (without extensions)
+derived from input file paths based on \code{full_path} and \code{keep_ext} settings
 }
 }
 \description{
@@ -57,16 +69,24 @@ through \code{data.table} and \code{arrow} packages with intelligent data combin
 The function provides a unified interface for reading CSV files using either data.table
 or arrow package. When reading multiple files, it can either combine them into a single
 data object or return them as a list. File source tracking is supported through the
-rbind_label parameter.
+\code{rbind_label} parameter.
+
+File labeling behavior is controlled by \code{full_path} and \code{keep_ext} parameters:
+\itemize{
+\item \verb{full_path = FALSE, keep_ext = FALSE}: Filename without extension (e.g., \code{"data"})
+\item \verb{full_path = FALSE, keep_ext = TRUE}: Filename with extension (e.g., \code{"data.csv"})
+\item \verb{full_path = TRUE, keep_ext = FALSE}: Full path without extension (e.g., \code{"/path/to/data"})
+\item \verb{full_path = TRUE, keep_ext = TRUE}: Full path with extension (e.g., \code{"/path/to/data.csv"})
+}
 }
 \note{
 Critical Import Considerations:
 \itemize{
 \item Requires all specified files to be accessible \code{CSV/TXT} files
-\item Supports flexible backend selection
-\item \code{rbind = TRUE} assumes compatible data structures
-\item Missing columns are automatically aligned
-\item File extensions are automatically removed in tracking columns
+\item Supports flexible backend selection via \code{package} parameter
+\item \code{rbind = TRUE} assumes compatible data structures across files
+\item Missing columns are automatically aligned when combining data
+\item File labeling is customizable through \code{full_path} and \code{keep_ext} parameters
 }
 }
 \examples{
@@ -82,7 +102,9 @@ import_csv(
   csv_files,                      # Input CSV file paths
   package = "data.table",         # Use data.table for reading
   rbind = TRUE,                   # Combine all files into one data.table
-  rbind_label = "_file"           # Column name for file source
+  rbind_label = "_file",          # Column name for file source
+  keep_ext = TRUE,                # Include .csv extension in _file column
+  full_path = TRUE                # Show complete file paths in _file column
 )
 
 # Example 2: Import files separately using arrow

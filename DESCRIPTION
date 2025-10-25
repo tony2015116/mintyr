@@ -11,7 +11,7 @@ Description: A toolkit for genomic selection in animal breeding with
     package.  Includes utility functions for phenotypic data processing
     commonly used by animal breeders.
 License: MIT + file LICENSE
-URL: https://tony2015116.github.io/mintyr/
+URL: https://tony2015116.github.io/mintyr/, https://github.com/tony2015116/mintyr
 BugReports: https://github.com/tony2015116/mintyr/issues
 Depends: 
     R (>= 4.1.0)

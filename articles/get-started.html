@@ -37,7 +37,7 @@
       </button>
       <span class="navbar-brand">
         <a class="navbar-link" href="../index.html">mintyr</a>
-        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="">0.1.1</span>
+        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="">0.1.2</span>
       </span>
     </div>
 
@@ -94,7 +94,7 @@
       <h1 data-toc-skip>Get started</h1>
             
       
-      <small class="dont-index">Source: <a href="https://github.com/tony2015116/mintyr/blob/v0.1.1/vignettes/get-started.Rmd" class="external-link"><code>vignettes/get-started.Rmd</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/tony2015116/mintyr/blob/main/vignettes/get-started.Rmd" class="external-link"><code>vignettes/get-started.Rmd</code></a></small>
       <div class="hidden name"><code>get-started.Rmd</code></div>
 
     </div>
@@ -419,18 +419,6 @@ Note: when you will use other flat templates, this part will be in a separate fi
 <span><span class="co">#&gt; 1:     setosa &lt;data.table[50x4]&gt;</span></span>
 <span><span class="co">#&gt; 2: versicolor &lt;data.table[50x4]&gt;</span></span>
 <span><span class="co">#&gt; 3:  virginica &lt;data.table[50x4]&gt;</span></span>
-<span></span>
-<span><span class="co"># Convert specific nested columns</span></span>
-<span><span class="fu"><a href="../reference/convert_nest.html">convert_nest</a></span><span class="op">(</span></span>
-<span>  <span class="va">df_nest2</span>,                      <span class="co"># Input nested data frame</span></span>
-<span>  to <span class="op">=</span> <span class="st">"dt"</span>,                     <span class="co"># Convert to data.table</span></span>
-<span>  nest_cols <span class="op">=</span> <span class="st">"data"</span>             <span class="co"># Only convert 'data' column</span></span>
-<span><span class="op">)</span></span>
-<span><span class="co">#&gt;       Species               data          data2</span></span>
-<span><span class="co">#&gt;        &lt;fctr&gt;             &lt;list&gt;         &lt;list&gt;</span></span>
-<span><span class="co">#&gt; 1:     setosa &lt;data.table[50x4]&gt; &lt;tbl_df[50x5]&gt;</span></span>
-<span><span class="co">#&gt; 2: versicolor &lt;data.table[50x4]&gt; &lt;tbl_df[50x5]&gt;</span></span>
-<span><span class="co">#&gt; 3:  virginica &lt;data.table[50x4]&gt; &lt;tbl_df[50x5]&gt;</span></span>
 <span></span>
 <span><span class="co"># Example 3: Convert data table to data frame</span></span>
 <span><span class="va">dt_nest</span> <span class="op">&lt;-</span> <span class="fu">mintyr</span><span class="fu">::</span><span class="fu"><a href="../reference/w2l_nest.html">w2l_nest</a></span><span class="op">(</span></span>

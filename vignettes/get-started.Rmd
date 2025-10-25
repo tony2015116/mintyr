@@ -245,13 +245,6 @@ convert_nest(
   to = "dt"                      # Convert to data.table
 )
 
-# Convert specific nested columns
-convert_nest(
-  df_nest2,                      # Input nested data frame
-  to = "dt",                     # Convert to data.table
-  nest_cols = "data"             # Only convert 'data' column
-)
-
 # Example 3: Convert data table to data frame
 dt_nest <- mintyr::w2l_nest(
   data = iris,                   # Input dataset

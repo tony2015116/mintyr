@@ -4,52 +4,51 @@
 \alias{convert_nest}
 \title{Convert Nested Columns Between \code{data.frame} and \code{data.table}}
 \usage{
-convert_nest(data, to = c("df", "dt"), nest_cols = NULL)
+convert_nest(data, to = c("df", "dt"))
 }
 \arguments{
 \item{data}{A \code{data.frame} or \code{data.table} containing nested columns}
 
 \item{to}{A \code{character} string specifying the target format.
 Options are \code{"df"} (data frame) or \code{"dt"} (data table). Defaults to \code{"df"}.}
-
-\item{nest_cols}{A \code{character} vector of column names containing nested data.
-If \code{NULL}, the function automatically detects list columns.}
 }
 \value{
-A transformed \code{data.frame} or \code{data.table} with nested columns converted to the specified format.
+A transformed \code{data.frame} or \code{data.table} with all nested columns converted to the specified format.
+If no nested columns are found, returns the original data with a warning.
 }
 \description{
 The \code{convert_nest} function transforms a \code{data.frame} or \code{data.table} by converting nested columns
 to either \code{data.frame} or \code{data.table} format while preserving the original data structure.
+Nested columns are automatically detected based on list column identification.
 }
 \details{
 Advanced Nested Column Conversion Features:
 \itemize{
-\item Intelligent automatic detection of nested columns
+\item Intelligent automatic detection of all nested (list) columns
 \item Comprehensive conversion of entire data structure
-\item Selective conversion of specified nested columns
 \item Non-destructive transformation with data copying
+\item Seamless handling of mixed nested structures
 }
 
-Input Validation and Error Handling:
+Automatic Detection and Validation:
 \itemize{
-\item Validates existence of specified nested columns
-\item Verifies that specified columns are actually list columns
-\item Provides informative error messages for invalid inputs
+\item Automatically identifies all list columns in the dataset
+\item Issues warning if no nested columns are detected
+\item Returns original data unchanged when no list columns exist
 \item Ensures data integrity through comprehensive checks
 }
 
 Conversion Strategies:
 \enumerate{
 \item Nested column identification based on \code{is.list()} detection
-\item Preservation of original data integrity
+\item Preservation of original data integrity through copying
 \item Flexible handling of mixed data structures
-\item Consistent type conversion across nested elements
+\item Consistent type conversion across all nested elements
 }
 
 Nested Column Handling:
 \itemize{
-\item Supports conversion of \code{list} columns
+\item Automatically processes all \code{list} columns
 \item Handles \code{data.table}, \code{data.frame}, and generic \code{list} inputs
 \item Maintains original column structure and order
 \item Prevents in-place modification of source data
@@ -58,18 +57,17 @@ Nested Column Handling:
 \note{
 Conversion Characteristics:
 \itemize{
-\item Non-destructive transformation of nested columns
+\item Non-destructive transformation of all nested columns
+\item Automatic detection eliminates need for manual column specification
 \item Supports flexible input and output formats
-\item Intelligent type detection and conversion
 \item Minimal performance overhead
 }
 
-Error Conditions:
+Warning Conditions:
 \itemize{
-\item Throws error if specified columns don't exist in the input data
-\item Throws error if specified columns are not list columns
-\item Provides clear error messages for troubleshooting
-\item Validates input parameters before processing
+\item Issues warning if no list columns are found in the input data
+\item Returns original data unchanged when no conversion is needed
+\item Provides clear messages for troubleshooting
 }
 }
 \examples{
@@ -94,13 +92,6 @@ df_nest2 <- iris |>
 convert_nest(
   df_nest1,                      # Input nested data frame
   to = "dt"                      # Convert to data.table
-)
-
-# Convert specific nested columns
-convert_nest(
-  df_nest2,                      # Input nested data frame
-  to = "dt",                     # Convert to data.table
-  nest_cols = "data"             # Only convert 'data' column
 )
 
 # Example 3: Convert data table to data frame

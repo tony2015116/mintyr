@@ -1,10 +1,7 @@
 ## Resubmission
 
 Changes made:
-* Fixed bug in export_nest() and import_csv().
-* Removed the rarely used functions nedaps() and fires(), along with the datasets nedap and fire.
-
-
+* Fixed bug in `convert_nest()`.
 
 ## R CMD check results
 

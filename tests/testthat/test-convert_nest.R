@@ -62,21 +62,6 @@ test_that("convert_nest automatically detects nested columns", {
   expect_true(is.numeric(result$normal))  # Non-nested column should remain unchanged
 })
 
-# Test specified nested columns
-test_that("convert_nest handles specified nested columns", {
-  test_data <- data.table(
-    id = 1:2,
-    nested1 = list(data.table(a = 1), data.table(a = 2)),
-    nested2 = list(data.table(b = 1), data.table(b = 2))
-  )
-  
-  # Only convert nested1
-  result <- convert_nest(test_data, to = "df", nest_cols = "nested1")
-  
-  expect_true(all(sapply(result$nested1, inherits, "tbl_df")))
-  expect_true(all(sapply(result$nested2, inherits, "data.table")))
-})
-
 # Test handling of empty nested columns
 test_that("convert_nest handles empty nested columns", {
   test_data <- data.table(
@@ -126,11 +111,27 @@ test_that("convert_nest handles invalid inputs appropriately", {
     convert_nest(nested_dt, to = "invalid"),
     "should be one of"
   )
-  
-  # Test invalid nest_cols
-  expect_error(
-    convert_nest(nested_dt, to = "df", nest_cols = "nonexistent"),
-    "Column\\(s\\) not found in data: nonexistent"
-  )
 })
 
+# Test handling of all nested columns
+test_that("convert_nest automatically detects and converts all nested columns", {
+  test_data <- data.table(
+    id = 1:2,
+    nested1 = list(data.table(a = 1), data.table(a = 2)),
+    nested2 = list(data.table(b = 1), data.table(b = 2)),
+    regular = c("x", "y")
+  )
+  
+  # Convert to df - should convert all nested columns automatically
+  result_df <- convert_nest(test_data, to = "df")
+  
+  expect_true(all(sapply(result_df$nested1, inherits, "tbl_df")))
+  expect_true(all(sapply(result_df$nested2, inherits, "tbl_df")))
+  expect_false(is.list(result_df$regular))  # Regular column unchanged
+  
+  # Convert to dt - should convert all nested columns automatically
+  result_dt <- convert_nest(result_df, to = "dt")
+  
+  expect_true(all(sapply(result_dt$nested1, inherits, "data.table")))
+  expect_true(all(sapply(result_dt$nested2, inherits, "data.table")))
+})

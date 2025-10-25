@@ -1,6 +1,6 @@
 Package: mintyr
 Title: Streamlined Data Processing Tools for Genomic Selection
-Version: 0.1.1
+Version: 0.1.2
 Authors@R: c(
     person("Guo Meng", , , "tony2015116@163.com", role = c("aut", "cre")),
     person("Guo Meng", role = "cph")

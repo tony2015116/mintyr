@@ -3,83 +3,52 @@
 #' Column to Pair Nested Transformation
 #'
 #' @description
-#' A sophisticated data transformation tool for generating column pair combinations 
-#' and creating nested data structures with advanced configuration options.
+#' Generates combinations of specified columns and creates a nested data
+#' structure based on these pairs. Each nested subset renames the combined
+#' columns to \code{value1}, \code{value2}, ... (up to \code{pairs_n}) to
+#' support uniform iterative analyses such as genetic correlation estimation.
 #'
-#' @param data Input `data frame` or `data table`
-#'   - Must contain valid columns for transformation
-#'   - Supports multiple data types
-#'
-#' @param cols2bind Column specification for pair generation
-#'   - Can be a `character` vector of column names
-#'   - Can be a `numeric` vector of column indices
-#'   - Must reference existing columns in the dataset
-#'
-#' @param by Optional grouping specification
-#'   - Can be a `character` vector of column names
-#'   - Can be a `numeric` vector of column indices
-#'   - Enables hierarchical nested transformations
-#'   - Supports multi-level aggregation
-#'   - Default is `NULL`
-#'
-#' @param pairs_n `numeric` indicating combination size
-#'   - Minimum value: 2
-#'   - Maximum value: Length of `cols2bind`
-#'   - Controls column pair complexity
-#'   - Default is 2
-#'
-#' @param sep `character` separator for pair naming
-#'   - Used in generating combination identifiers
-#'   - Must be a single character
-#'   - Default is "-"
-#'
-#' @param nest_type Output nesting format
-#'   - `"dt"`: Returns nested `data table` (default)
-#'   - `"df"`: Returns nested `data frame`
+#' @param data A data.frame or data.table to be transformed.
+#' @param cols2bind A character vector of column names or a numeric vector of
+#'   column indices to be combined into pairs. Must not overlap with \code{by}.
+#' @param by A character vector of column names or a numeric vector of column
+#'   indices to group by. Default is \code{NULL}.
+#' @param pairs_n A positive integer >= 2 indicating the size of each column
+#'   combination (e.g., 2 for pairwise). Default is \code{2}.
+#' @param sep A single character string used as a separator when constructing
+#'   the \code{pairs} identifier column. Default is \code{"-"}.
+#' @param nest_type A character string specifying the class of each nested
+#'   object: \code{"dt"} (data.table, default) or \code{"df"} (data.frame).
 #'
 #' @details
-#' Advanced Transformation Mechanism:
-#' \enumerate{
-#'   \item Input validation and preprocessing
-#'   \item Dynamic column combination generation
-#'   \item Flexible pair transformation
-#'   \item Nested data structure creation
+#' The columns specified in \code{cols2bind} are renamed to \code{value1},
+#' \code{value2}, ... within each nested subset. The original column names are
+#' preserved in the \code{pairs} column (e.g., \code{"Sepal.Length-Sepal.Width"}),
+#' ensuring full traceability for downstream iterative analyses such as genetic
+#' correlation estimation.
+#'
+#' Columns that belong to neither \code{cols2bind} nor \code{by} (referred to
+#' internally as "extra columns") are retained inside the nested subsets so
+#' that covariates or ID fields remain accessible. Grouping columns (\code{by})
+#' are \emph{not} duplicated inside the nested data because they are already
+#' present as outer key columns in the returned table.
+#'
+#' When the number of requested combinations exceeds 500 a message is emitted;
+#' above 5000 a warning is raised, as memory usage grows linearly with the
+#' combination count.
+#'
+#' @return A \code{data.table} with columns:
+#' \describe{
+#'   \item{pairs}{Character. The column-combination identifier, e.g.
+#'     \code{"Sepal.Length-Sepal.Width"}.}
+#'   \item{...}{Any \code{by} grouping columns, one per variable.}
+#'   \item{data}{List-column. Each cell holds a data.table (or data.frame when
+#'     \code{nest_type = "df"}) containing \code{value1}, \code{value2}, ...,
+#'     plus any extra columns that were neither in \code{cols2bind} nor
+#'     \code{by}.}
 #' }
 #'
-#' Transformation Process:
-#' \itemize{
-#'   \item Validate input parameters and column specifications
-#'   \item Convert numeric indices to column names if necessary
-#'   \item Generate column combinations
-#'   \item Create subset data tables
-#'   \item Merge and nest transformed data
-#' }
-#'
-#' Column Specification:
-#' \itemize{
-#'   \item Supports both column names and numeric indices
-#'   \item Numeric indices must be within valid range (1 to ncol)
-#'   \item Column names must exist in the dataset
-#'   \item Flexible specification for both cols2bind and by parameters
-#' }
-#'
-#' @return `data table` containing nested transformation results
-#'   - Includes `pairs` column identifying column combinations
-#'   - Contains `data` column storing nested data structures
-#'   - Supports optional grouping variables
-#'
-#' @note Key Operation Constraints:
-#' \itemize{
-#'   \item Requires non-empty input data
-#'   \item Column specifications must be valid (either names or indices)
-#'   \item Supports flexible combination strategies
-#'   \item Computational complexity increases with combination size
-#' }
-#'
-#' @seealso
-#' \itemize{
-#'   \item [`utils::combn()`] Combination generation
-#' }
+#' @seealso \code{\link[utils]{combn}} for the underlying combination generator.
 #'
 #' @import data.table
 #' @importFrom utils combn
@@ -110,96 +79,166 @@
 #' # - pairs: combined column names
 #' # - Species: grouping variable
 #' # - data: list column containing data.tables grouped by Species
+#'
+#' # Example data preparation: Define column names for combination
+#' col_names <- c("Sepal.Length", "Sepal.Width", "Petal.Length")
+#'
+#' # Example 1: Basic column-to-pairs nesting with custom separator
+#' c2p_nest(
+#'   iris,                   # Input iris dataset
+#'   cols2bind = col_names,  # Columns to be combined as pairs
+#'   pairs_n = 2,            # Create pairs of 2 columns
+#'   sep = "&"               # Custom separator for pair names
+#' )
+#' # Returns a nested data.table where:
+#' # - pairs: combined column names (e.g., "Sepal.Length&Sepal.Width")
+#' # - data: list column containing data.tables with value1, value2 columns
+#'
+#' # Example 2: Column-to-pairs nesting with numeric indices and grouping
+#' c2p_nest(
+#'   iris,                   # Input iris dataset
+#'   cols2bind = 1:3,        # First 3 columns to be combined
+#'   pairs_n = 2,            # Create pairs of 2 columns
+#'   by = 5                  # Group by 5th column (Species)
+#' )
+#' # Returns a nested data.table where:
+#' # - pairs: combined column names
+#' # - Species: grouping variable
+#' # - data: list column containing data.tables grouped by Species
+c2p_nest <- function(data,
+                     cols2bind,
+                     by        = NULL,
+                     pairs_n   = 2L,
+                     sep       = "-",
+                     nest_type = "dt") {
+  . <- pairs <- NULL
 
-c2p_nest <- function(data, cols2bind, by = NULL, pairs_n = 2, sep = "-", nest_type = "dt") {
-  . <- pairs <- NULL  # For data.table's NSE
-  
-  # Validate inputs
-  if (!inherits(data, c("data.table", "data.frame"))) {
-    stop("data must be a data.table or a data.frame")
-  }
-  data <- data.table::as.data.table(data)
-  
-  # Handle numeric indices for cols2bind
+  # ------------------------------------------------------------------
+  # 1. Validate `data`
+  # ------------------------------------------------------------------
+  if (!inherits(data, c("data.table", "data.frame")))
+    stop("'data' must be a data.table or data.frame.")
+
+  dt <- data.table::as.data.table(data)   # always a fresh copy; safe to modify
+
+  # ------------------------------------------------------------------
+  # 2. Resolve and validate `cols2bind`
+  # ------------------------------------------------------------------
   if (is.numeric(cols2bind)) {
-    if (any(cols2bind > ncol(data) | cols2bind < 1)) {
-      stop("Invalid column indices in cols2bind")
-    }
-    cols2bind <- names(data)[cols2bind]
+    if (any(cols2bind < 1L | cols2bind > ncol(dt)))
+      stop("'cols2bind' contains out-of-range column indices.")
+    cols2bind <- names(dt)[as.integer(cols2bind)]
   }
-  
-  if (!is.character(cols2bind)) {
-    stop("cols2bind must be either a character vector or numeric vector")
-  }
-  missing_cols <- cols2bind[!cols2bind %in% names(data)]
-  if (length(missing_cols) > 0) {
-    stop("Some columns specified in cols2bind are not present in the data: ", paste(missing_cols, collapse=", "))
-  }
-  
-  # Handle numeric indices for by parameter
+  if (!is.character(cols2bind) || length(cols2bind) == 0L)
+    stop("'cols2bind' must be a non-empty character or numeric vector.")
+
+  missing_cols <- cols2bind[!cols2bind %in% names(dt)]
+  if (length(missing_cols) > 0L)
+    stop("Column(s) not found in 'data': ", paste(missing_cols, collapse = ", "))
+
+  # ------------------------------------------------------------------
+  # 3. Resolve and validate `by`
+  # ------------------------------------------------------------------
   if (!is.null(by)) {
     if (is.numeric(by)) {
-      if (any(by > ncol(data) | by < 1)) {
-        stop("Invalid column indices in by")
-      }
-      by <- names(data)[by]
+      if (any(by < 1L | by > ncol(dt)))
+        stop("'by' contains out-of-range column indices.")
+      by <- names(dt)[as.integer(by)]
     }
-    if (!is.character(by)) {
-      stop("'by' must be either a character vector or numeric vector of column indices")
-    }
-    missing_by_vars <- by[!by %in% names(data)]
-    if (length(missing_by_vars) > 0) {
-      stop("Grouping variables not present in data: ", paste(missing_by_vars, collapse=", "))
-    }
+    if (!is.character(by) || length(by) == 0L)
+      stop("'by' must be a non-empty character or numeric vector, or NULL.")
+
+    missing_by <- by[!by %in% names(dt)]
+    if (length(missing_by) > 0L)
+      stop("Grouping column(s) not found in 'data': ", paste(missing_by, collapse = ", "))
+
+    # FIX: detect overlap between cols2bind and by - previously silent,
+    # now an explicit error to prevent malformed fixed_cols computation.
+    overlap <- intersect(cols2bind, by)
+    if (length(overlap) > 0L)
+      stop("Column(s) appear in both 'cols2bind' and 'by': ",
+           paste(overlap, collapse = ", "))
   }
-  
-  # Validate pairs_n
-  if (!is.numeric(pairs_n) || pairs_n < 2 || floor(pairs_n) != pairs_n) {
-    stop("pairs_n must be a positive integer greater than or equal to 2")
-  }
-  
-  # Check if pairs_n is less than or equal to the number of available columns
-  if (pairs_n > length(cols2bind)) {
-    stop(sprintf("pairs_n (%d) cannot be larger than the number of available columns (%d)", 
+
+  # ------------------------------------------------------------------
+  # 4. Validate scalar arguments
+  # ------------------------------------------------------------------
+  pairs_n <- suppressWarnings(as.integer(pairs_n))
+  if (is.na(pairs_n) || pairs_n < 2L)
+    stop("'pairs_n' must be an integer >= 2.")
+  if (pairs_n > length(cols2bind))
+    stop(sprintf("'pairs_n' (%d) cannot exceed the number of 'cols2bind' columns (%d).",
                  pairs_n, length(cols2bind)))
-  }
-  
-  if (!is.character(sep) || length(sep) != 1) {
-    stop("sep must be a single character string")
-  }
-  
-  if (!nest_type %in% c("dt", "df")) {
-    stop("Invalid nest_type provided. It must be either 'dt' or 'df'.")
-  }
-  
-  # Prepare data for combination operations
-  dt <- data.table::copy(data)
-  fixed_cols <- setdiff(names(dt), cols2bind)
-  comb_cols_list <- combn(cols2bind, pairs_n, simplify=FALSE)
-  
-  list_of_dts <- lapply(comb_cols_list, function(comb) {
-    dt_subset <- dt[, c(fixed_cols, comb), with=FALSE]
-    pairs_name <- paste(comb, collapse=sep)
-    data.table::setnames(dt_subset, comb, paste0('value', seq_along(comb)))
-    dt_subset[, pairs := pairs_name]
-    dt_subset
+
+  if (!is.character(sep) || length(sep) != 1L)
+    stop("'sep' must be a single character string.")
+
+  if (!nest_type %in% c("dt", "df"))
+    stop("'nest_type' must be either \"dt\" or \"df\".")
+
+  # ------------------------------------------------------------------
+  # 5. Combination count guard
+  # ------------------------------------------------------------------
+  n_combs <- choose(length(cols2bind), pairs_n)
+  if (n_combs > 5000L)
+    warning(sprintf(
+      "%d combinations requested. Memory usage will be high - consider reducing 'cols2bind' or 'pairs_n'.",
+      n_combs))
+  else if (n_combs > 500L)
+    message(sprintf(
+      "Note: generating %d combinations - this may take a moment.", n_combs))
+
+  # ------------------------------------------------------------------
+  # 6. Determine which columns travel inside the nested subsets
+  #
+  #    FIX: original code used setdiff(names(dt), cols2bind) which kept
+  #    `by` columns inside every nested data object, duplicating them
+  #    redundantly (they already appear as outer key columns).  The
+  #    corrected definition keeps only truly "extra" columns - those that
+  #    are neither combination targets nor grouping keys.
+  # ------------------------------------------------------------------
+  extra_cols <- setdiff(names(dt), c(cols2bind, by))
+
+  # value-name template reused across iterations
+  value_names <- paste0("value", seq_len(pairs_n))
+
+  # ------------------------------------------------------------------
+  # 7. Build one nested data.table per combination
+  # ------------------------------------------------------------------
+  comb_list <- utils::combn(cols2bind, pairs_n, simplify = FALSE)
+
+  nested_list <- lapply(comb_list, function(comb) {
+
+    keep <- c(by, extra_cols, comb)          # column selection for this iter
+
+    # Independent copy per iteration so setnames does not mutate `dt`
+    dt_sub <- data.table::copy(dt[, keep, with = FALSE])
+
+    # Rename combination columns to value1, value2, ... (intentional design:
+    # uniform names support iterative genetic-correlation pipelines; the
+    # `pairs` column retains the original name mapping for traceability).
+    data.table::setnames(dt_sub, comb, value_names)
+
+    # Nest: group by `by` (NULL -> whole table as one group)
+    if (nest_type == "dt") {
+      res <- dt_sub[, .(data = list(.SD)), by = by]
+    } else {
+      res <- dt_sub[, .(data = list(as.data.frame(.SD))), by = by]
+    }
+
+    res[, pairs := paste(comb, collapse = sep)]
+    res
   })
-  
-  dt_bind <- data.table::rbindlist(list_of_dts)
-  
-  # Determine grouping variables
-  if (!is.null(by) && length(by) > 0) {
-    groupby <- c("pairs", by)
-  } else {
-    groupby <- "pairs"
-  }
-  
-  # Nest the data based on nest_type
-  if (nest_type == "dt") {
-    result <- dt_bind[, .(data = list(.SD)), by = groupby]
-  } else if (nest_type == "df") {
-    result <- dt_bind[, .(data = list(as.data.frame(.SD))), by = groupby]
-  }
-  
-  return(result)
+
+  # ------------------------------------------------------------------
+  # 8. Combine and reorder columns
+  # ------------------------------------------------------------------
+  result <- data.table::rbindlist(nested_list, use.names = TRUE, fill = TRUE)
+
+  # Put `pairs` first, then `by` cols, then `data` - constructed explicitly
+  # so no post-hoc setcolorder reshuffling is needed.
+  target_order <- c("pairs", by, "data")
+  data.table::setcolorder(result, target_order)
+
+  result
 }

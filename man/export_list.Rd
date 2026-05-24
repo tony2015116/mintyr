@@ -2,55 +2,55 @@
 % Please edit documentation in R/export_list.R
 \name{export_list}
 \alias{export_list}
-\title{Export List with Advanced Directory Management}
+\title{Export a List of Data Frames with Hierarchical Directory Management}
 \usage{
 export_list(split_dt, export_path = tempdir(), file_type = "txt")
 }
 \arguments{
-\item{split_dt}{A \code{list} of \code{data.frame}, \code{data.table}, or compatible data structures
-to be exported.}
+\item{split_dt}{A non-empty \code{list} whose elements are \code{data.frame},
+\code{data.table}, or any object coercible via \code{data.table::as.data.table()}.}
 
-\item{export_path}{Base directory path for file export. Defaults to a temporary directory
-created by \code{tempdir()}.}
+\item{export_path}{Single character string - the root export directory.
+Created recursively if absent. Defaults to \code{tempdir()}.}
 
-\item{file_type}{File export format, either \code{"txt"} (tab-separated) or \code{"csv"}.
-Defaults to \code{"txt"}.}
+\item{file_type}{\code{"txt"} (tab-separated, default) or \code{"csv"}
+(comma-separated). Case-insensitive.}
 }
 \value{
-An \code{integer} representing the total number of files exported successfully.
+An invisible named \code{character} vector of the absolute file paths
+written, with length equal to the number of successfully exported elements.
+The total count is accessible via \code{length()} on the return value.
 }
 \description{
-The \code{export_list} function exports a list of \code{data.frame}, \code{data.table}, or compatible data structures
-with sophisticated directory handling, flexible naming, and multiple file format support.
+Exports every element of a named (or unnamed) \code{list} of \code{data.frame} /
+\code{data.table} objects to \code{txt} or \code{csv} files.  Element names may
+contain forward-slashes (\code{/}) to encode arbitrary subdirectory depth, e.g.
+\code{"group_a/subject_01/results"} writes
+\code{<export_path>/group_a/subject_01/results.txt}.
+Unnamed elements are automatically labelled \code{split_<i>}.
 }
 \details{
-Comprehensive List Export Features:
+\strong{Performance design:}
 \itemize{
-\item Advanced nested directory structure support based on list element names
-\item Intelligent handling of unnamed list elements
-\item Automatic conversion to \code{data.table} for consistent export
-\item Hierarchical directory creation with nested path names
-\item Multi-format file export with intelligent separator selection
-\item Robust error handling and input validation
+\item All element names are resolved and path components split in a single
+vectorised pass \emph{before} the write loop, so no string work occurs
+inside the hot path.
+\item Unique subdirectories are collected and created in one batch
+(\code{k} \code{dir.create()} syscalls, where \code{k} \eqn{\le} \code{n}).
+\item The field separator is resolved once at function entry.
+\item \code{as.data.table()} on an existing \code{data.table} is a
+reference-pass (no copy).
 }
 
-File Export Capabilities:
-\itemize{
-\item Supports \code{"txt"} (tab-separated) and \code{"csv"} formats
-\item Intelligent file naming based on list element names
-\item Handles complex nested directory structures
-\item Efficient file writing using \code{data.table::fwrite()}
+\strong{Error handling:}
+Individual element failures emit a \code{warning} and are skipped; the
+remaining elements continue to be processed.
 }
+\section{Dependencies}{
+
+Requires the \pkg{data.table} package.
 }
-\note{
-Key Capabilities:
-\itemize{
-\item Flexible list naming and directory management
-\item Comprehensive support for \code{data.frame} and \code{data.table} inputs
-\item Intelligent default naming for unnamed elements
-\item High-performance file writing mechanism
-}
-}
+
 \examples{
 # Example: Export split data to files
 
@@ -83,4 +83,7 @@ files <- list.files(
   full.names = TRUE         # Return full file paths
 )
 file.remove(files)          # Remove all exported files
+}
+\seealso{
+\code{\link[data.table]{fwrite}}
 }

@@ -4,98 +4,60 @@
 \alias{c2p_nest}
 \title{Column to Pair Nested Transformation}
 \usage{
-c2p_nest(data, cols2bind, by = NULL, pairs_n = 2, sep = "-", nest_type = "dt")
+c2p_nest(data, cols2bind, by = NULL, pairs_n = 2L, sep = "-", nest_type = "dt")
 }
 \arguments{
-\item{data}{Input \verb{data frame} or \verb{data table}
-\itemize{
-\item Must contain valid columns for transformation
-\item Supports multiple data types
-}}
+\item{data}{A data.frame or data.table to be transformed.}
 
-\item{cols2bind}{Column specification for pair generation
-\itemize{
-\item Can be a \code{character} vector of column names
-\item Can be a \code{numeric} vector of column indices
-\item Must reference existing columns in the dataset
-}}
+\item{cols2bind}{A character vector of column names or a numeric vector of
+column indices to be combined into pairs. Must not overlap with \code{by}.}
 
-\item{by}{Optional grouping specification
-\itemize{
-\item Can be a \code{character} vector of column names
-\item Can be a \code{numeric} vector of column indices
-\item Enables hierarchical nested transformations
-\item Supports multi-level aggregation
-\item Default is \code{NULL}
-}}
+\item{by}{A character vector of column names or a numeric vector of column
+indices to group by. Default is \code{NULL}.}
 
-\item{pairs_n}{\code{numeric} indicating combination size
-\itemize{
-\item Minimum value: 2
-\item Maximum value: Length of \code{cols2bind}
-\item Controls column pair complexity
-\item Default is 2
-}}
+\item{pairs_n}{A positive integer >= 2 indicating the size of each column
+combination (e.g., 2 for pairwise). Default is \code{2}.}
 
-\item{sep}{\code{character} separator for pair naming
-\itemize{
-\item Used in generating combination identifiers
-\item Must be a single character
-\item Default is "-"
-}}
+\item{sep}{A single character string used as a separator when constructing
+the \code{pairs} identifier column. Default is \code{"-"}.}
 
-\item{nest_type}{Output nesting format
-\itemize{
-\item \code{"dt"}: Returns nested \verb{data table} (default)
-\item \code{"df"}: Returns nested \verb{data frame}
-}}
+\item{nest_type}{A character string specifying the class of each nested
+object: \code{"dt"} (data.table, default) or \code{"df"} (data.frame).}
 }
 \value{
-\verb{data table} containing nested transformation results
-\itemize{
-\item Includes \code{pairs} column identifying column combinations
-\item Contains \code{data} column storing nested data structures
-\item Supports optional grouping variables
+A \code{data.table} with columns:
+\describe{
+\item{pairs}{Character. The column-combination identifier, e.g.
+\code{"Sepal.Length-Sepal.Width"}.}
+\item{...}{Any \code{by} grouping columns, one per variable.}
+\item{data}{List-column. Each cell holds a data.table (or data.frame when
+\code{nest_type = "df"}) containing \code{value1}, \code{value2}, ...,
+plus any extra columns that were neither in \code{cols2bind} nor
+\code{by}.}
 }
 }
 \description{
-A sophisticated data transformation tool for generating column pair combinations
-and creating nested data structures with advanced configuration options.
+Generates combinations of specified columns and creates a nested data
+structure based on these pairs. Each nested subset renames the combined
+columns to \code{value1}, \code{value2}, ... (up to \code{pairs_n}) to
+support uniform iterative analyses such as genetic correlation estimation.
 }
 \details{
-Advanced Transformation Mechanism:
-\enumerate{
-\item Input validation and preprocessing
-\item Dynamic column combination generation
-\item Flexible pair transformation
-\item Nested data structure creation
-}
+The columns specified in \code{cols2bind} are renamed to \code{value1},
+\code{value2}, ... within each nested subset. The original column names are
+preserved in the \code{pairs} column (e.g., \code{"Sepal.Length-Sepal.Width"}),
+ensuring full traceability for downstream iterative analyses such as genetic
+correlation estimation.
 
-Transformation Process:
-\itemize{
-\item Validate input parameters and column specifications
-\item Convert numeric indices to column names if necessary
-\item Generate column combinations
-\item Create subset data tables
-\item Merge and nest transformed data
-}
+Columns that belong to neither \code{cols2bind} nor \code{by} (referred to
+internally as "extra columns") are retained inside the nested subsets so
+that covariates or ID fields remain accessible. Grouping columns (\code{by})
+are \emph{not} duplicated inside the nested data because they are already
+present as outer key columns in the returned table.
 
-Column Specification:
-\itemize{
-\item Supports both column names and numeric indices
-\item Numeric indices must be within valid range (1 to ncol)
-\item Column names must exist in the dataset
-\item Flexible specification for both cols2bind and by parameters
-}
-}
-\note{
-Key Operation Constraints:
-\itemize{
-\item Requires non-empty input data
-\item Column specifications must be valid (either names or indices)
-\item Supports flexible combination strategies
-\item Computational complexity increases with combination size
-}
+When the number of requested combinations exceeds 500 a message is emitted;
+above 5000 a warning is raised, as memory usage grows linearly with the
+combination count.
 }
 \examples{
 # Example data preparation: Define column names for combination
@@ -123,9 +85,33 @@ c2p_nest(
 # - pairs: combined column names
 # - Species: grouping variable
 # - data: list column containing data.tables grouped by Species
+
+# Example data preparation: Define column names for combination
+col_names <- c("Sepal.Length", "Sepal.Width", "Petal.Length")
+
+# Example 1: Basic column-to-pairs nesting with custom separator
+c2p_nest(
+  iris,                   # Input iris dataset
+  cols2bind = col_names,  # Columns to be combined as pairs
+  pairs_n = 2,            # Create pairs of 2 columns
+  sep = "&"               # Custom separator for pair names
+)
+# Returns a nested data.table where:
+# - pairs: combined column names (e.g., "Sepal.Length&Sepal.Width")
+# - data: list column containing data.tables with value1, value2 columns
+
+# Example 2: Column-to-pairs nesting with numeric indices and grouping
+c2p_nest(
+  iris,                   # Input iris dataset
+  cols2bind = 1:3,        # First 3 columns to be combined
+  pairs_n = 2,            # Create pairs of 2 columns
+  by = 5                  # Group by 5th column (Species)
+)
+# Returns a nested data.table where:
+# - pairs: combined column names
+# - Species: grouping variable
+# - data: list column containing data.tables grouped by Species
 }
 \seealso{
-\itemize{
-\item \code{\link[utils:combn]{utils::combn()}} Combination generation
-}
+\code{\link[utils]{combn}} for the underlying combination generator.
 }

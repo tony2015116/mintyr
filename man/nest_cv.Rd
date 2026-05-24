@@ -6,72 +6,76 @@
 \usage{
 nest_cv(
   nest_dt,
-  v = 10,
-  repeats = 1,
+  v = 10L,
+  repeats = 1L,
   strata = NULL,
-  breaks = 4,
+  breaks = 4L,
   pool = 0.1,
   ...
 )
 }
 \arguments{
 \item{nest_dt}{A \code{data.frame} or \code{data.table} containing at least one nested
-\code{data.frame} or \code{data.table} column.
-\itemize{
-\item Supports multi-level nested structures
-\item Requires at least one nested data column
-}}
+\code{data.frame}/\code{data.table} column.}
 
-\item{v}{The number of partitions of the data set.}
+\item{v}{Number of folds. Must be an integer >= 2. Default is \code{10}.}
 
-\item{repeats}{The number of times to repeat the V-fold partitioning.}
+\item{repeats}{Number of repeats. Must be an integer >= 1. Default is \code{1}.}
 
-\item{strata}{A variable in \code{data} (single character or name) used to conduct
-stratified sampling. When not \code{NULL}, each resample is created within the
-stratification variable. Numeric \code{strata} are binned into quartiles.}
+\item{strata}{A single character string specifying the stratification column
+name. Set to \code{NULL} for no stratification. Default is \code{NULL}.}
 
-\item{breaks}{A single number giving the number of bins desired to stratify a
-numeric stratification variable.}
+\item{breaks}{Number of bins for stratifying a numeric variable. Only used
+when \code{strata} is non-\code{NULL}. Default is \code{4}.}
 
-\item{pool}{A proportion of data used to determine if a particular group is
-too small and should be pooled into another group. We do not recommend
-decreasing this argument below its default of 0.1 because of the dangers
-of stratifying groups that are too small.}
+\item{pool}{Proportion threshold for pooling small strata. Only used when
+\code{strata} is non-\code{NULL}. Default is \code{0.1}.}
 
-\item{...}{These dots are for future extensions and must be empty.}
+\item{...}{Additional arguments passed to \code{rsample::vfold_cv}.}
 }
 \value{
-A \code{data.table} containing the cross-validation splits for each nested dataset. It includes:
+A \code{data.table} with the following columns:
 \itemize{
-\item Original non-nested columns from \code{nest_dt}.
-\item \code{splits}: The cross-validation split objects returned by \code{rsample::vfold_cv}.
-\item \code{train}: The training data for each split.
-\item \code{validate}: The validation data for each split.
+\item All non-nested columns from \code{nest_dt} (broadcast across CV rows).
+\item \code{splits}   — cross-validation split objects from \code{rsample::vfold_cv}.
+\item \code{id} (and \code{id2} for repeated CV) — fold identifiers.
+\item \code{train}    — list column of training data frames for each split.
+\item \code{validate} — list column of validation data frames for each split.
 }
 }
 \description{
-The \code{nest_cv} function applies cross-validation splits to nested data frames or data tables within a data table. It uses the \code{rsample} package's \code{vfold_cv} function to create cross-validation splits for predictive modeling and analysis on nested datasets.
+\code{nest_cv} applies \code{rsample::vfold_cv} to each nested data frame within a
+\code{data.table}, returning an expanded result table containing the corresponding
+training and validation splits for each row.
 }
 \details{
 The function performs the following steps:
 \enumerate{
-\item Checks if the input \code{nest_dt} is non-empty and contains at least one nested column of \code{data.frame}s or \code{data.table}s.
-\item Identifies the nested columns and non-nested columns within \code{nest_dt}.
-\item Applies \code{rsample::vfold_cv} to each nested data frame in the specified nested column(s), creating the cross-validation splits.
-\item Expands the cross-validation splits and associates them with the non-nested columns.
-\item Extracts the training and validation data for each split and adds them to the output data table.
+\item Validates that \code{nest_dt} is a non-empty \code{data.frame} or \code{data.table}
+with at least one nested column whose elements all inherit from
+\code{data.frame}.
+\item Selects the target nested column: prefers a column named \code{"data"};
+otherwise falls back to the first detected nested column.
+\item When \code{strata} is specified, verifies that the column exists in every
+nested data frame before calling \code{rsample::vfold_cv}.
+\item Iterates over each row, applies \code{vfold_cv} via \code{do.call}, expands the
+resulting splits into a \code{data.table}, and broadcasts the row's
+non-nested metadata columns across all CV rows.
+\item Combines all per-row results with \code{rbindlist} in a single pass.
 }
-
-If the \code{strata} parameter is provided, stratified sampling is performed during the cross-validation. Additional arguments can be passed to \code{rsample::vfold_cv} via \code{...}.
 }
 \note{
 \itemize{
-\item The \code{nest_dt} must contain at least one nested column of \code{data.frame}s or \code{data.table}s.
-\item The function converts \code{nest_dt} to a \code{data.table} internally to ensure efficient data manipulation.
-\item The \code{strata} parameter should be a column name present in the nested data frames.
-\item If \code{strata} is specified, ensure that the specified column exists in all nested data frames.
-\item The \code{breaks} and \code{pool} parameters are used when \code{strata} is a numeric variable and control how stratification is handled.
-\item Additional arguments passed through \code{...} are forwarded to \code{rsample::vfold_cv}.
+\item \code{nest_dt} must contain at least one nested column of \code{data.frame}s
+or \code{data.table}s.
+\item \code{as.data.table()} is used instead of \code{data.table::copy()}: if the
+input is already a \code{data.table}, no copy is made.
+\item \code{strata} must be a column name present in \strong{all} nested data frames.
+\item \code{breaks} and \code{pool} are forwarded to \code{rsample::vfold_cv} only when
+\code{strata} is non-\code{NULL}, avoiding invalid argument errors.
+\item The per-row loop with \code{rbindlist} corrects a silent bug in naive
+chained \code{[} approaches where all rows incorrectly shared the first
+row's CV splits.
 }
 }
 \examples{
@@ -98,8 +102,8 @@ nest_cv(
 }
 \seealso{
 \itemize{
-\item \code{\link[rsample:vfold_cv]{rsample::vfold_cv()}} Underlying cross-validation function
-\item \code{\link[rsample:initial_split]{rsample::training()}} Extract training set
-\item \code{\link[rsample:initial_split]{rsample::testing()}} Extract test set
+\item \code{\link[rsample:vfold_cv]{rsample::vfold_cv()}}  — underlying cross-validation function
+\item \code{\link[rsample:initial_split]{rsample::training()}}  — extract training set from a split
+\item \code{\link[rsample:initial_split]{rsample::testing()}}   — extract test/validation set from a split
 }
 }

@@ -7,65 +7,63 @@
 w2l_nest(data, cols2l = NULL, by = NULL, nest_type = "dt")
 }
 \arguments{
-\item{data}{\code{data.frame} or \code{data.table}
-\itemize{
-\item Input dataset in wide format
-\item Automatically converted to \code{data.table} if necessary
-}}
+\item{data}{\code{data.frame} or \code{data.table}. Wide-format input dataset.
+Converted in-place to \code{data.table} via \code{setDT()} if necessary (no copy).}
 
-\item{cols2l}{\code{numeric} or \code{character} columns to transform
-\itemize{
-\item Specifies columns for wide-to-long conversion
-\item Can be column indices or column names
-\item Default is \code{NULL}
-}}
+\item{cols2l}{\code{numeric} or \code{character}. Columns to pivot from wide to long,
+specified as integer indices or column names. Default \code{NULL}: when \code{NULL},
+\code{by} must be provided and the function performs a pure nest operation
+(no melting).}
 
-\item{by}{\code{numeric} or \code{character} grouping variables
-\itemize{
-\item Optional columns for additional data stratification
-\item Can be column indices or column names
-\item Used to create hierarchical nested structures
-\item Default is \code{NULL}
-}}
+\item{by}{\code{numeric} or \code{character}. Additional grouping variables for
+hierarchical nesting, specified as integer indices or column names.
+Default \code{NULL}.}
 
-\item{nest_type}{\code{character} output data type
-\itemize{
-\item Defines nested data object type
-\item Possible values:
-\itemize{
-\item \code{"dt"}: nested \code{data.table}
-\item \code{"df"}: nested \code{data.frame}
-}
-\item Default is \code{"dt"}
-}}
+\item{nest_type}{\code{character}. Class of each nested subset:
+\code{"dt"} for \code{data.table} (default) or \code{"df"} for \code{data.frame}.}
 }
 \value{
-\code{data.table} with nested data in long format, grouped by specified columns if provided. Each row contains a nested \code{data.table} or \code{data.frame} under the column data, depending on nest_type.
-\itemize{
-\item If \code{by} is \code{NULL}, returns a \code{data.table} nested by \code{name}.
-\item If \code{by} is specified, returns a \code{data.table} nested by \code{name} and the grouping variables.
-}
+A \code{data.table} with one row per combination of \code{name} (and \code{by}
+levels, if provided). The \code{data} list-column holds the corresponding
+nested \code{data.table} or \code{data.frame} for each group. Grouping key columns
+are never duplicated inside the nested objects.
 }
 \description{
-The \code{w2l_nest} function reshapes wide-format data into long-format and nests it by specified columns.
-It handles both \code{data.frame} and \code{data.table} objects and provides options for grouping and nesting the data.
+\code{w2l_nest} reshapes a wide-format \code{data.frame} or \code{data.table} into long
+format, then nests the result by \code{name} (the pivoted column identifier) and
+any optional grouping variables supplied via \code{by}. Each row of the returned
+table contains a nested \code{data.table} or \code{data.frame} in the \code{data} list-column.
 }
 \details{
-The function melts the specified wide columns into long format and nests the resulting data by the \code{name}
-column and any additional grouping variables specified in \code{by}. The nested data can be in the form of
-\code{data.table} or \code{data.frame} objects, controlled by the \code{nest_type} parameter.
+\strong{Column resolution:} both \code{cols2l} and \code{by} accept either integer column
+positions or character column names. Out-of-bounds indices and unknown names
+are caught early with informative error messages.
 
-Both \code{cols2l} and \code{by} parameters accept either column indices or column names, providing flexible ways
-to specify the columns for transformation and grouping.
+\strong{Overlap guard:} if any column appears in both \code{cols2l} and \code{by}, the
+function stops with an error before attempting to melt, preventing silent
+structural corruption.
+
+\strong{Factor-free melting:} \code{melt()} is called with \code{variable.factor = FALSE}
+so the \code{name} column is always \code{character}, avoiding unexpected factor-level
+ordering in downstream grouping operations.
+
+\strong{Memory efficiency:}
+\itemize{
+\item \code{setDT()} converts \code{data.frame} inputs by reference — no full copy.
+\item \code{.SDcols} restricts \code{.SD} to non-key columns, eliminating redundant
+storage of grouping keys inside each nested object.
+\item For \code{nest_type = "df"}, \code{setattr(copy(.SD), "class", "data.frame")}
+modifies the class attribute on a shallow copy rather than performing
+a deep column-by-column duplication as \code{as.data.frame()} would.
+}
 }
 \note{
 \itemize{
-\item Both \code{cols2l} and \code{by} parameters can be specified using either numeric indices or character column names.
-\item When using numeric indices, they must be valid column positions in the data (1 to ncol(data)).
-\item When using character names, all specified columns must exist in the data.
-\item The function converts \code{data.frame} to \code{data.table} if necessary.
-\item The \code{nest_type} parameter controls whether nested data are \code{data.table} (\code{"dt"}) or \code{data.frame} (\code{"df"}) objects.
-\item If \code{nest_type} is not \code{"dt"} or \code{"df"}, the function will stop with an error.
+\item Passing an empty table (0 rows) triggers a \code{warning()} and returns
+an empty nested \code{data.table} immediately.
+\item \code{cols2l} and \code{by} must not overlap; overlapping columns will raise
+an error.
+\item \code{nest_type} values other than \code{"dt"} or \code{"df"} raise an error.
 }
 }
 \examples{
@@ -95,8 +93,5 @@ w2l_nest(
 # Returns similar structure to Example 2
 }
 \seealso{
-Related functions and packages:
-\itemize{
-\item \code{\link[tidytable:nest_by]{tidytable::nest_by()}} Nest data.tables by group
-}
+\code{\link[tidytable:nest_by]{tidytable::nest_by()}} for a tidyverse-style equivalent.
 }

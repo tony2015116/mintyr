@@ -2,13 +2,13 @@ flat_teaching.Rmd:
   path: dev/flat_teaching.Rmd
   state: active
   R:
+  - R/w2l_split.R
+  - R/w2l_nest.R
   - R/c2p_nest.R
-  - R/convert_nest.R
   - R/export_list.R
   - R/export_nest.R
   - R/format_digits.R
-  - R/get_filename.R
-  - R/get_path_segment.R
+  - R/get_path_info.R
   - R/import_csv.R
   - R/import_xlsx.R
   - R/mintyr_example.R
@@ -17,26 +17,7 @@ flat_teaching.Rmd:
   - R/r2p_nest.R
   - R/split_cv.R
   - R/top_perc.R
-  - R/w2l_nest.R
-  - R/w2l_split.R
-  tests:
-  - tests/testthat/test-split_cv.R
-  - tests/testthat/test-c2p_nest.R
-  - tests/testthat/test-r2p_nest.R
-  - tests/testthat/test-export_nest.R
-  - tests/testthat/test-export_list.R
-  - tests/testthat/test-convert_nest.R
-  - tests/testthat/test-get_path_segment.R
-  - tests/testthat/test-format_digits.R
-  - tests/testthat/test-mintyr_example.R
-  - tests/testthat/test-mintyr_examples.R
-  - tests/testthat/test-import_xlsx.R
-  - tests/testthat/test-import_csv.R
-  - tests/testthat/test-get_filename.R
-  - tests/testthat/test-w2l_nest.R
-  - tests/testthat/test-w2l_split.R
-  - tests/testthat/test-nest_cv.R
-  - tests/testthat/test-top_perc.R
+  tests: []
   vignettes: vignettes/get-started.Rmd
   inflate:
     flat_file: dev/flat_teaching.Rmd
@@ -45,4 +26,4 @@ flat_teaching.Rmd:
     check: true
     document: true
     overwrite: 'yes'
-    clean: ask
+    clean: true

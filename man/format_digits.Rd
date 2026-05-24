@@ -2,49 +2,72 @@
 % Please edit documentation in R/format_digits.R
 \name{format_digits}
 \alias{format_digits}
-\title{Format Numeric Columns with Specified Digits}
+\title{Format Numeric Columns to Fixed-Decimal Character Strings}
 \usage{
-format_digits(data, cols = NULL, digits = 2, percentage = FALSE)
+format_digits(
+  data,
+  cols = NULL,
+  digits = 2L,
+  percentage = FALSE,
+  nan_as_na = FALSE
+)
 }
 \arguments{
-\item{data}{A \code{data.frame} or \code{data.table}. The input data containing numeric columns to format.}
+\item{data}{A data.frame or data.table. The input dataset.}
 
-\item{cols}{An optional numeric or character vector specifying the columns to format. If \code{NULL} (default), all numeric columns are formatted.}
+\item{cols}{A character or integer vector specifying columns to format.
+If NULL (default), all numeric columns are formatted.}
 
-\item{digits}{A non-negative integer specifying the number of decimal places to use. Defaults to \code{2}.}
+\item{digits}{A non-negative integer specifying decimal places. Defaults to 2.}
 
-\item{percentage}{A logical value indicating whether to format the numbers as percentages. If \code{TRUE}, the numbers are multiplied by 100 and a percent sign (\verb{\%}) is appended. Defaults to \code{FALSE}.}
+\item{percentage}{Logical. If TRUE, values are multiplied by 100 and a "\%"
+sign is appended. Defaults to FALSE.}
+
+\item{nan_as_na}{Logical. If TRUE, NaN is treated identically to NA and
+coerced to NA_character_. If FALSE (default), NaN is
+preserved as the string "NaN".}
 }
 \value{
-A \code{data.table} with the specified numeric columns formatted as character strings with the specified number of decimal places. If \code{percentage = TRUE}, the numbers are shown as percentages.
+A data.table with the specified numeric columns formatted as character
+strings. The original object is never modified.
 }
 \description{
-The \code{format_digits} function formats numeric columns in a data frame or data table by rounding numbers to a specified number of decimal places and converting them to character strings. It can optionally format the numbers as percentages.
+Format Numeric Columns to Fixed-Decimal Character Strings
 }
 \details{
-The function performs the following steps:
+The function processes columns in the following order:
 \enumerate{
-\item Validates the input parameters, ensuring that \code{data} is a \code{data.frame} or \code{data.table}, \code{cols} (if provided) are valid column names or indices, and \code{digits} is a non-negative integer.
-\item Converts \code{data} to a \code{data.table} if it is not already one.
-\item Creates a formatting function based on the \code{digits} and \code{percentage} parameters:
+\item Validates all input parameters with informative error messages.
+\item Copies the input only once: data.table inputs are deep-copied via
+\code{copy()}; data.frame inputs are copied implicitly by
+\code{as.data.table()}, avoiding a redundant second copy.
+\item Resolves \code{cols} to a character vector of valid numeric column
+names, warning and skipping any non-numeric columns specified.
+\item Applies a vectorised formatting function via
+\code{lapply(.SD, fn)} and \code{:=}, so all target columns are
+dispatched in a single data.table call rather than a column-by-column
+loop.
+}
+
+NA and NaN handling:
 \itemize{
-\item If \code{percentage = FALSE}, numbers are rounded to \code{digits} decimal places.
-\item If \code{percentage = TRUE}, numbers are multiplied by 100, rounded to \code{digits} decimal places, and a percent sign (\verb{\%}) is appended.
+\item \code{NA_real_} is always returned as \code{NA_character_}.
+\item \code{NaN} is returned as \code{"NaN"} by default. Set
+\code{nan_as_na = TRUE} to coerce it to \code{NA_character_} instead.
 }
-\item Applies the formatting function to the specified columns:
-\itemize{
-\item If \code{cols} is \code{NULL}, the function formats all numeric columns in \code{data}.
-\item If \code{cols} is specified, only those columns are formatted.
-}
-\item Returns a new \code{data.table} with the formatted columns.
-}
+
+Rounding uses explicit \code{round()} before \code{sprintf()} to guarantee
+consistent results across platforms (Windows, Linux, macOS), where the
+underlying C library's rounding behaviour may otherwise differ.
 }
 \note{
 \itemize{
-\item The input \code{data} must be a \code{data.frame} or \code{data.table}.
-\item If \code{cols} is specified, it must be a vector of valid column names or indices present in \code{data}.
-\item The \code{digits} parameter must be a single non-negative integer.
-\item The original \code{data} is not modified; a modified copy is returned.
+\item \code{data} must be a data.frame or data.table.
+\item Integer column indices in \code{cols} are converted to column names
+internally; duplicates are silently removed.
+\item \code{digits} accepts numeric values such as \code{2.0} and coerces
+them to integer; non-integer-valued numbers raise an error.
+\item The function depends only on \code{data.table} and base R.
 }
 }
 \examples{

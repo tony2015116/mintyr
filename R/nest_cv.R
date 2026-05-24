@@ -3,56 +3,71 @@
 #' Apply Cross-Validation to Nested Data
 #'
 #' @description
-#' The `nest_cv` function applies cross-validation splits to nested data frames or data tables within a data table. It uses the `rsample` package's `vfold_cv` function to create cross-validation splits for predictive modeling and analysis on nested datasets.
+#' `nest_cv` applies `rsample::vfold_cv` to each nested data frame within a
+#' `data.table`, returning an expanded result table containing the corresponding
+#' training and validation splits for each row.
 #'
-#' @param nest_dt A `data.frame` or `data.table` containing at least one nested 
-#' `data.frame` or `data.table` column.
-#'   - Supports multi-level nested structures
-#'   - Requires at least one nested data column
-#' @inheritParams rsample::vfold_cv
+#' @param nest_dt A `data.frame` or `data.table` containing at least one nested
+#'   `data.frame`/`data.table` column.
+#' @param v       Number of folds. Must be an integer >= 2. Default is `10`.
+#' @param repeats Number of repeats. Must be an integer >= 1. Default is `1`.
+#' @param strata  A single character string specifying the stratification column
+#'   name. Set to `NULL` for no stratification. Default is `NULL`.
+#' @param breaks  Number of bins for stratifying a numeric variable. Only used
+#'   when `strata` is non-`NULL`. Default is `4`.
+#' @param pool    Proportion threshold for pooling small strata. Only used when
+#'   `strata` is non-`NULL`. Default is `0.1`.
+#' @param ...     Additional arguments passed to `rsample::vfold_cv`.
 #'
 #' @details
 #' The function performs the following steps:
 #' \enumerate{
-#'   \item Checks if the input `nest_dt` is non-empty and contains at least one nested column of `data.frame`s or `data.table`s.
-#'   \item Identifies the nested columns and non-nested columns within `nest_dt`.
-#'   \item Applies `rsample::vfold_cv` to each nested data frame in the specified nested column(s), creating the cross-validation splits.
-#'   \item Expands the cross-validation splits and associates them with the non-nested columns.
-#'   \item Extracts the training and validation data for each split and adds them to the output data table.
+#'   \item Validates that `nest_dt` is a non-empty `data.frame` or `data.table`
+#'         with at least one nested column whose elements all inherit from
+#'         `data.frame`.
+#'   \item Selects the target nested column: prefers a column named `"data"`;
+#'         otherwise falls back to the first detected nested column.
+#'   \item When `strata` is specified, verifies that the column exists in every
+#'         nested data frame before calling `rsample::vfold_cv`.
+#'   \item Iterates over each row, applies `vfold_cv` via `do.call`, expands the
+#'         resulting splits into a `data.table`, and broadcasts the row's
+#'         non-nested metadata columns across all CV rows.
+#'   \item Combines all per-row results with `rbindlist` in a single pass.
 #' }
 #'
-#' If the `strata` parameter is provided, stratified sampling is performed during the cross-validation. Additional arguments can be passed to `rsample::vfold_cv` via `...`.
-#' 
-#' @return A `data.table` containing the cross-validation splits for each nested dataset. It includes:
+#' @return A `data.table` with the following columns:
 #' \itemize{
-#'   \item Original non-nested columns from `nest_dt`.
-#'   \item `splits`: The cross-validation split objects returned by `rsample::vfold_cv`.
-#'   \item `train`: The training data for each split.
-#'   \item `validate`: The validation data for each split.
+#'   \item All non-nested columns from `nest_dt` (broadcast across CV rows).
+#'   \item `splits`   — cross-validation split objects from `rsample::vfold_cv`.
+#'   \item `id` (and `id2` for repeated CV) — fold identifiers.
+#'   \item `train`    — list column of training data frames for each split.
+#'   \item `validate` — list column of validation data frames for each split.
 #' }
 #'
 #' @note
 #' \itemize{
-#'   \item The `nest_dt` must contain at least one nested column of `data.frame`s or `data.table`s.
-#'   \item The function converts `nest_dt` to a `data.table` internally to ensure efficient data manipulation.
-#'   \item The `strata` parameter should be a column name present in the nested data frames.
-#'   \item If `strata` is specified, ensure that the specified column exists in all nested data frames.
-#'   \item The `breaks` and `pool` parameters are used when `strata` is a numeric variable and control how stratification is handled.
-#'   \item Additional arguments passed through `...` are forwarded to `rsample::vfold_cv`.
+#'   \item `nest_dt` must contain at least one nested column of `data.frame`s
+#'         or `data.table`s.
+#'   \item `as.data.table()` is used instead of `data.table::copy()`: if the
+#'         input is already a `data.table`, no copy is made.
+#'   \item `strata` must be a column name present in **all** nested data frames.
+#'   \item `breaks` and `pool` are forwarded to `rsample::vfold_cv` only when
+#'         `strata` is non-`NULL`, avoiding invalid argument errors.
+#'   \item The per-row loop with `rbindlist` corrects a silent bug in naive
+#'         chained `[` approaches where all rows incorrectly shared the first
+#'         row's CV splits.
 #' }
-#'
 #'
 #' @seealso
 #' \itemize{
-#'   \item [`rsample::vfold_cv()`] Underlying cross-validation function
-#'   \item [`rsample::training()`] Extract training set
-#'   \item [`rsample::testing()`] Extract test set
+#'   \item [`rsample::vfold_cv()`]  — underlying cross-validation function
+#'   \item [`rsample::training()`]  — extract training set from a split
+#'   \item [`rsample::testing()`]   — extract test/validation set from a split
 #' }
 #'
 #' @import data.table
 #' @importFrom rsample vfold_cv training testing
 #' @export
-#'
 #' @examples
 #' # Example: Cross-validation for nested data.table demonstrations
 #'
@@ -74,68 +89,155 @@
 #'   v = 2,                         # Number of folds (2-fold CV)
 #'   repeats = 2                    # Number of repetitions
 #' )
-nest_cv <- function(nest_dt, v = 10, repeats = 1, strata = NULL, breaks = 4, pool = 0.1, ...) {
-  # Initialize local variables to avoid global binding warnings
-  cv_split <- data <- splits <- NULL
-  
-  # Validate input data is not empty
-  if (nrow(nest_dt) == 0) {
-    stop("Input 'nest_dt' cannot be empty")
+nest_cv <- function(nest_dt,
+                    v       = 10L,
+                    repeats = 1L,
+                    strata  = NULL,
+                    breaks  = 4L,
+                    pool    = 0.1,
+                    ...) {
+
+  # ---------------------------------------------------------------------- #
+  #  0. Declare local variables to suppress R CMD CHECK global binding notes
+  # ---------------------------------------------------------------------- #
+  splits <- train <- validate <- NULL
+
+  # ---------------------------------------------------------------------- #
+  #  1. Input validation
+  # ---------------------------------------------------------------------- #
+  if (!inherits(nest_dt, "data.frame")) {
+    stop("`nest_dt` must be a data.frame or data.table. Received: ",
+         paste(class(nest_dt), collapse = "/"))
   }
-  
-  # Identify nested data.frame or data.table columns
-  nested_cols <- names(nest_dt)[sapply(nest_dt, function(x) {
-    is.list(x) && all(sapply(x, function(y) {
-      inherits(y, c("data.frame", "data.table"))
-    }))
-  })]
-  
-  # Ensure at least one nested column exists
-  if (length(nested_cols) == 0) {
-    stop("Input 'nest_dt' must contain at least one nested column of data.frames or data.tables")
+
+  if (nrow(nest_dt) == 0L) {
+    stop("`nest_dt` must not be empty (0 rows).")
   }
-  
-  # Check if "data" column exists in nested columns
-  if (!"data" %in% nested_cols) {
-    message("Available nested columns: ", paste(nested_cols, collapse = ", "))
-    message("Using first nested column '", nested_cols[1], "' for cross-validation")
+
+  if (!is.numeric(v) || length(v) != 1L || v < 2L) {
+    stop("`v` must be a single integer >= 2.")
   }
-  
-  # Create a copy of input data to prevent modification of original dataset
-  dt <- data.table::copy(nest_dt)
-  
-  # Identify nested list columns
-  is_nested_list <- sapply(dt, function(x) all(vapply(x, is.list, logical(1))))
-  
-  # Extract non-nested column names
-  non_nested_cols <- names(dt)[!is_nested_list]
-  
-  # Apply cross-validation with flexible stratification
-  dt[, cv_split := lapply(get(nested_cols[1]), function(x) {
-    if (!is.null(strata)) {
-      rsample::vfold_cv(
-        data = x, 
-        v = v, 
-        repeats = repeats,
-        strata = strata,
-        breaks = breaks, 
-        pool = pool, 
-        ...
+
+  if (!is.numeric(repeats) || length(repeats) != 1L || repeats < 1L) {
+    stop("`repeats` must be a single integer >= 1.")
+  }
+
+  # ---------------------------------------------------------------------- #
+  #  2. Identify nested columns
+  #     A column qualifies if it is a list whose every element inherits from
+  #     "data.frame" (data.table inherits from data.frame, so both are covered)
+  # ---------------------------------------------------------------------- #
+  nested_cols <- names(nest_dt)[vapply(nest_dt, function(col) {
+    is.list(col) &&
+      length(col) > 0L &&
+      all(vapply(col, inherits, logical(1L), what = "data.frame"))
+  }, logical(1L))]
+
+  if (length(nested_cols) == 0L) {
+    stop("`nest_dt` contains no nested data.frame/data.table columns.\n",
+         "  Column types detected: ",
+         paste(names(nest_dt),
+               vapply(nest_dt, function(x) class(x)[1L], character(1L)),
+               sep = "=", collapse = ", "))
+  }
+
+  # Prefer a column named "data"; fall back to the first nested column
+  target_col <- if ("data" %in% nested_cols) "data" else nested_cols[1L]
+
+  if (target_col != "data") {
+    message("[nest_cv] No nested column named 'data' found. ",
+            "Using '", target_col, "' instead.",
+            "\n          Available nested columns: ",
+            paste(nested_cols, collapse = ", "))
+  }
+
+  # ---------------------------------------------------------------------- #
+  #  3. Validate that the strata column exists in every nested data frame
+  # ---------------------------------------------------------------------- #
+  if (!is.null(strata)) {
+    if (!is.character(strata) || length(strata) != 1L) {
+      stop("`strata` must be a single character string (column name).")
+    }
+
+    strata_missing <- vapply(nest_dt[[target_col]], function(df) {
+      !strata %in% names(df)
+    }, logical(1L))
+
+    if (any(strata_missing)) {
+      stop("The `strata` column '", strata, "' is absent from nested ",
+           "data frame(s) at row(s): ",
+           paste(which(strata_missing), collapse = ", "), ".")
+    }
+  }
+
+  # ---------------------------------------------------------------------- #
+  #  4. Coerce to data.table
+  #     as.data.table() is a no-op when the input is already a data.table,
+  #     avoiding the full deep copy that data.table::copy() would incur
+  # ---------------------------------------------------------------------- #
+  dt <- data.table::as.data.table(nest_dt)
+
+  # Non-nested column names used for metadata broadcasting
+  non_nested_cols <- setdiff(names(dt), nested_cols)
+
+  # ---------------------------------------------------------------------- #
+  #  5. Build the vfold_cv argument list
+  #     strata-specific arguments (breaks, pool) are appended only when
+  #     strata is non-NULL, preventing invalid-argument errors in rsample
+  # ---------------------------------------------------------------------- #
+  cv_args <- c(
+    list(v = v, repeats = repeats),
+    if (!is.null(strata)) list(strata = strata, breaks = breaks, pool = pool),
+    list(...)
+  )
+
+  # ---------------------------------------------------------------------- #
+  #  6. Core logic: expand CV splits row-by-row, then combine
+  #
+  #  The original code used `dt[, cv_split[[1]], by = non_nested_cols]`,
+  #  which silently applied the *first* row's splits to every row when
+  #  nest_dt had more than one row. The row-wise loop below fixes that.
+  # ---------------------------------------------------------------------- #
+  n_rows      <- nrow(dt)
+  result_list <- vector("list", n_rows)
+
+  for (i in seq_len(n_rows)) {
+
+    # Extract the nested data frame for row i
+    nested_data_i <- dt[[target_col]][[i]]
+
+    # Generate CV splits for this nested data frame
+    cv_result_i <- do.call(
+      rsample::vfold_cv,
+      c(list(data = nested_data_i), cv_args)
+    )
+
+    # Convert rsample tibble to data.table (no tibble dependency retained)
+    cv_dt_i <- data.table::as.data.table(cv_result_i)
+
+    # Append training and validation list-columns in place (modify by reference)
+    cv_dt_i[, train    := lapply(splits, rsample::training)]
+    cv_dt_i[, validate := lapply(splits, rsample::testing )]
+
+    # Broadcast the non-nested metadata from row i across all CV rows
+    if (length(non_nested_cols) > 0L) {
+      n_cv       <- nrow(cv_dt_i)
+      meta_i     <- dt[i, ..non_nested_cols]
+      # rep() ensures explicit row replication; avoids implicit recycling risks
+      meta_expanded <- meta_i[rep(1L, n_cv)]
+      result_list[[i]] <- data.table::setcolorder(
+        cbind(meta_expanded, cv_dt_i),
+        c(non_nested_cols, setdiff(names(cv_dt_i), non_nested_cols))
       )
     } else {
-      rsample::vfold_cv(
-        data = x, 
-        v = v, 
-        repeats = repeats,
-        breaks = breaks, 
-        pool = pool, 
-        ...
-      )
+      result_list[[i]] <- cv_dt_i
     }
-  })
-  ][, cv_split[[1]], by = non_nested_cols
-  ][, ':='(
-    train = lapply(splits, \(x) rsample::training(x)),
-    validate = lapply(splits, \(x) rsample::testing(x))
-  )][]
+  }
+
+  # ---------------------------------------------------------------------- #
+  #  7. Combine all per-row results in a single rbindlist pass
+  #     use.names = TRUE  : align by column name (guards against column reorder)
+  #     fill      = FALSE : all rows must have identical structure
+  # ---------------------------------------------------------------------- #
+  data.table::rbindlist(result_list, use.names = TRUE, fill = FALSE)
 }

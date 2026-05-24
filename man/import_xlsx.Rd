@@ -2,64 +2,84 @@
 % Please edit documentation in R/import_xlsx.R
 \name{import_xlsx}
 \alias{import_xlsx}
-\title{Import Data from \code{XLSX} Files with Advanced Handling}
+\title{Import Data from XLSX Files}
 \usage{
-import_xlsx(file, rbind = TRUE, sheet = NULL, ...)
+import_xlsx(
+  file,
+  rbind = TRUE,
+  sheet = NULL,
+  skip = 0L,
+  show_excel_name = TRUE,
+  show_sheet_name = TRUE,
+  verbose = FALSE,
+  dt_threads = data.table::getDTthreads(),
+  ...
+)
 }
 \arguments{
-\item{file}{A \code{character} vector of file paths to \code{Excel} files.
-Must point to existing \code{.xlsx} or \code{.xls} files.}
+\item{file}{Non-empty \code{character} vector of paths to existing
+\code{.xlsx} / \code{.xls} files.}
 
-\item{rbind}{A \code{logical} value controlling data combination strategy:
-\itemize{
-\item \code{TRUE}: Combines all data into a single \code{data.table}
-\item \code{FALSE}: Returns a list of \code{data.table}s
-Default is \code{TRUE}.
-}}
+\item{rbind}{\code{logical(1)}. \code{TRUE} (default) binds all sheets
+into a single \code{data.table}. \code{FALSE} returns a
+flat named list keyed as \code{"<filename>_<sheetname>"}.}
 
-\item{sheet}{A \code{numeric} vector or \code{NULL} specifying sheet import strategy:
-\itemize{
-\item \code{NULL} (default): Imports all sheets
-\item \code{numeric}: Imports only specified sheet indices
-}}
+\item{sheet}{Positive \code{integer} vector or \code{NULL} (default).
+\code{NULL} imports every sheet. Indices must be valid
+across all supplied files.}
 
-\item{...}{Additional arguments passed to \code{\link[readxl:read_excel]{readxl::read_excel()}},
-such as \code{col_types}, \code{skip}, or \code{na}.}
+\item{skip}{Non-negative \code{integer(1)}. Number of rows to skip
+before reading the header. Forwarded directly to
+\code{\link[readxl]{read_excel}}. Default \code{0L}.}
+
+\item{show_excel_name}{\code{logical(1)}. When \code{TRUE} (default) and
+\code{rbind = TRUE}, prepends an \code{excel_name} column
+recording the source filename (extension stripped).
+Silently ignored when \code{rbind = FALSE} (provenance is
+already encoded in list-element names).}
+
+\item{show_sheet_name}{\code{logical(1)}. When \code{TRUE} (default) and
+\code{rbind = TRUE}, prepends a \code{sheet_name} column
+recording the source sheet. Silently ignored when
+\code{rbind = FALSE}.}
+
+\item{verbose}{\code{logical(1)}. Emit a \code{message()} for every
+empty sheet encountered. Default \code{FALSE}.}
+
+\item{dt_threads}{\code{integer(1)}. OpenMP threads for \code{data.table}
+operations (\code{rbindlist}, \code{:=}, \code{set*}).
+Defaults to the current \code{getDTthreads()} value.
+Always restored on exit.}
+
+\item{...}{Additional arguments forwarded to
+\code{\link[readxl]{read_excel}} (e.g. \code{col_types},
+\code{na}, \code{trim_ws}). \strong{Do not} pass
+\code{sheet} or \code{skip} here; use the dedicated
+parameters above.}
 }
 \value{
-Depends on the \code{rbind} parameter:
-\itemize{
-\item If \code{rbind = TRUE}: A single \code{data.table} with additional tracking columns:
-- \code{excel_name}: Source file name (without extension)
-- \code{sheet_name}: Source sheet name
-\item If \code{rbind = FALSE}: A named list of \code{data.table}s with format
-\code{"filename_sheetname"}
+\describe{
+\item{\code{rbind = TRUE}}{A \code{data.table}. Tracking columns
+\code{excel_name} and/or \code{sheet_name} are prepended when their
+respective \code{show_*} flags are \code{TRUE}.}
+\item{\code{rbind = FALSE}}{A named \code{list} of \code{data.table}s,
+each element named \code{"<filename>_<sheetname>"}. The list carries a
+\code{"source_files"} attribute with the original file paths.}
 }
 }
 \description{
-A robust and flexible function for importing data from one or multiple
-\code{XLSX} files, offering comprehensive options for sheet selection,
-data combination, and source tracking.
-}
-\details{
-The function provides a comprehensive solution for importing Excel data with the
-following features:
+A high-performance function for importing data from one or multiple Excel
+files into \code{data.table} format, with fine-grained control over source
+tracking columns, sheet selection, and row skipping.
+
+Performance characteristics (v3 baseline, unchanged here):
 \itemize{
-\item Supports multiple files and sheets
-\item Automatic source tracking for files and sheets
-\item Flexible combining options
-\item Handles missing columns across sheets when combining
-\item Preserves original data types through readxl
-}
-}
-\note{
-Critical Import Considerations:
-\itemize{
-\item Requires all specified files to be accessible \code{Excel} files
-\item Sheet indices must be valid across input files
-\item \code{rbind = TRUE} assumes compatible data structures
-\item Missing columns are automatically filled with \code{NA}
-\item File extensions are automatically removed in tracking columns
+\item \code{excel_sheets()} called exactly once per file (cached).
+\item \code{setDT()} converts tibbles in-place — zero vector copies.
+\item Tracking columns injected via \code{:=} on small per-sheet tables
+\emph{before} the single final \code{rbindlist}.
+\item \code{data.table} OpenMP thread pool optionally widened and always
+restored on exit.
 }
 }
 \examples{
@@ -82,10 +102,4 @@ import_xlsx(
   rbind = FALSE,                  # Keep sheets as separate data.tables
   sheet = 2                       # Only import first sheet
 )
-}
-\seealso{
-\itemize{
-\item \code{\link[readxl:read_excel]{readxl::read_excel()}} for underlying Excel reading
-\item \code{\link[data.table:rbindlist]{data.table::rbindlist()}} for data combination
-}
 }

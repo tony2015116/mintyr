@@ -2,78 +2,80 @@
 % Please edit documentation in R/split_cv.R
 \name{split_cv}
 \alias{split_cv}
-\title{Cross-Validation Split Generator}
+\title{Apply Cross-Validation to a List of Datasets}
 \usage{
 split_cv(
   split_dt,
-  v = 10,
-  repeats = 1,
+  v = 10L,
+  repeats = 1L,
   strata = NULL,
-  breaks = 4,
+  breaks = 4L,
   pool = 0.1,
   ...
 )
 }
 \arguments{
-\item{split_dt}{\code{list} of input datasets
-\itemize{
-\item Must contain \code{data.frame} or \code{data.table} elements
-\item Supports multiple dataset processing
-\item Cannot be empty
-}}
+\item{split_dt}{A \code{list} whose every element is a \code{data.frame} or
+\code{data.table}. Must be non-empty.}
 
-\item{v}{The number of partitions of the data set.}
+\item{v}{Number of folds. Must be a single integer >= 2.
+Default is \code{10}.}
 
-\item{repeats}{The number of times to repeat the V-fold partitioning.}
+\item{repeats}{Number of repeats. Must be a single integer >= 1.
+Default is \code{1}.}
 
-\item{strata}{A variable in \code{data} (single character or name) used to conduct
-stratified sampling. When not \code{NULL}, each resample is created within the
-stratification variable. Numeric \code{strata} are binned into quartiles.}
+\item{strata}{A single character string naming the stratification column.
+The column must exist in \strong{every} dataset. Set to \code{NULL} for no
+stratification. Default is \code{NULL}.}
 
-\item{breaks}{A single number giving the number of bins desired to stratify a
-numeric stratification variable.}
+\item{breaks}{Number of bins when stratifying a numeric variable. Used
+only when \code{strata} is non-\code{NULL}. Default is \code{4}.}
 
-\item{pool}{A proportion of data used to determine if a particular group is
-too small and should be pooled into another group. We do not recommend
-decreasing this argument below its default of 0.1 because of the dangers
-of stratifying groups that are too small.}
+\item{pool}{Proportion threshold for pooling small strata. Used only
+when \code{strata} is non-\code{NULL}. Default is \code{0.1}.}
 
-\item{...}{These dots are for future extensions and must be empty.}
+\item{...}{Additional arguments forwarded to \code{rsample::vfold_cv}.}
 }
 \value{
-\code{list} of \code{data.table} objects containing:
+A \code{list} of \code{data.table} objects (one per input dataset), each
+containing:
 \itemize{
-\item \code{splits}: Cross-validation split objects
-\item \code{train}: Training dataset subsets
-\item \code{validate}: Validation dataset subsets
+\item \code{splits}   — rsample split objects.
+\item \code{id}       — fold identifier (always present).
+\item \code{id2}      — repeat identifier (present only when \code{repeats > 1}).
+\item \code{train}    — list-column of training data frames.
+\item \code{validate} — list-column of validation data frames.
 }
+The output list preserves the names of \code{split_dt}.
 }
 \description{
-A robust cross-validation splitting utility for multiple datasets with advanced stratification and configuration options.
+\code{split_cv} applies \code{rsample::vfold_cv} to each dataset in a named or
+unnamed list, returning a list of \code{data.table} objects that each contain
+the CV split objects alongside the corresponding training and validation
+sets.
 }
 \details{
-Advanced Cross-Validation Mechanism:
+For each dataset in \code{split_dt} the function:
 \enumerate{
-\item Input dataset validation
-\item Stratified or unstratified sampling
-\item Flexible fold generation
-\item Train-validate set creation
-}
-
-Sampling Strategies:
-\itemize{
-\item Supports multiple dataset processing
-\item Handles stratified and unstratified sampling
-\item Generates reproducible cross-validation splits
+\item Validates inputs once before entering the processing loop.
+\item Builds a \code{vfold_cv} argument list, appending stratification
+parameters only when \code{strata} is non-\code{NULL} to avoid passing
+unsupported arguments to \code{rsample}.
+\item Converts the rsample tibble to a \code{data.table} in a single
+\code{as.data.table()} call, preserving all fold-identifier columns
+(\code{id}, \code{id2}) without hard-coding on the value of \code{repeats}.
+\item Appends \code{train} and \code{validate} list-columns by reference via \verb{:=}.
 }
 }
 \note{
-Important Constraints:
 \itemize{
-\item Requires non-empty input datasets
-\item All datasets must be \code{data.frame} or \code{data.table}
-\item Strata column must exist if specified
-\item Computational resources impact large dataset processing
+\item When \code{strata} is specified, it must exist in \strong{all} datasets;
+a missing column raises an error rather than silently falling back
+to unstratified CV.
+\item \code{breaks} and \code{pool} are forwarded to \code{rsample::vfold_cv} only
+when \code{strata} is non-\code{NULL}, preventing invalid-argument errors.
+\item \code{as.data.table()} on an already-\code{data.table} input is a no-op
+(no copy is made).
 }
 }
 \examples{
@@ -108,6 +110,9 @@ split_cv(
 }
 \seealso{
 \itemize{
-\item \code{\link[rsample:vfold_cv]{rsample::vfold_cv()}} Core cross-validation function
+\item \code{\link[rsample:vfold_cv]{rsample::vfold_cv()}}  — underlying cross-validation function
+\item \code{\link[rsample:initial_split]{rsample::training()}}  — extract training set from a split
+\item \code{\link[rsample:initial_split]{rsample::testing()}}   — extract validation set from a split
+\item \code{\link[=nest_cv]{nest_cv()}}            — nested data.table variant of this utility
 }
 }

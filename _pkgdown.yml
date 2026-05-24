@@ -39,7 +39,6 @@ reference:
   - '`split_cv`'
   - '`c2p_nest`'
   - '`r2p_nest`'
-  - '`convert_nest`'
   - '`export_nest`'
   - '`export_list`'
 # - title: stat functions
@@ -47,15 +46,14 @@ reference:
 #     stat functions
 #   contents:
 #   - '`top_perc`'
-- title: Useful functions for animal breeders
+- title: Useful functions
   desc: |
     Utility functions for phenotypic data processing commonly used
   contents:
   - '`import_csv`'
   - '`import_xlsx`'
   - '`top_perc`'
-  - '`get_filename`'
-  - '`get_path_segment`'
+  - '`get_path_info`'
   - '`format_digits`'
 - title: Data example
   desc: |
@@ -63,13 +61,3 @@ reference:
   contents:
   - '`mintyr_example`'
   - '`mintyr_examples`'
-articles:
-  - title: step0
-    navbar: tutorial
-    contents:
-      - get-started
-
-  # other
-  # - title: all
-  #   contents:
-  #     - starts_with("get-")

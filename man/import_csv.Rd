@@ -2,11 +2,10 @@
 % Please edit documentation in R/import_csv.R
 \name{import_csv}
 \alias{import_csv}
-\title{Flexible \code{CSV}/\code{TXT} File Import with Multiple Backend Support}
+\title{Flexible CSV/TXT File Import via data.table}
 \usage{
 import_csv(
   file,
-  package = "data.table",
   rbind = TRUE,
   rbind_label = "_file",
   full_path = FALSE,
@@ -15,78 +14,71 @@ import_csv(
 )
 }
 \arguments{
-\item{file}{A \code{character} vector of file paths to \code{CSV} files.
-Must point to existing and accessible files.}
+\item{file}{A non-empty \code{character} vector of file paths to CSV/TXT files.
+All paths must point to existing, accessible files.}
 
-\item{package}{A \code{character} string specifying the backend package:
+\item{rbind}{A \code{logical} scalar controlling the combination strategy:
 \itemize{
-\item \code{"data.table"}: Uses \code{\link[data.table:fread]{data.table::fread()}} (default)
-\item \code{"arrow"}: Uses \code{\link[arrow:read_delim_arrow]{arrow::read_csv_arrow()}}
-Determines the underlying reading mechanism.
+\item \code{TRUE} (default): Combine all files into a single \code{data.table}.
+\item \code{FALSE}: Return a named \code{list} of individual \code{data.table} objects.
 }}
 
-\item{rbind}{A \code{logical} value controlling data combination strategy:
+\item{rbind_label}{A \code{character} scalar or \code{NULL} specifying the source-tracking
+column name (default: \code{"_file"}). Set to \code{NULL} to suppress the source column.
+Only applies when \code{rbind = TRUE}.}
+
+\item{full_path}{A \code{logical} scalar controlling path representation in labels:
 \itemize{
-\item \code{TRUE}: Combines all files into a single data object (default)
-\item \code{FALSE}: Returns a list of individual data objects
+\item \code{FALSE} (default): Use only the filename (via \code{basename()}).
+\item \code{TRUE}: Use the full file path.
 }}
 
-\item{rbind_label}{A \code{character} string or \code{NULL} for source file tracking:
+\item{keep_ext}{A \code{logical} scalar controlling whether the file extension is
+retained in labels:
 \itemize{
-\item \code{character}: Specifies the column name for file source labeling (default: \code{"_file"})
-\item \code{NULL}: Disables source file tracking
+\item \code{FALSE} (default): Strip the file extension (e.g., \code{"data"}).
+\item \code{TRUE}: Retain the file extension (e.g., \code{"data.csv"}).
 }}
 
-\item{full_path}{A \code{logical} value controlling path display in file labels:
-\itemize{
-\item \code{TRUE}: Uses full file path
-\item \code{FALSE}: Uses only filename (default)
-}}
-
-\item{keep_ext}{A \code{logical} value controlling file extension in labels:
-\itemize{
-\item \code{TRUE}: Retains file extension (e.g., \code{.csv})
-\item \code{FALSE}: Removes file extension (default)
-}}
-
-\item{...}{Additional arguments passed to backend-specific reading functions
-(e.g., \code{col_types}, \code{na.strings}, \code{skip}).}
+\item{...}{Additional arguments passed directly to \code{\link[data.table]{fread}}
+(e.g., \code{select}, \code{drop}, \code{na.strings}, \code{skip}, \code{nThread}).}
 }
 \value{
-Depends on the \code{rbind} parameter:
 \itemize{
-\item If \code{rbind = TRUE}: A single data object (from chosen package)
-containing all imported data, with source file information in \code{rbind_label} column
-\item If \code{rbind = FALSE}: A named list of data objects with names
-derived from input file paths based on \code{full_path} and \code{keep_ext} settings
+\item \code{rbind = TRUE}: A single \code{data.table} containing all imported rows.
+If \code{rbind_label} is not \code{NULL}, the first column contains the source
+file label for each row.
+\item \code{rbind = FALSE}: A named \code{list} of \code{data.table} objects.
+List names are derived from file paths according to \code{full_path} and
+\code{keep_ext} settings.
 }
 }
 \description{
-A comprehensive \code{CSV} or \code{TXT} file import function offering advanced reading capabilities
-through \code{data.table} and \code{arrow} packages with intelligent data combination strategies.
+Reads one or more CSV/TXT files using \code{\link[data.table]{fread}} as the backend.
+Supports flexible combination strategies and source-file tracking. All return values
+are \code{data.table} objects.
 }
 \details{
-The function provides a unified interface for reading CSV files using either data.table
-or arrow package. When reading multiple files, it can either combine them into a single
-data object or return them as a list. File source tracking is supported through the
-\code{rbind_label} parameter.
-
-File labeling behavior is controlled by \code{full_path} and \code{keep_ext} parameters:
-\itemize{
-\item \verb{full_path = FALSE, keep_ext = FALSE}: Filename without extension (e.g., \code{"data"})
-\item \verb{full_path = FALSE, keep_ext = TRUE}: Filename with extension (e.g., \code{"data.csv"})
-\item \verb{full_path = TRUE, keep_ext = FALSE}: Full path without extension (e.g., \code{"/path/to/data"})
-\item \verb{full_path = TRUE, keep_ext = TRUE}: Full path with extension (e.g., \code{"/path/to/data.csv"})
+Label generation is controlled by the combination of \code{full_path} and \code{keep_ext}:
+\tabular{ll}{
+\code{full_path = FALSE, keep_ext = FALSE} \tab Filename without extension: \code{"data"} \cr
+\code{full_path = FALSE, keep_ext = TRUE}  \tab Filename with extension: \code{"data.csv"} \cr
+\code{full_path = TRUE,  keep_ext = FALSE} \tab Full path without extension: \code{"/path/to/data"} \cr
+\code{full_path = TRUE,  keep_ext = TRUE}  \tab Full path with extension: \code{"/path/to/data.csv"} \cr
 }
+
+When \code{rbind = TRUE} and \code{rbind_label} is not \code{NULL},
+\code{\link[data.table]{rbindlist}} is called with \code{idcol = rbind_label},
+which generates the source column directly during the merge step without any
+intermediate copies.
 }
 \note{
-Critical Import Considerations:
 \itemize{
-\item Requires all specified files to be accessible \code{CSV/TXT} files
-\item Supports flexible backend selection via \code{package} parameter
-\item \code{rbind = TRUE} assumes compatible data structures across files
-\item Missing columns are automatically aligned when combining data
-\item File labeling is customizable through \code{full_path} and \code{keep_ext} parameters
+\item All specified files must exist and be readable at call time.
+\item \code{rbind = TRUE} assumes compatible column structures across files;
+mismatched columns are automatically aligned via \code{fill = TRUE}.
+\item Logical parameters (\code{rbind}, \code{full_path}, \code{keep_ext}) reject
+\code{NA} values explicitly.
 }
 }
 \examples{
@@ -100,24 +92,12 @@ csv_files <- mintyr_example(
 # Example 1: Import and combine CSV files using data.table
 import_csv(
   csv_files,                      # Input CSV file paths
-  package = "data.table",         # Use data.table for reading
   rbind = TRUE,                   # Combine all files into one data.table
   rbind_label = "_file",          # Column name for file source
   keep_ext = TRUE,                # Include .csv extension in _file column
   full_path = TRUE                # Show complete file paths in _file column
 )
-
-# Example 2: Import files separately using arrow
-import_csv(
-  csv_files,                      # Input CSV file paths
-  package = "arrow",              # Use arrow for reading
-  rbind = FALSE                   # Keep files as separate data.tables
-)
 }
 \seealso{
-\itemize{
-\item \code{\link[data.table:fread]{data.table::fread()}} for \code{data.table} backend
-\item \code{\link[arrow:read_delim_arrow]{arrow::read_csv_arrow()}} for \code{arrow} backend
-\item \code{\link[data.table:rbindlist]{data.table::rbindlist()}} for data combination
-}
+\code{\link[data.table]{fread}}, \code{\link[data.table]{rbindlist}}
 }

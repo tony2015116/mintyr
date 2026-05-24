@@ -3,78 +3,29 @@
 #' Row to Pair Nested Transformation
 #'
 #' @description
-#' A sophisticated data transformation tool for performing row pair conversion 
-#' and creating nested data structures with advanced configuration options.
+#' A sophisticated data transformation tool for performing row pair conversion
+#' and creating nested data structures. It smartly iterates through variables
+#' to perfectly preserve non-target contextual variables while utilizing
+#' native `dcast` for extreme performance.
 #'
-#' @param data Input `data frame` or `data table`
-#'   - Must contain valid columns for transformation
-#'   - Supports multiple data types
+#' @param data Input `data frame` or `data table`.
+#' @param rows2bind A character column name or numeric index to be used as row values.
+#' @param by A character vector or numeric vector of column indices to transform.
+#' @param nest_type Output nesting format (`"dt"` or `"df"`). Default `"dt"`.
 #'
-#' @param rows2bind Row binding specification
-#'   - Can be a `character` column name
-#'   - Can be a `numeric` column index
-#'   - Must be a single column identifier
-#'
-#' @param by Grouping specification for nested pairing
-#'   - Can be a `character` vector of column names
-#'   - Can be a `numeric` vector of column indices
-#'   - Must specify at least one column
-#'   - Supports multi-column transformation
-#'
-#' @param nest_type Output nesting format
-#'   - `"dt"`: Returns nested `data table` (default)
-#'   - `"df"`: Returns nested `data frame`
-#'
-#' @details
-#' Advanced Transformation Mechanism:
-#' \enumerate{
-#'   \item Input validation and preprocessing
-#'   \item Dynamic column identification
-#'   \item Flexible row pairing across specified columns
-#'   \item Nested data structure generation
-#' }
-#'
-#' Transformation Process:
-#' \itemize{
-#'   \item Validate input parameters and column specifications
-#'   \item Convert numeric indices to column names if necessary
-#'   \item Reshape data from wide to long format
-#'   \item Perform column-wise nested transformation
-#'   \item Generate final nested structure
-#' }
-#'
-#' Column Specification:
-#' \itemize{
-#'   \item Supports both column names and numeric indices
-#'   \item Numeric indices must be within valid range (1 to ncol)
-#'   \item Column names must exist in the dataset
-#'   \item Flexible specification for both rows2bind and by parameters
-#' }
-#'
-#' @return `data table` containing nested transformation results
-#'   - Includes `name` column identifying source columns
-#'   - Contains `data` column storing nested data structures
-#'
-#' @note Key Operation Constraints:
-#' \itemize{
-#'   \item Requires non-empty input data
-#'   \item Column specifications must be valid (either names or indices)
-#'   \item By parameter must specify at least one column
-#'   \item Low computational overhead
-#' }
-#'
-#' @seealso
-#' \itemize{
-#'   \item [`data.table::melt()`] Long format conversion
-#'   \item [`data.table::dcast()`] Wide format conversion
-#'   \item [`base::rbind()`] Row binding utility
-#'   \item [`c2p_nest()`] Column to pair nested transformation
-#' }
+#' @return A nested `data.table` containing `name` and `data` columns, with
+#'   all contextual features preserved inside the nested structures.
 #'
 #' @import data.table
 #' @importFrom stats as.formula
 #' @export
 #' @examples
+#' # Example: Row-to-pairs nesting with column names
+#' r2p_nest(
+#'   mtcars,
+#'   rows2bind = "cyl",
+#'   by = c("hp", "drat", "wt")
+#' )
 #' # Example 1: Row-to-pairs nesting with column names
 #' r2p_nest(
 #'   mtcars,                     # Input mtcars dataset
@@ -94,92 +45,70 @@
 #' # Returns a nested data.table where:
 #' # - name: variable names from columns 4-6
 #' # - data: list column containing data.tables with rows grouped by cyl values
-
 r2p_nest <- function(data, rows2bind, by, nest_type = "dt") {
-  # Input validation
-  if (length(by) < 1) {
-    stop("At least one column must be specified in 'by'")
-  }
-  if (length(rows2bind) != 1) {
-    stop("rows2bind must be a single column")
+  . <- name <- NULL
+
+  # 1. 基础校验与转换
+  if (length(by) < 1) stop("At least one column must be specified in 'by'")
+  if (length(rows2bind) != 1) stop("rows2bind must be a single column")
+
+  if (!inherits(data, c("data.frame", "data.table"))) {
+    stop("data must be a data.table or data.frame")
   }
 
-  # Convert data to data.table first
-  data <- as.data.table(data)
+  # 转换为 data.table 进行极速操作
+  dt <- if (data.table::is.data.table(data)) data.table::copy(data) else data.table::as.data.table(data)
 
-  # Validate column existence and indices
+  # 2. 列名映射与存在性校验
   if (is.numeric(by)) {
-    if (any(by > ncol(data) | by < 1)) {
-      stop("Invalid column indices in by")
-    }
-  } else if (!all(by %in% names(data))) {
+    if (any(by > ncol(dt) | by < 1)) stop("Invalid column indices in by")
+    by <- names(dt)[by]
+  } else if (!all(by %in% names(dt))) {
     stop("Specified by columns not found in data")
   }
 
   if (is.numeric(rows2bind)) {
-    if (rows2bind > ncol(data) | rows2bind < 1) {
-      stop("Invalid column index in rows2bind")
-    }
-  } else if (!rows2bind %in% names(data)) {
+    if (rows2bind > ncol(dt) | rows2bind < 1) stop("Invalid column index in rows2bind")
+    rows2bind <- names(dt)[rows2bind]
+  } else if (!rows2bind %in% names(dt)) {
     stop("Specified rows2bind not found in data")
   }
 
-  # Process each column in 'by'
-  result_list <- lapply(by, function(x) {
-    row_pair_init(
-      data = data,
-      rows2bind = rows2bind,
-      by = x,
-      nest_type = nest_type
-    )
+  if (!nest_type %in% c("dt", "df")) stop("Invalid nest_type. Must be 'dt' or 'df'.")
+
+  # 3. 核心重构：保留循环实现隔离，完美保留上下文列
+  result_list <- lapply(by, function(b) {
+
+    # 核心逻辑：获取除了当前处理变量 b 和目标 pivot 变量 rows2bind 以外的所有列。
+    # 这确保了当处理 'hp' 时，'drat' 和 'wt' 以及其他无关列都会作为 ID 列被稳稳保留。
+    other_ids <- setdiff(names(dt), c(b, rows2bind))
+
+    # 动态构建 dcast 极速透视公式
+    if (length(other_ids) == 0) {
+      form_str <- sprintf(". ~ `%s`", rows2bind)
+    } else {
+      # 增加反引号包裹，防止遇到带空格或特殊符号的列名时报错
+      safe_other_ids <- sprintf("`%s`", other_ids)
+      form_str <- sprintf("%s ~ `%s`", paste(safe_other_ids, collapse = " + "), rows2bind)
+    }
+
+    # 极速 Dcast：将原本拖沓的 melt 步骤省略，直接指定 value.var
+    wide_dt <- data.table::dcast(dt, stats::as.formula(form_str), value.var = b)
+
+    # 标注当前的分组变量来源
+    wide_dt[, name := b]
+
+    # 按照嵌套格式进行原生分组压缩
+    if (nest_type == "dt") {
+      res <- wide_dt[, .(data = list(.SD)), by = "name"]
+    } else {
+      res <- wide_dt[, .(data = list(as.data.frame(.SD))), by = "name"]
+    }
+
+    return(res)
   })
 
-  # Combine all results using rbindlist
-  combined_result <- rbindlist(result_list)
-
+  # 4. 汇总返回
+  combined_result <- data.table::rbindlist(result_list)
   return(combined_result)
-}
-row_pair_init <- function (data, rows2bind, by, nest_type = "dt") {
-  . <- NULL
-  # Convert numeric indices to column names
-  if (is.numeric(by)) {
-    by <- names(data)[by]
-  }
-  if (is.numeric(rows2bind)) {
-    rows2bind <- names(data)[rows2bind]
-  }
-
-  # Get ID columns (all columns except 'by' columns)
-  id_cols <- setdiff(names(data), by)
-
-  # Reshape data from wide to long format
-  long_dt <- melt(data,
-                  id.vars = id_cols,
-                  measure.vars = by,
-                  variable.name = "name",
-                  value.name = "value")
-
-  # Get columns for formula creation
-  other_ids <- setdiff(id_cols, rows2bind)
-
-  # Create formula string for dcast
-  formula_str <- paste(paste(c("name", other_ids), collapse = " + "),
-                       rows2bind, sep = " ~ ")
-
-  # Reshape data from long to wide format
-  wide_dt <- dcast(long_dt, as.formula(formula_str), value.var = "value")
-
-  # Create nested output based on nest_type
-  if (nest_type == "dt") {
-    result <- wide_dt[, .(data = list(.SD)), by = "name"]
-  }
-  else if (nest_type == "df") {
-    result <- wide_dt[, .(data = list(as.data.frame(.SD))),
-                      by = "name"]
-  }
-  else {
-    stop("Invalid nest_type provided. It must be either 'dt' or 'df'.")
-  }
-
-  return(result)
 }

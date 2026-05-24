@@ -1,6 +1,6 @@
 Package: mintyr
 Title: Streamlined Data Processing Tools for Genomic Selection
-Version: 0.1.2
+Version: 0.1.3
 Authors@R: c(
     person("Guo Meng", , , "tony2015116@163.com", role = c("aut", "cre")),
     person("Guo Meng", role = "cph")
@@ -11,28 +11,20 @@ Description: A toolkit for genomic selection in animal breeding with
     package.  Includes utility functions for phenotypic data processing
     commonly used by animal breeders.
 License: MIT + file LICENSE
-URL: https://tony2015116.github.io/mintyr/, https://github.com/tony2015116/mintyr
+URL: https://tony2015116.github.io/mintyr/,
+    https://github.com/tony2015116/mintyr
 BugReports: https://github.com/tony2015116/mintyr/issues
 Depends: 
     R (>= 4.1.0)
 Imports: 
-    arrow,
     data.table,
-    dplyr,
-    purrr,
     readxl,
-    rlang,
     rsample,
-    rstatix,
     stats,
-    tibble,
     utils
 Suggests: 
     knitr,
-    rmarkdown,
-    testthat,
-    tidyr,
-    tools
+    rmarkdown
 VignetteBuilder: 
     knitr
 Config/fusen/version: 0.6.0

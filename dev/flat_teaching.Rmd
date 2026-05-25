@@ -42,7 +42,725 @@ fusen::fill_description(
 usethis::use_mit_license("Guo Meng")
 ```
 
+# w2l_nest
+    
+```{r function-w2l_nest}
+#' Reshape Wide Data to Long Format and Nest by Specified Columns
+#'
+#' @description
+#' `w2l_nest` reshapes a wide-format `data.frame` or `data.table` into long
+#' format, then nests the result by `name` (the pivoted column identifier) and
+#' any optional grouping variables supplied via `by`. Each row of the returned
+#' table contains a nested `data.table` or `data.frame` in the `data` list-column.
+#'
+#' @param data `data.frame` or `data.table`. Wide-format input dataset.
+#'   Converted in-place to `data.table` via `setDT()` if necessary (no copy).
+#' @param cols2l `numeric` or `character`. Columns to pivot from wide to long,
+#'   specified as integer indices or column names. Default `NULL`: when `NULL`,
+#'   `by` must be provided and the function performs a pure nest operation
+#'   (no melting).
+#' @param by `numeric` or `character`. Additional grouping variables for
+#'   hierarchical nesting, specified as integer indices or column names.
+#'   Default `NULL`.
+#' @param nest_type `character`. Class of each nested subset:
+#'   `"dt"` for `data.table` (default) or `"df"` for `data.frame`.
+#'
+#' @return A `data.table` with one row per combination of `name` (and `by`
+#'   levels, if provided). The `data` list-column holds the corresponding
+#'   nested `data.table` or `data.frame` for each group. Grouping key columns
+#'   are never duplicated inside the nested objects.
+#'
+#' @details
+#' **Column resolution:** both `cols2l` and `by` accept either integer column
+#' positions or character column names. Out-of-bounds indices and unknown names
+#' are caught early with informative error messages.
+#'
+#' **Overlap guard:** if any column appears in both `cols2l` and `by`, the
+#' function stops with an error before attempting to melt, preventing silent
+#' structural corruption.
+#'
+#' **Factor-free melting:** `melt()` is called with `variable.factor = FALSE`
+#' so the `name` column is always `character`, avoiding unexpected factor-level
+#' ordering in downstream grouping operations.
+#'
+#' **Memory efficiency:**
+#' \itemize{
+#'   \item `setDT()` converts `data.frame` inputs by reference — no full copy.
+#'   \item `.SDcols` restricts `.SD` to non-key columns, eliminating redundant
+#'         storage of grouping keys inside each nested object.
+#'   \item For `nest_type = "df"`, `setattr(copy(.SD), "class", "data.frame")`
+#'         modifies the class attribute on a shallow copy rather than performing
+#'         a deep column-by-column duplication as `as.data.frame()` would.
+#' }
+#'
+#' @note
+#' \itemize{
+#'   \item Passing an empty table (0 rows) triggers a `warning()` and returns
+#'         an empty nested `data.table` immediately.
+#'   \item `cols2l` and `by` must not overlap; overlapping columns will raise
+#'         an error.
+#'   \item `nest_type` values other than `"dt"` or `"df"` raise an error.
+#' }
+#'
+#' @seealso [`tidytable::nest_by()`] for a tidyverse-style equivalent.
+#'
+#' @import data.table
+#' @export
+w2l_nest <- function(data, cols2l = NULL, by = NULL, nest_type = "dt") {
 
+  # ── 0. Internal helper: resolve column indices or names to a character vector
+  .resolve_cols <- function(x, data_names, arg_name) {
+    if (is.numeric(x)) {
+      # Bounds check: all indices must fall within [1, ncol]
+      if (any(x < 1L | x > length(data_names))) {
+        stop(sprintf(
+          "`%s` contains out-of-bounds numeric index/indices (valid range: 1 to %d).",
+          arg_name, length(data_names)
+        ))
+      }
+      return(data_names[x])
+    }
+    if (is.character(x)) {
+      # Single-pass missing-column detection using %chin% (character-optimised %in%)
+      missing_cols <- x[!x %chin% data_names]
+      if (length(missing_cols) > 0L) {
+        stop(sprintf(
+          "`%s` contains column(s) not found in `data`: %s",
+          arg_name, paste(missing_cols, collapse = ", ")
+        ))
+      }
+      return(x)
+    }
+    stop(sprintf(
+      "`%s` must be a numeric index vector or a character column-name vector; got: %s",
+      arg_name, class(x)[1L]
+    ))
+  }
+
+  # ── 1. Input type validation ────────────────────────────────────────────────
+  if (!is.data.frame(data) && !data.table::is.data.table(data)) {
+    stop("`data` must be a data.frame or a data.table.")
+  }
+
+  # Convert by reference: no-op if already a data.table, avoids a full copy otherwise
+  data.table::setDT(data)
+
+  # ── 2. Validate nest_type ───────────────────────────────────────────────────
+  if (!nest_type %chin% c("dt", "df")) {
+    stop("`nest_type` must be either 'dt' or 'df'; got: ", nest_type)
+  }
+
+  # ── 3. Early return on empty input (prevents silent zero-row output) ────────
+  if (nrow(data) == 0L) {
+    warning("`data` has 0 rows; returning an empty nested data.table.")
+    return(data.table::data.table(name = character(0L), data = list()))
+  }
+
+  data_names <- names(data)
+
+  # ── 4. Resolve `by` columns ────────────────────────────────────────────────
+  if (!is.null(by)) {
+    by <- .resolve_cols(by, data_names, "by")
+  }
+
+  # ── 5. Branch: cols2l is NULL → pure nest mode (no melting) ────────────────
+  if (is.null(cols2l)) {
+    if (is.null(by)) {
+      stop("When `cols2l` is NULL, `by` must be provided.")
+    }
+
+    # Columns to nest = all columns that are not grouping keys
+    nest_sd_cols <- data_names[!data_names %chin% by]
+
+    result <- .nest_by_group(
+      dt        = data,
+      group_by  = by,
+      sd_cols   = nest_sd_cols,
+      nest_type = nest_type
+    )
+    return(result)
+  }
+
+  # ── 6. Resolve `cols2l` and guard against overlap with `by` ────────────────
+  cols2l <- .resolve_cols(cols2l, data_names, "cols2l")
+
+  if (!is.null(by)) {
+    overlap <- cols2l[cols2l %chin% by]
+    if (length(overlap) > 0L) {
+      stop(
+        "`cols2l` and `by` share column(s), which would corrupt the melt structure: ",
+        paste(overlap, collapse = ", ")
+      )
+    }
+  }
+
+  # ── 7. Wide-to-long reshape (melt) ─────────────────────────────────────────
+  # variable.factor = FALSE: keep `name` as character to avoid factor-ordering side-effects
+  melted <- data.table::melt(
+    data,
+    measure.vars    = cols2l,
+    variable.name   = "name",
+    value.name      = "value",
+    variable.factor = FALSE   # <- critical: prevents implicit factor coercion
+  )
+
+  # ── 8. Determine nesting group keys ────────────────────────────────────────
+  # Restrict .SD to non-key columns so grouping keys are never stored redundantly
+  # inside each nested object
+  group_keys   <- if (!is.null(by)) c("name", by) else "name"
+  nest_sd_cols <- names(melted)[!names(melted) %chin% group_keys]
+
+  # ── 9. Nest ─────────────────────────────────────────────────────────────────
+  result <- .nest_by_group(
+    dt        = melted,
+    group_by  = group_keys,
+    sd_cols   = nest_sd_cols,
+    nest_type = nest_type
+  )
+
+  return(result)
+}
+```
+  
+```{r example-w2l_nest}
+# Example: Wide to long format nesting demonstrations
+
+# Example 1: Basic nesting by group
+w2l_nest(
+  data = iris,                    # Input dataset
+  by = "Species"                  # Group by Species column
+)
+
+# Example 2: Nest specific columns with numeric indices
+w2l_nest(
+  data = iris,                    # Input dataset
+  cols2l = 1:4,                   # Select first 4 columns to nest
+  by = "Species"                  # Group by Species column
+)
+
+# Example 3: Nest specific columns with column names
+w2l_nest(
+  data = iris,                    # Input dataset
+  cols2l = c("Sepal.Length",      # Select columns by name
+             "Sepal.Width", 
+             "Petal.Length"),
+  by = 5                          # Group by column index 5 (Species)
+)
+# Returns similar structure to Example 2
+```
+
+```{r function-.nest_by_group}
+#
+# Extracted as a standalone function for two reasons:
+#   1. Eliminates duplicated nest_type branching in the main function (DRY).
+#   2. Allows isolated unit testing of the nesting logic.
+#
+# @param dt        A pre-processed data.table ready for nesting.
+# @param group_by  Character vector of grouping key column names.
+# @param sd_cols   Character vector of columns to include in each nested object.
+# @param nest_type "dt" to nest as data.table, "df" to nest as data.frame.
+# @return          A data.table with a `data` list-column containing nested subsets.
+.nest_by_group <- function(dt, group_by, sd_cols, nest_type) {
+  . <- NULL
+
+  if (nest_type == "dt") {
+    # .SD is already a data.table; wrapping in list() incurs zero extra allocation
+    result <- dt[,
+      .(data = list(.SD)),
+      by      = group_by,
+      .SDcols = sd_cols      # <- pin columns precisely; excludes grouping keys
+    ]
+  } else {
+    # nest_type == "df"
+    # setattr() modifies the class on a shallow copy of .SD, avoiding the
+    # deep column-vector duplication that as.data.frame() would trigger
+    result <- dt[,
+      .(data = list(setattr(copy(.SD), "class", "data.frame"))),
+      by      = group_by,
+      .SDcols = sd_cols
+    ]
+  }
+
+  return(result)
+}
+```
+
+
+
+# w2l_split
+    
+```{r function-w2l_split}
+#' Reshape Wide Data to Long Format and Split into a Named List
+#'
+#' @description
+#' `w2l_split` reshapes a wide-format `data.frame` or `data.table` into long
+#' format, then splits the result into a named list keyed by the pivoted column
+#' identifier (`variable`) and any optional grouping variables supplied via
+#' `by`. List element names are derived directly from the grouping key
+#' combinations produced by `split()`, guaranteeing name-to-content alignment.
+#'
+#' @param data `data.frame` or `data.table`. Wide-format input dataset.
+#'   Converted in-place to `data.table` via `setDT()` if necessary (no copy).
+#' @param cols2l `numeric` or `character`. Columns to pivot from wide to long,
+#'   specified as integer indices or column names. Default `NULL`: when `NULL`,
+#'   `by` must be provided and the function splits the data as-is without
+#'   melting.
+#' @param by `numeric` or `character`. Additional grouping variables used as
+#'   secondary split keys, specified as integer indices or column names.
+#'   Default `NULL`.
+#' @param split_type `character`. Class of each list element: `"dt"` for
+#'   `data.table` (default) or `"df"` for `data.frame`.
+#' @param sep `character`. Separator used when concatenating multiple grouping
+#'   key values into a single list-element name. Default `"_"`.
+#'
+#' @return A named list of `data.table` or `data.frame` objects (controlled by
+#'   `split_type`). Names reflect the key combination of `variable` (and `by`
+#'   levels if provided), joined by `sep`.
+#' \itemize{
+#'   \item If `by` is `NULL`, the list is keyed by the pivoted column names only.
+#'   \item If `by` is specified, the list is keyed by `variable` and all `by`
+#'         level combinations.
+#' }
+#'
+#' @details
+#' **Name safety:** list names are produced by `data.table::split()` itself
+#' using its `by` argument, not reconstructed from raw row order. This
+#' eliminates the name-to-content misalignment that arises when `unique()` on
+#' the original data and `split()`'s internal sort order diverge.
+#'
+#' **Column resolution:** both `cols2l` and `by` accept integer column
+#' positions or character column names. Out-of-bounds indices and unknown names
+#' are caught early with informative error messages.
+#'
+#' **Overlap guard:** columns appearing in both `cols2l` and `by` raise an
+#' error before melting to prevent `id.vars` / `measure.vars` conflicts.
+#'
+#' **Factor-free melting:** `melt()` is called with `variable.factor = FALSE`
+#' so the `variable` column is always `character`, keeping `split()` sort order
+#' consistent with lexicographic expectations.
+#'
+#' **Memory efficiency:**
+#' \itemize{
+#'   \item `setDT()` converts `data.frame` inputs by reference — no full copy.
+#'   \item For `split_type = "df"`, `setattr(copy(x), "class", "data.frame")`
+#'         modifies the class on a shallow copy, avoiding the deep
+#'         column-by-column duplication that `as.data.frame()` triggers.
+#' }
+#'
+#' @note
+#' \itemize{
+#'   \item An empty input table (0 rows) triggers a `warning()` and returns an
+#'         empty list immediately.
+#'   \item `cols2l` and `by` must not overlap; shared columns raise an error.
+#'   \item `split_type` values other than `"dt"` or `"df"` raise an error.
+#' }
+#'
+#' @seealso [`tidytable::group_split()`] for a tidyverse-style equivalent.
+#'
+#' @import data.table
+#' @export
+w2l_split <- function(data, cols2l = NULL, by = NULL, split_type = "dt", sep = "_") {
+
+  # ── 0. Internal helper: resolve column indices or names to a character vector
+  .resolve_cols <- function(x, data_names, arg_name) {
+    if (is.numeric(x)) {
+      # Bounds check: all indices must fall within [1, ncol]
+      if (any(x < 1L | x > length(data_names))) {
+        stop(sprintf(
+          "`%s` contains out-of-bounds numeric index/indices (valid range: 1 to %d).",
+          arg_name, length(data_names)
+        ))
+      }
+      return(data_names[x])
+    }
+    if (is.character(x)) {
+      # Single-pass missing-column detection via %chin% (character-optimised %in%)
+      missing_cols <- x[!x %chin% data_names]
+      if (length(missing_cols) > 0L) {
+        stop(sprintf(
+          "`%s` contains column(s) not found in `data`: %s",
+          arg_name, paste(missing_cols, collapse = ", ")
+        ))
+      }
+      return(x)
+    }
+    stop(sprintf(
+      "`%s` must be a numeric index vector or a character column-name vector; got: %s",
+      arg_name, class(x)[1L]
+    ))
+  }
+
+  # ── 1. Input type validation ────────────────────────────────────────────────
+  if (!is.data.frame(data) && !data.table::is.data.table(data)) {
+    stop("`data` must be a data.frame or a data.table.")
+  }
+
+  # Convert by reference: no-op if already a data.table, avoids a full copy otherwise
+  data.table::setDT(data)
+
+  # ── 2. Validate split_type ──────────────────────────────────────────────────
+  if (!split_type %chin% c("dt", "df")) {
+    stop("`split_type` must be either 'dt' or 'df'; got: ", split_type)
+  }
+
+  # ── 3. Early return on empty input ─────────────────────────────────────────
+  if (nrow(data) == 0L) {
+    warning("`data` has 0 rows; returning an empty list.")
+    return(list())
+  }
+
+  data_names <- names(data)
+
+  # ── 4. Resolve `by` columns ────────────────────────────────────────────────
+  if (!is.null(by)) {
+    by <- .resolve_cols(by, data_names, "by")
+  }
+
+  # ── 5. Branch: cols2l is NULL → split as-is, no melting ───────────────────
+  if (is.null(cols2l)) {
+    if (is.null(by)) {
+      stop("When `cols2l` is NULL, `by` must be provided.")
+    }
+
+    # split() names each element after the key combination automatically;
+    # keep.by = FALSE drops the key columns from each list element
+    dt_list <- split(data, by = by, keep.by = FALSE, drop = TRUE, sep = sep)
+    return(.convert_split_type(dt_list, split_type))
+  }
+
+  # ── 6. Resolve `cols2l` and guard against overlap with `by` ────────────────
+  cols2l <- .resolve_cols(cols2l, data_names, "cols2l")
+
+  if (!is.null(by)) {
+    overlap <- cols2l[cols2l %chin% by]
+    if (length(overlap) > 0L) {
+      stop(
+        "`cols2l` and `by` share column(s), which would corrupt the melt structure: ",
+        paste(overlap, collapse = ", ")
+      )
+    }
+  }
+
+  # ── 7. Wide-to-long reshape (melt) ─────────────────────────────────────────
+  # variable.factor = FALSE: keep `variable` as character, ensuring split()
+  # sort order matches lexicographic expectations
+  dt_long <- data.table::melt(
+    data,
+    measure.vars    = cols2l,
+    variable.name   = "variable",
+    value.name      = "value",
+    variable.factor = FALSE   # <- critical: prevents implicit factor coercion
+  )
+
+  # ── 8. Determine split keys and split ──────────────────────────────────────
+  # split() constructs names from key combinations internally — no manual
+  # paste() reconstruction needed, which was the source of the original
+  # name-misalignment bug
+  split_keys <- if (!is.null(by)) c("variable", by) else "variable"
+
+  dt_list <- split(dt_long, by = split_keys, keep.by = FALSE, drop = TRUE, sep = sep)
+
+  # ── 9. Convert to requested output type and return ─────────────────────────
+  return(.convert_split_type(dt_list, split_type))
+}
+```
+  
+```{r example-w2l_split}
+# Example: Wide to long format splitting demonstrations
+
+# Example 1: Basic splitting by Species
+w2l_split(
+  data = iris,                    # Input dataset
+  by = "Species"                  # Split by Species column
+) |> 
+  lapply(head)                    # Show first 6 rows of each split
+
+# Example 2: Split specific columns using numeric indices
+w2l_split(
+  data = iris,                    # Input dataset
+  cols2l = 1:3,                   # Select first 3 columns to split
+  by = 5                          # Split by column index 5 (Species)
+) |> 
+  lapply(head)                    # Show first 6 rows of each split
+
+# Example 3: Split specific columns using column names
+list_res <- w2l_split(
+  data = iris,                    # Input dataset
+  cols2l = c("Sepal.Length",      # Select columns by name
+             "Sepal.Width"),
+  by = "Species"                  # Split by Species column
+)
+lapply(list_res, head)            # Show first 6 rows of each split
+# Returns similar structure to Example 2
+```
+
+
+```{r function-.convert_split_type}
+#
+# Using setattr(copy(x), "class", "data.frame") instead of as.data.frame(x)
+# avoids a deep column-vector duplication on every list element, significantly
+# reducing GC pressure when the list has many elements.
+#
+# @param dt_list   Named list of data.table objects produced by split().
+# @param split_type "dt" to keep as data.table, "df" to convert to data.frame.
+# @return          The same named list with elements of the requested class.
+.convert_split_type <- function(dt_list, split_type) {
+  if (split_type == "df") {
+    # Shallow-copy + class reassignment: avoids deep duplication of column vectors
+    dt_list <- lapply(dt_list, function(x) setattr(copy(x), "class", "data.frame"))
+  }
+  # split_type == "dt": elements are already data.tables; nothing to do
+  dt_list
+}
+```
+
+# nest_cv
+    
+```{r function-nest_cv}
+#' Apply Cross-Validation to Nested Data
+#'
+#' @description
+#' `nest_cv` applies `rsample::vfold_cv` to each nested data frame within a
+#' `data.table`, returning an expanded result table containing the corresponding
+#' training and validation splits for each row.
+#'
+#' @param nest_dt A `data.frame` or `data.table` containing at least one nested
+#'   `data.frame`/`data.table` column.
+#' @param v       Number of folds. Must be an integer >= 2. Default is `10`.
+#' @param repeats Number of repeats. Must be an integer >= 1. Default is `1`.
+#' @param strata  A single character string specifying the stratification column
+#'   name. Set to `NULL` for no stratification. Default is `NULL`.
+#' @param breaks  Number of bins for stratifying a numeric variable. Only used
+#'   when `strata` is non-`NULL`. Default is `4`.
+#' @param pool    Proportion threshold for pooling small strata. Only used when
+#'   `strata` is non-`NULL`. Default is `0.1`.
+#' @param ...     Additional arguments passed to `rsample::vfold_cv`.
+#'
+#' @details
+#' The function performs the following steps:
+#' \enumerate{
+#'   \item Validates that `nest_dt` is a non-empty `data.frame` or `data.table`
+#'         with at least one nested column whose elements all inherit from
+#'         `data.frame`.
+#'   \item Selects the target nested column: prefers a column named `"data"`;
+#'         otherwise falls back to the first detected nested column.
+#'   \item When `strata` is specified, verifies that the column exists in every
+#'         nested data frame before calling `rsample::vfold_cv`.
+#'   \item Iterates over each row, applies `vfold_cv` via `do.call`, expands the
+#'         resulting splits into a `data.table`, and broadcasts the row's
+#'         non-nested metadata columns across all CV rows.
+#'   \item Combines all per-row results with `rbindlist` in a single pass.
+#' }
+#'
+#' @return A `data.table` with the following columns:
+#' \itemize{
+#'   \item All non-nested columns from `nest_dt` (broadcast across CV rows).
+#'   \item `splits`   — cross-validation split objects from `rsample::vfold_cv`.
+#'   \item `id` (and `id2` for repeated CV) — fold identifiers.
+#'   \item `train`    — list column of training data frames for each split.
+#'   \item `validate` — list column of validation data frames for each split.
+#' }
+#'
+#' @note
+#' \itemize{
+#'   \item `nest_dt` must contain at least one nested column of `data.frame`s
+#'         or `data.table`s.
+#'   \item `as.data.table()` is used instead of `data.table::copy()`: if the
+#'         input is already a `data.table`, no copy is made.
+#'   \item `strata` must be a column name present in **all** nested data frames.
+#'   \item `breaks` and `pool` are forwarded to `rsample::vfold_cv` only when
+#'         `strata` is non-`NULL`, avoiding invalid argument errors.
+#'   \item The per-row loop with `rbindlist` corrects a silent bug in naive
+#'         chained `[` approaches where all rows incorrectly shared the first
+#'         row's CV splits.
+#' }
+#'
+#' @seealso
+#' \itemize{
+#'   \item [`rsample::vfold_cv()`]  — underlying cross-validation function
+#'   \item [`rsample::training()`]  — extract training set from a split
+#'   \item [`rsample::testing()`]   — extract test/validation set from a split
+#' }
+#'
+#' @import data.table
+#' @importFrom rsample vfold_cv training testing
+#' @export
+nest_cv <- function(nest_dt,
+                    v       = 10L,
+                    repeats = 1L,
+                    strata  = NULL,
+                    breaks  = 4L,
+                    pool    = 0.1,
+                    ...) {
+
+  # ---------------------------------------------------------------------- #
+  #  0. Declare local variables to suppress R CMD CHECK global binding notes
+  # ---------------------------------------------------------------------- #
+  splits <- train <- validate <- NULL
+
+  # ---------------------------------------------------------------------- #
+  #  1. Input validation
+  # ---------------------------------------------------------------------- #
+  if (!inherits(nest_dt, "data.frame")) {
+    stop("`nest_dt` must be a data.frame or data.table. Received: ",
+         paste(class(nest_dt), collapse = "/"))
+  }
+
+  if (nrow(nest_dt) == 0L) {
+    stop("`nest_dt` must not be empty (0 rows).")
+  }
+
+  if (!is.numeric(v) || length(v) != 1L || v < 2L) {
+    stop("`v` must be a single integer >= 2.")
+  }
+
+  if (!is.numeric(repeats) || length(repeats) != 1L || repeats < 1L) {
+    stop("`repeats` must be a single integer >= 1.")
+  }
+
+  # ---------------------------------------------------------------------- #
+  #  2. Identify nested columns
+  #     A column qualifies if it is a list whose every element inherits from
+  #     "data.frame" (data.table inherits from data.frame, so both are covered)
+  # ---------------------------------------------------------------------- #
+  nested_cols <- names(nest_dt)[vapply(nest_dt, function(col) {
+    is.list(col) &&
+      length(col) > 0L &&
+      all(vapply(col, inherits, logical(1L), what = "data.frame"))
+  }, logical(1L))]
+
+  if (length(nested_cols) == 0L) {
+    stop("`nest_dt` contains no nested data.frame/data.table columns.\n",
+         "  Column types detected: ",
+         paste(names(nest_dt),
+               vapply(nest_dt, function(x) class(x)[1L], character(1L)),
+               sep = "=", collapse = ", "))
+  }
+
+  # Prefer a column named "data"; fall back to the first nested column
+  target_col <- if ("data" %in% nested_cols) "data" else nested_cols[1L]
+
+  if (target_col != "data") {
+    message("[nest_cv] No nested column named 'data' found. ",
+            "Using '", target_col, "' instead.",
+            "\n          Available nested columns: ",
+            paste(nested_cols, collapse = ", "))
+  }
+
+  # ---------------------------------------------------------------------- #
+  #  3. Validate that the strata column exists in every nested data frame
+  # ---------------------------------------------------------------------- #
+  if (!is.null(strata)) {
+    if (!is.character(strata) || length(strata) != 1L) {
+      stop("`strata` must be a single character string (column name).")
+    }
+
+    strata_missing <- vapply(nest_dt[[target_col]], function(df) {
+      !strata %in% names(df)
+    }, logical(1L))
+
+    if (any(strata_missing)) {
+      stop("The `strata` column '", strata, "' is absent from nested ",
+           "data frame(s) at row(s): ",
+           paste(which(strata_missing), collapse = ", "), ".")
+    }
+  }
+
+  # ---------------------------------------------------------------------- #
+  #  4. Coerce to data.table
+  #     as.data.table() is a no-op when the input is already a data.table,
+  #     avoiding the full deep copy that data.table::copy() would incur
+  # ---------------------------------------------------------------------- #
+  dt <- data.table::as.data.table(nest_dt)
+
+  # Non-nested column names used for metadata broadcasting
+  non_nested_cols <- setdiff(names(dt), nested_cols)
+
+  # ---------------------------------------------------------------------- #
+  #  5. Build the vfold_cv argument list
+  #     strata-specific arguments (breaks, pool) are appended only when
+  #     strata is non-NULL, preventing invalid-argument errors in rsample
+  # ---------------------------------------------------------------------- #
+  cv_args <- c(
+    list(v = v, repeats = repeats),
+    if (!is.null(strata)) list(strata = strata, breaks = breaks, pool = pool),
+    list(...)
+  )
+
+  # ---------------------------------------------------------------------- #
+  #  6. Core logic: expand CV splits row-by-row, then combine
+  #
+  #  The original code used `dt[, cv_split[[1]], by = non_nested_cols]`,
+  #  which silently applied the *first* row's splits to every row when
+  #  nest_dt had more than one row. The row-wise loop below fixes that.
+  # ---------------------------------------------------------------------- #
+  n_rows      <- nrow(dt)
+  result_list <- vector("list", n_rows)
+
+  for (i in seq_len(n_rows)) {
+
+    # Extract the nested data frame for row i
+    nested_data_i <- dt[[target_col]][[i]]
+
+    # Generate CV splits for this nested data frame
+    cv_result_i <- do.call(
+      rsample::vfold_cv,
+      c(list(data = nested_data_i), cv_args)
+    )
+
+    # Convert rsample tibble to data.table (no tibble dependency retained)
+    cv_dt_i <- data.table::as.data.table(cv_result_i)
+
+    # Append training and validation list-columns in place (modify by reference)
+    cv_dt_i[, train    := lapply(splits, rsample::training)]
+    cv_dt_i[, validate := lapply(splits, rsample::testing )]
+
+    # Broadcast the non-nested metadata from row i across all CV rows
+    if (length(non_nested_cols) > 0L) {
+      n_cv       <- nrow(cv_dt_i)
+      meta_i     <- dt[i, ..non_nested_cols]
+      # rep() ensures explicit row replication; avoids implicit recycling risks
+      meta_expanded <- meta_i[rep(1L, n_cv)]
+      result_list[[i]] <- data.table::setcolorder(
+        cbind(meta_expanded, cv_dt_i),
+        c(non_nested_cols, setdiff(names(cv_dt_i), non_nested_cols))
+      )
+    } else {
+      result_list[[i]] <- cv_dt_i
+    }
+  }
+
+  # ---------------------------------------------------------------------- #
+  #  7. Combine all per-row results in a single rbindlist pass
+  #     use.names = TRUE  : align by column name (guards against column reorder)
+  #     fill      = FALSE : all rows must have identical structure
+  # ---------------------------------------------------------------------- #
+  data.table::rbindlist(result_list, use.names = TRUE, fill = FALSE)
+}
+```
+  
+```{r example-nest_cv}
+# Example: Cross-validation for nested data.table demonstrations
+
+# Setup test data
+dt_nest <- w2l_nest(
+  data = iris,                   # Input dataset
+  cols2l = 1:2                   # Nest first 2 columns
+)
+
+# Example 1: Basic 2-fold cross-validation
+nest_cv(
+  nest_dt = dt_nest,             # Input nested data.table
+  v = 2                          # Number of folds (2-fold CV)
+)
+
+# Example 2: Repeated 2-fold cross-validation
+nest_cv(
+  nest_dt = dt_nest,             # Input nested data.table
+  v = 2,                         # Number of folds (2-fold CV)
+  repeats = 2                    # Number of repetitions
+)
+```
 
 # split_cv
     
@@ -1145,292 +1863,181 @@ files <- list.files(
 file.remove(files)          # Remove all exported files
 ```
 
-# format_digits
-    
-```{r function-format_digits}
-#' Format Numeric Columns to Fixed-Decimal Character Strings
+# import_csv
+
+```{r function-import_csv}
+#' Flexible CSV/TXT File Import via data.table
 #'
-#' @param data        A data.frame or data.table. The input dataset.
-#' @param cols        A character or integer vector specifying columns to format.
-#'                    If NULL (default), all numeric columns are formatted.
-#' @param digits      A non-negative integer specifying decimal places. Defaults to 2.
-#' @param percentage  Logical. If TRUE, values are multiplied by 100 and a "%"
-#'                    sign is appended. Defaults to FALSE.
-#' @param nan_as_na   Logical. If TRUE, NaN is treated identically to NA and
-#'                    coerced to NA_character_. If FALSE (default), NaN is
-#'                    preserved as the string "NaN".
+#' @description
+#' Reads one or more CSV/TXT files using \code{\link[data.table]{fread}} as the backend.
+#' Supports flexible combination strategies and source-file tracking. All return values
+#' are \code{data.table} objects.
 #'
-#' @return A data.table with the specified numeric columns formatted as character
-#'         strings. The original object is never modified.
+#' @param file A non-empty \code{character} vector of file paths to CSV/TXT files.
+#'   All paths must point to existing, accessible files.
+#' @param rbind A \code{logical} scalar controlling the combination strategy:
+#'   \itemize{
+#'     \item \code{TRUE} (default): Combine all files into a single \code{data.table}.
+#'     \item \code{FALSE}: Return a named \code{list} of individual \code{data.table} objects.
+#'   }
+#' @param rbind_label A \code{character} scalar or \code{NULL} specifying the source-tracking
+#'   column name (default: \code{"_file"}). Set to \code{NULL} to suppress the source column.
+#'   Only applies when \code{rbind = TRUE}.
+#' @param full_path A \code{logical} scalar controlling path representation in labels:
+#'   \itemize{
+#'     \item \code{FALSE} (default): Use only the filename (via \code{basename()}).
+#'     \item \code{TRUE}: Use the full file path.
+#'   }
+#' @param keep_ext A \code{logical} scalar controlling whether the file extension is
+#'   retained in labels:
+#'   \itemize{
+#'     \item \code{FALSE} (default): Strip the file extension (e.g., \code{"data"}).
+#'     \item \code{TRUE}: Retain the file extension (e.g., \code{"data.csv"}).
+#'   }
+#' @param ... Additional arguments passed directly to \code{\link[data.table]{fread}}
+#'   (e.g., \code{select}, \code{drop}, \code{na.strings}, \code{skip}, \code{nThread}).
 #'
 #' @details
-#' The function processes columns in the following order:
-#' \enumerate{
-#'   \item Validates all input parameters with informative error messages.
-#'   \item Copies the input only once: data.table inputs are deep-copied via
-#'         \code{copy()}; data.frame inputs are copied implicitly by
-#'         \code{as.data.table()}, avoiding a redundant second copy.
-#'   \item Resolves \code{cols} to a character vector of valid numeric column
-#'         names, warning and skipping any non-numeric columns specified.
-#'   \item Applies a vectorised formatting function via
-#'         \code{lapply(.SD, fn)} and \code{:=}, so all target columns are
-#'         dispatched in a single data.table call rather than a column-by-column
-#'         loop.
+#' Label generation is controlled by the combination of \code{full_path} and \code{keep_ext}:
+#' \tabular{ll}{
+#'   \code{full_path = FALSE, keep_ext = FALSE} \tab Filename without extension: \code{"data"} \cr
+#'   \code{full_path = FALSE, keep_ext = TRUE}  \tab Filename with extension: \code{"data.csv"} \cr
+#'   \code{full_path = TRUE,  keep_ext = FALSE} \tab Full path without extension: \code{"/path/to/data"} \cr
+#'   \code{full_path = TRUE,  keep_ext = TRUE}  \tab Full path with extension: \code{"/path/to/data.csv"} \cr
 #' }
 #'
-#' NA and NaN handling:
+#' When \code{rbind = TRUE} and \code{rbind_label} is not \code{NULL},
+#' \code{\link[data.table]{rbindlist}} is called with \code{idcol = rbind_label},
+#' which generates the source column directly during the merge step without any
+#' intermediate copies.
+#'
+#' @return
 #' \itemize{
-#'   \item \code{NA_real_} is always returned as \code{NA_character_}.
-#'   \item \code{NaN} is returned as \code{"NaN"} by default. Set
-#'         \code{nan_as_na = TRUE} to coerce it to \code{NA_character_} instead.
+#'   \item \code{rbind = TRUE}: A single \code{data.table} containing all imported rows.
+#'     If \code{rbind_label} is not \code{NULL}, the first column contains the source
+#'     file label for each row.
+#'   \item \code{rbind = FALSE}: A named \code{list} of \code{data.table} objects.
+#'     List names are derived from file paths according to \code{full_path} and
+#'     \code{keep_ext} settings.
 #' }
-#'
-#' Rounding uses explicit \code{round()} before \code{sprintf()} to guarantee
-#' consistent results across platforms (Windows, Linux, macOS), where the
-#' underlying C library's rounding behaviour may otherwise differ.
 #'
 #' @note
 #' \itemize{
-#'   \item \code{data} must be a data.frame or data.table.
-#'   \item Integer column indices in \code{cols} are converted to column names
-#'         internally; duplicates are silently removed.
-#'   \item \code{digits} accepts numeric values such as \code{2.0} and coerces
-#'         them to integer; non-integer-valued numbers raise an error.
-#'   \item The function depends only on \code{data.table} and base R.
+#'   \item All specified files must exist and be readable at call time.
+#'   \item \code{rbind = TRUE} assumes compatible column structures across files;
+#'     mismatched columns are automatically aligned via \code{fill = TRUE}.
+#'   \item Logical parameters (\code{rbind}, \code{full_path}, \code{keep_ext}) reject
+#'     \code{NA} values explicitly.
 #' }
+#'
+#' @seealso
+#' \code{\link[data.table]{fread}}, \code{\link[data.table]{rbindlist}}
 #'
 #' @import data.table
 #' @export
-format_digits <- function(data,
-                          cols       = NULL,
-                          digits     = 2L,
-                          percentage = FALSE,
-                          nan_as_na  = FALSE) {
+import_csv <- function(
+    file,
+    rbind       = TRUE,
+    rbind_label = "_file",
+    full_path   = FALSE,
+    keep_ext    = FALSE,
+    ...
+) {
 
-  # -- 1. Input validation ---------------------------------------------------
-  if (!is.data.frame(data)) {
-    stop("'data' must be a data.frame or data.table.", call. = FALSE)
+  # ── 1. Input validation ────────────────────────────────────────────────────
+
+  # `file`: must be a non-empty character vector; report every missing path
+  if (!is.character(file) || length(file) == 0L) {
+    stop("`file` must be a non-empty character vector.", call. = FALSE)
   }
-  if (!is.logical(percentage) || length(percentage) != 1L || is.na(percentage)) {
-    stop("'percentage' must be a single non-NA logical value (TRUE or FALSE).",
+  missing_files <- file[!file.exists(file)]
+  if (length(missing_files) > 0L) {
+    stop(
+      "The following files do not exist or cannot be accessed:\n",
+      paste0("  - ", missing_files, collapse = "\n"),
+      call. = FALSE
+    )
+  }
+
+  # Logical scalars: isTRUE/isFALSE explicitly rejects NA and non-logical types
+  if (!isTRUE(rbind) && !isFALSE(rbind)) {
+    stop("`rbind` must be TRUE or FALSE (NA is not accepted).", call. = FALSE)
+  }
+  if (!isTRUE(full_path) && !isFALSE(full_path)) {
+    stop("`full_path` must be TRUE or FALSE (NA is not accepted).", call. = FALSE)
+  }
+  if (!isTRUE(keep_ext) && !isFALSE(keep_ext)) {
+    stop("`keep_ext` must be TRUE or FALSE (NA is not accepted).", call. = FALSE)
+  }
+
+  # `rbind_label`: NULL disables labeling; otherwise must be a single non-empty string
+  if (!is.null(rbind_label) &&
+      (!is.character(rbind_label) || length(rbind_label) != 1L ||
+       is.na(rbind_label)         || nchar(rbind_label) == 0L)) {
+    stop("`rbind_label` must be a single non-empty character string, or NULL.",
          call. = FALSE)
   }
-  if (!is.logical(nan_as_na) || length(nan_as_na) != 1L || is.na(nan_as_na)) {
-    stop("'nan_as_na' must be a single non-NA logical value (TRUE or FALSE).",
-         call. = FALSE)
+
+  # ── 2. Label generation ────────────────────────────────────────────────────
+
+  # Vectorised over all paths at once; called once, not once per file
+  make_label <- function(paths) {
+    # Step 1 – full path vs basename
+    out <- if (full_path) paths else basename(paths)
+
+    # Step 2 – strip extension when keep_ext = FALSE
+    # regexpr + substr avoids repeated regex compilation vs sub() in a loop
+    if (!keep_ext) {
+      dot_pos <- regexpr("\\.[^.]*$", out)   # position of final '.'
+      has_ext  <- dot_pos > 0L               # logical mask: only strip when present
+      out[has_ext] <- substr(out[has_ext], 1L, dot_pos[has_ext] - 1L)
+    }
+    out
   }
 
-  # -- 2. Coerce digits to integer (tolerates inputs like 2.0) --------------
-  digits <- suppressWarnings(as.integer(digits))
-  if (is.na(digits) || length(digits) != 1L || digits < 0L) {
-    stop("'digits' must be a single non-negative integer (e.g. 0, 1, 2, ...).",
-         call. = FALSE)
+  # Pre-compute all labels as a named character vector (reused for list names / idcol)
+  labels <- make_label(file)
+
+  # ── 3. Read all files ──────────────────────────────────────────────────────
+
+  # lapply preserves order; names are set immediately for use by rbindlist(idcol)
+  file_list        <- lapply(file, data.table::fread, ...)
+  names(file_list) <- labels
+
+  # ── 4. Combine or return as list ──────────────────────────────────────────
+
+  if (!rbind) {
+    # Return the named list directly; each element is already a data.table
+    return(file_list)
   }
 
-  # -- 3. Single-copy strategy -----------------------------------------------
-  # data.table input  -> copy() performs one explicit deep copy.
-  # data.frame input  -> as.data.table() allocates a new object; no second
-  #                      copy() needed, avoiding the double-allocation present
-  #                      in the original implementation.
-  result <- if (is.data.table(data)) copy(data) else as.data.table(data)
-
-  # -- 4. Resolve cols to a valid character vector of column names -----------
-  if (is.null(cols)) {
-    # vapply with a fixed return type is safer and faster than sapply
-    target_cols <- names(result)[vapply(result, is.numeric, logical(1L))]
-
-  } else {
-    if (!is.numeric(cols) && !is.character(cols)) {
-      stop("'cols' must be a character vector of column names or an integer ",
-           "vector of column indices.", call. = FALSE)
-    }
-    if (length(cols) == 0L) {
-      stop("'cols' must not be empty. Pass NULL to format all numeric columns.",
-           call. = FALSE)
-    }
-
-    # Convert integer indices to column names
-    if (is.numeric(cols)) {
-      cols    <- as.integer(cols)
-      bad_idx <- cols < 1L | cols > ncol(result)
-      if (any(bad_idx)) {
-        stop("Column indices out of range (valid range: 1-", ncol(result), "): ",
-             paste(cols[bad_idx], collapse = ", "), call. = FALSE)
-      }
-      cols <- names(result)[cols]
-    }
-
-    # Drop duplicates to prevent undefined behaviour from repeated := assignment
-    cols <- unique(cols)
-
-    # Verify all names exist
-    missing_cols <- setdiff(cols, names(result))
-    if (length(missing_cols) > 0L) {
-      stop("The following columns were not found in 'data': ",
-           paste(missing_cols, collapse = ", "), call. = FALSE)
-    }
-
-    # Use .subset2 to extract each column vector directly, bypassing the
-    # [.data.table dispatch overhead - measurably faster on wide tables.
-    is_num <- vapply(cols,
-                     function(cn) is.numeric(.subset2(result, cn)),
-                     logical(1L))
-    non_numeric <- cols[!is_num]
-    if (length(non_numeric) > 0L) {
-      warning("The following columns are not numeric and will be skipped: ",
-              paste(non_numeric, collapse = ", "), call. = FALSE)
-      cols <- cols[is_num]
-    }
-    if (length(cols) == 0L) {
-      message("No formattable numeric columns remain. Returning a copy of the input.")
-      return(result)
-    }
-    target_cols <- cols
-  }
-
-  # -- 5. Edge case: no numeric columns present ------------------------------
-  if (length(target_cols) == 0L) {
-    message("'data' contains no numeric columns. Returning a copy of the input.")
-    return(result)
-  }
-
-  # -- 6. Build the format template once; reuse across all target columns ----
-  fmt_tpl <- paste0("%.", digits, "f", if (percentage) "%%" else "")
-
-  # -- 7. Vectorised formatting function -------------------------------------
-  # Design rationale:
-  #   a) Explicit round() before sprintf() ensures identical rounding across
-  #      platforms; sprintf alone delegates to the C library, whose tie-breaking
-  #      behaviour differs between Windows, Linux, and macOS.
-  #   b) NA_real_ and NaN are handled separately:
-  #        - NA_real_ -> always NA_character_
-  #        - NaN      -> "NaN" by default; NA_character_ when nan_as_na = TRUE
-  #   c) data.table::fifelse (C-level) is used instead of base ifelse to avoid
-  #      R-level type checking and recycling logic (~3-5x faster on large vectors).
-  fmt_fn <- if (percentage) {
-    function(x) {
-      val <- sprintf(fmt_tpl, round(x * 100, digits))
-      val <- fifelse(is.na(x) & !is.nan(x), NA_character_, val)
-      if (nan_as_na) val <- fifelse(is.nan(x), NA_character_, val)
-      val
-    }
-  } else {
-    function(x) {
-      val <- sprintf(fmt_tpl, round(x, digits))
-      val <- fifelse(is.na(x) & !is.nan(x), NA_character_, val)
-      if (nan_as_na) val <- fifelse(is.nan(x), NA_character_, val)
-      val
-    }
-  }
-
-  # -- 8. Batch in-place update via data.table's := -------------------------
-  # lapply(.SD, fmt_fn) dispatches all target columns in a single data.table
-  # call, reducing R->C layer transitions compared to a for + set() loop.
-  result[, (target_cols) := lapply(.SD, fmt_fn), .SDcols = target_cols][]
-
-  return(result)
+  # rbindlist with idcol generates the source column in one pass —
+  # no intermediate cbind or data.frame copies
+  data.table::rbindlist(
+    file_list,
+    use.names = TRUE,
+    fill      = TRUE,
+    idcol     = rbind_label   # NULL silently suppresses the column (rbindlist behaviour)
+  )
 }
 ```
-  
-```{r example-format_digits}
-# Example: Number formatting demonstrations
 
-# Setup test data
-dt <- data.table::data.table(
-  a = c(0.1234, 0.5678),      # Numeric column 1
-  b = c(0.2345, 0.6789),      # Numeric column 2
-  c = c("text1", "text2")     # Text column
+```{r examples-import_csv}
+# Example: CSV file import demonstrations
+
+# Setup test files
+csv_files <- mintyr_example(
+  mintyr_examples("csv_test")     # Get example CSV files
 )
 
-# Example 1: Format all numeric columns
-format_digits(
-  dt,                         # Input data table
-  digits = 2                  # Round to 2 decimal places
+# Example 1: Import and combine CSV files using data.table
+import_csv(
+  csv_files,                      # Input CSV file paths
+  rbind = TRUE,                   # Combine all files into one data.table
+  rbind_label = "_file",          # Column name for file source
+  keep_ext = TRUE,                # Include .csv extension in _file column
+  full_path = TRUE                # Show complete file paths in _file column
 )
-
-# Example 2: Format specific column as percentage
-format_digits(
-  dt,                         # Input data table
-  cols = c("a"),              # Only format column 'a'
-  digits = 2,                 # Round to 2 decimal places
-  percentage = TRUE           # Convert to percentage
-)
-```
-
-
-# mintyr_example
-    
-```{r function-mintyr_example}
-#' Get path to mintyr examples
-#' 
-#' `mintyr` comes bundled with a number of sample files in
-#' its `inst/extdata` directory. Use `mintyr_example()` to retrieve the full file path to a 
-#' specific example file.
-#' 
-#' @param path Name of the example file to locate. If NULL or missing,
-#'   returns the directory path containing the examples.
-#' @return Character string containing the full path to the requested example file.
-#' @seealso [mintyr::mintyr_examples()] to list all available example files
-#' @export
-mintyr_example <- function(path = NULL) {
-  # Handle case when path is NULL or missing
-  if (is.null(path)) {
-    return(system.file("extdata", package = "mintyr", mustWork = TRUE))
-  }
-  
-  
-  # Get the file path
-  file_path <- system.file("extdata", path, package = "mintyr", mustWork = TRUE)
-  
-  return(file_path)
-}
-```
-  
-```{r example-mintyr_example}
-# Get path to an example file
-mintyr_example("csv_test1.csv")
-```
-
-# mintyr_examples
-    
-```{r function-mintyr_examples}
-#' List all available example files in mintyr package
-#' 
-#' `mintyr` comes bundled with a number of sample files in its `inst/extdata` 
-#' directory. This function lists all available example files, optionally filtered
-#' by a pattern.
-#' 
-#' @param pattern A regular expression to filter filenames. If `NULL` (default),
-#'   all available files are returned.
-#' @return A character vector containing the names of example files. If no files
-#'   match the pattern or if the example directory is empty, returns a zero-length
-#'   character vector.
-#' @seealso [mintyr::mintyr_example()] to get the full path of a specific example file
-#' @export
-mintyr_examples <- function(pattern = NULL) {
-  # Validate pattern if provided
-  if (!is.null(pattern)) {
-    if (!is.character(pattern)) {
-      stop("'pattern' must be a character string or NULL", call. = FALSE)
-    }
-  }
-  
-  # Get the example directory path
-  example_dir <- system.file("extdata", package = "mintyr")
-  
-  # Check if directory exists
-  if (example_dir == "") {
-    return(character(0))
-  }
-  
-  # Get and return matching files
-  list.files(example_dir, pattern = pattern)
-}
-```
-  
-```{r example-mintyr_examples}
-# List all example files
-mintyr_examples()
 ```
 
 # import_xlsx
@@ -1694,903 +2301,6 @@ import_xlsx(
   xlsx_files,                     # Input Excel file paths
   rbind = FALSE,                  # Keep sheets as separate data.tables
   sheet = 2                       # Only import first sheet
-)
-```
-
-# import_csv
-
-```{r function-import_csv}
-#' Flexible CSV/TXT File Import via data.table
-#'
-#' @description
-#' Reads one or more CSV/TXT files using \code{\link[data.table]{fread}} as the backend.
-#' Supports flexible combination strategies and source-file tracking. All return values
-#' are \code{data.table} objects.
-#'
-#' @param file A non-empty \code{character} vector of file paths to CSV/TXT files.
-#'   All paths must point to existing, accessible files.
-#' @param rbind A \code{logical} scalar controlling the combination strategy:
-#'   \itemize{
-#'     \item \code{TRUE} (default): Combine all files into a single \code{data.table}.
-#'     \item \code{FALSE}: Return a named \code{list} of individual \code{data.table} objects.
-#'   }
-#' @param rbind_label A \code{character} scalar or \code{NULL} specifying the source-tracking
-#'   column name (default: \code{"_file"}). Set to \code{NULL} to suppress the source column.
-#'   Only applies when \code{rbind = TRUE}.
-#' @param full_path A \code{logical} scalar controlling path representation in labels:
-#'   \itemize{
-#'     \item \code{FALSE} (default): Use only the filename (via \code{basename()}).
-#'     \item \code{TRUE}: Use the full file path.
-#'   }
-#' @param keep_ext A \code{logical} scalar controlling whether the file extension is
-#'   retained in labels:
-#'   \itemize{
-#'     \item \code{FALSE} (default): Strip the file extension (e.g., \code{"data"}).
-#'     \item \code{TRUE}: Retain the file extension (e.g., \code{"data.csv"}).
-#'   }
-#' @param ... Additional arguments passed directly to \code{\link[data.table]{fread}}
-#'   (e.g., \code{select}, \code{drop}, \code{na.strings}, \code{skip}, \code{nThread}).
-#'
-#' @details
-#' Label generation is controlled by the combination of \code{full_path} and \code{keep_ext}:
-#' \tabular{ll}{
-#'   \code{full_path = FALSE, keep_ext = FALSE} \tab Filename without extension: \code{"data"} \cr
-#'   \code{full_path = FALSE, keep_ext = TRUE}  \tab Filename with extension: \code{"data.csv"} \cr
-#'   \code{full_path = TRUE,  keep_ext = FALSE} \tab Full path without extension: \code{"/path/to/data"} \cr
-#'   \code{full_path = TRUE,  keep_ext = TRUE}  \tab Full path with extension: \code{"/path/to/data.csv"} \cr
-#' }
-#'
-#' When \code{rbind = TRUE} and \code{rbind_label} is not \code{NULL},
-#' \code{\link[data.table]{rbindlist}} is called with \code{idcol = rbind_label},
-#' which generates the source column directly during the merge step without any
-#' intermediate copies.
-#'
-#' @return
-#' \itemize{
-#'   \item \code{rbind = TRUE}: A single \code{data.table} containing all imported rows.
-#'     If \code{rbind_label} is not \code{NULL}, the first column contains the source
-#'     file label for each row.
-#'   \item \code{rbind = FALSE}: A named \code{list} of \code{data.table} objects.
-#'     List names are derived from file paths according to \code{full_path} and
-#'     \code{keep_ext} settings.
-#' }
-#'
-#' @note
-#' \itemize{
-#'   \item All specified files must exist and be readable at call time.
-#'   \item \code{rbind = TRUE} assumes compatible column structures across files;
-#'     mismatched columns are automatically aligned via \code{fill = TRUE}.
-#'   \item Logical parameters (\code{rbind}, \code{full_path}, \code{keep_ext}) reject
-#'     \code{NA} values explicitly.
-#' }
-#'
-#' @seealso
-#' \code{\link[data.table]{fread}}, \code{\link[data.table]{rbindlist}}
-#'
-#' @import data.table
-#' @export
-import_csv <- function(
-    file,
-    rbind       = TRUE,
-    rbind_label = "_file",
-    full_path   = FALSE,
-    keep_ext    = FALSE,
-    ...
-) {
-
-  # ── 1. Input validation ────────────────────────────────────────────────────
-
-  # `file`: must be a non-empty character vector; report every missing path
-  if (!is.character(file) || length(file) == 0L) {
-    stop("`file` must be a non-empty character vector.", call. = FALSE)
-  }
-  missing_files <- file[!file.exists(file)]
-  if (length(missing_files) > 0L) {
-    stop(
-      "The following files do not exist or cannot be accessed:\n",
-      paste0("  - ", missing_files, collapse = "\n"),
-      call. = FALSE
-    )
-  }
-
-  # Logical scalars: isTRUE/isFALSE explicitly rejects NA and non-logical types
-  if (!isTRUE(rbind) && !isFALSE(rbind)) {
-    stop("`rbind` must be TRUE or FALSE (NA is not accepted).", call. = FALSE)
-  }
-  if (!isTRUE(full_path) && !isFALSE(full_path)) {
-    stop("`full_path` must be TRUE or FALSE (NA is not accepted).", call. = FALSE)
-  }
-  if (!isTRUE(keep_ext) && !isFALSE(keep_ext)) {
-    stop("`keep_ext` must be TRUE or FALSE (NA is not accepted).", call. = FALSE)
-  }
-
-  # `rbind_label`: NULL disables labeling; otherwise must be a single non-empty string
-  if (!is.null(rbind_label) &&
-      (!is.character(rbind_label) || length(rbind_label) != 1L ||
-       is.na(rbind_label)         || nchar(rbind_label) == 0L)) {
-    stop("`rbind_label` must be a single non-empty character string, or NULL.",
-         call. = FALSE)
-  }
-
-  # ── 2. Label generation ────────────────────────────────────────────────────
-
-  # Vectorised over all paths at once; called once, not once per file
-  make_label <- function(paths) {
-    # Step 1 – full path vs basename
-    out <- if (full_path) paths else basename(paths)
-
-    # Step 2 – strip extension when keep_ext = FALSE
-    # regexpr + substr avoids repeated regex compilation vs sub() in a loop
-    if (!keep_ext) {
-      dot_pos <- regexpr("\\.[^.]*$", out)   # position of final '.'
-      has_ext  <- dot_pos > 0L               # logical mask: only strip when present
-      out[has_ext] <- substr(out[has_ext], 1L, dot_pos[has_ext] - 1L)
-    }
-    out
-  }
-
-  # Pre-compute all labels as a named character vector (reused for list names / idcol)
-  labels <- make_label(file)
-
-  # ── 3. Read all files ──────────────────────────────────────────────────────
-
-  # lapply preserves order; names are set immediately for use by rbindlist(idcol)
-  file_list        <- lapply(file, data.table::fread, ...)
-  names(file_list) <- labels
-
-  # ── 4. Combine or return as list ──────────────────────────────────────────
-
-  if (!rbind) {
-    # Return the named list directly; each element is already a data.table
-    return(file_list)
-  }
-
-  # rbindlist with idcol generates the source column in one pass —
-  # no intermediate cbind or data.frame copies
-  data.table::rbindlist(
-    file_list,
-    use.names = TRUE,
-    fill      = TRUE,
-    idcol     = rbind_label   # NULL silently suppresses the column (rbindlist behaviour)
-  )
-}
-```
-
-```{r examples-import_csv}
-# Example: CSV file import demonstrations
-
-# Setup test files
-csv_files <- mintyr_example(
-  mintyr_examples("csv_test")     # Get example CSV files
-)
-
-# Example 1: Import and combine CSV files using data.table
-import_csv(
-  csv_files,                      # Input CSV file paths
-  rbind = TRUE,                   # Combine all files into one data.table
-  rbind_label = "_file",          # Column name for file source
-  keep_ext = TRUE,                # Include .csv extension in _file column
-  full_path = TRUE                # Show complete file paths in _file column
-)
-```
-
-# w2l_nest
-    
-```{r function-w2l_nest}
-#' Reshape Wide Data to Long Format and Nest by Specified Columns
-#'
-#' @description
-#' `w2l_nest` reshapes a wide-format `data.frame` or `data.table` into long
-#' format, then nests the result by `name` (the pivoted column identifier) and
-#' any optional grouping variables supplied via `by`. Each row of the returned
-#' table contains a nested `data.table` or `data.frame` in the `data` list-column.
-#'
-#' @param data `data.frame` or `data.table`. Wide-format input dataset.
-#'   Converted in-place to `data.table` via `setDT()` if necessary (no copy).
-#' @param cols2l `numeric` or `character`. Columns to pivot from wide to long,
-#'   specified as integer indices or column names. Default `NULL`: when `NULL`,
-#'   `by` must be provided and the function performs a pure nest operation
-#'   (no melting).
-#' @param by `numeric` or `character`. Additional grouping variables for
-#'   hierarchical nesting, specified as integer indices or column names.
-#'   Default `NULL`.
-#' @param nest_type `character`. Class of each nested subset:
-#'   `"dt"` for `data.table` (default) or `"df"` for `data.frame`.
-#'
-#' @return A `data.table` with one row per combination of `name` (and `by`
-#'   levels, if provided). The `data` list-column holds the corresponding
-#'   nested `data.table` or `data.frame` for each group. Grouping key columns
-#'   are never duplicated inside the nested objects.
-#'
-#' @details
-#' **Column resolution:** both `cols2l` and `by` accept either integer column
-#' positions or character column names. Out-of-bounds indices and unknown names
-#' are caught early with informative error messages.
-#'
-#' **Overlap guard:** if any column appears in both `cols2l` and `by`, the
-#' function stops with an error before attempting to melt, preventing silent
-#' structural corruption.
-#'
-#' **Factor-free melting:** `melt()` is called with `variable.factor = FALSE`
-#' so the `name` column is always `character`, avoiding unexpected factor-level
-#' ordering in downstream grouping operations.
-#'
-#' **Memory efficiency:**
-#' \itemize{
-#'   \item `setDT()` converts `data.frame` inputs by reference — no full copy.
-#'   \item `.SDcols` restricts `.SD` to non-key columns, eliminating redundant
-#'         storage of grouping keys inside each nested object.
-#'   \item For `nest_type = "df"`, `setattr(copy(.SD), "class", "data.frame")`
-#'         modifies the class attribute on a shallow copy rather than performing
-#'         a deep column-by-column duplication as `as.data.frame()` would.
-#' }
-#'
-#' @note
-#' \itemize{
-#'   \item Passing an empty table (0 rows) triggers a `warning()` and returns
-#'         an empty nested `data.table` immediately.
-#'   \item `cols2l` and `by` must not overlap; overlapping columns will raise
-#'         an error.
-#'   \item `nest_type` values other than `"dt"` or `"df"` raise an error.
-#' }
-#'
-#' @seealso [`tidytable::nest_by()`] for a tidyverse-style equivalent.
-#'
-#' @import data.table
-#' @export
-w2l_nest <- function(data, cols2l = NULL, by = NULL, nest_type = "dt") {
-
-  # ── 0. Internal helper: resolve column indices or names to a character vector
-  .resolve_cols <- function(x, data_names, arg_name) {
-    if (is.numeric(x)) {
-      # Bounds check: all indices must fall within [1, ncol]
-      if (any(x < 1L | x > length(data_names))) {
-        stop(sprintf(
-          "`%s` contains out-of-bounds numeric index/indices (valid range: 1 to %d).",
-          arg_name, length(data_names)
-        ))
-      }
-      return(data_names[x])
-    }
-    if (is.character(x)) {
-      # Single-pass missing-column detection using %chin% (character-optimised %in%)
-      missing_cols <- x[!x %chin% data_names]
-      if (length(missing_cols) > 0L) {
-        stop(sprintf(
-          "`%s` contains column(s) not found in `data`: %s",
-          arg_name, paste(missing_cols, collapse = ", ")
-        ))
-      }
-      return(x)
-    }
-    stop(sprintf(
-      "`%s` must be a numeric index vector or a character column-name vector; got: %s",
-      arg_name, class(x)[1L]
-    ))
-  }
-
-  # ── 1. Input type validation ────────────────────────────────────────────────
-  if (!is.data.frame(data) && !data.table::is.data.table(data)) {
-    stop("`data` must be a data.frame or a data.table.")
-  }
-
-  # Convert by reference: no-op if already a data.table, avoids a full copy otherwise
-  data.table::setDT(data)
-
-  # ── 2. Validate nest_type ───────────────────────────────────────────────────
-  if (!nest_type %chin% c("dt", "df")) {
-    stop("`nest_type` must be either 'dt' or 'df'; got: ", nest_type)
-  }
-
-  # ── 3. Early return on empty input (prevents silent zero-row output) ────────
-  if (nrow(data) == 0L) {
-    warning("`data` has 0 rows; returning an empty nested data.table.")
-    return(data.table::data.table(name = character(0L), data = list()))
-  }
-
-  data_names <- names(data)
-
-  # ── 4. Resolve `by` columns ────────────────────────────────────────────────
-  if (!is.null(by)) {
-    by <- .resolve_cols(by, data_names, "by")
-  }
-
-  # ── 5. Branch: cols2l is NULL → pure nest mode (no melting) ────────────────
-  if (is.null(cols2l)) {
-    if (is.null(by)) {
-      stop("When `cols2l` is NULL, `by` must be provided.")
-    }
-
-    # Columns to nest = all columns that are not grouping keys
-    nest_sd_cols <- data_names[!data_names %chin% by]
-
-    result <- .nest_by_group(
-      dt        = data,
-      group_by  = by,
-      sd_cols   = nest_sd_cols,
-      nest_type = nest_type
-    )
-    return(result)
-  }
-
-  # ── 6. Resolve `cols2l` and guard against overlap with `by` ────────────────
-  cols2l <- .resolve_cols(cols2l, data_names, "cols2l")
-
-  if (!is.null(by)) {
-    overlap <- cols2l[cols2l %chin% by]
-    if (length(overlap) > 0L) {
-      stop(
-        "`cols2l` and `by` share column(s), which would corrupt the melt structure: ",
-        paste(overlap, collapse = ", ")
-      )
-    }
-  }
-
-  # ── 7. Wide-to-long reshape (melt) ─────────────────────────────────────────
-  # variable.factor = FALSE: keep `name` as character to avoid factor-ordering side-effects
-  melted <- data.table::melt(
-    data,
-    measure.vars    = cols2l,
-    variable.name   = "name",
-    value.name      = "value",
-    variable.factor = FALSE   # <- critical: prevents implicit factor coercion
-  )
-
-  # ── 8. Determine nesting group keys ────────────────────────────────────────
-  # Restrict .SD to non-key columns so grouping keys are never stored redundantly
-  # inside each nested object
-  group_keys   <- if (!is.null(by)) c("name", by) else "name"
-  nest_sd_cols <- names(melted)[!names(melted) %chin% group_keys]
-
-  # ── 9. Nest ─────────────────────────────────────────────────────────────────
-  result <- .nest_by_group(
-    dt        = melted,
-    group_by  = group_keys,
-    sd_cols   = nest_sd_cols,
-    nest_type = nest_type
-  )
-
-  return(result)
-}
-```
-  
-```{r example-w2l_nest}
-# Example: Wide to long format nesting demonstrations
-
-# Example 1: Basic nesting by group
-w2l_nest(
-  data = iris,                    # Input dataset
-  by = "Species"                  # Group by Species column
-)
-
-# Example 2: Nest specific columns with numeric indices
-w2l_nest(
-  data = iris,                    # Input dataset
-  cols2l = 1:4,                   # Select first 4 columns to nest
-  by = "Species"                  # Group by Species column
-)
-
-# Example 3: Nest specific columns with column names
-w2l_nest(
-  data = iris,                    # Input dataset
-  cols2l = c("Sepal.Length",      # Select columns by name
-             "Sepal.Width", 
-             "Petal.Length"),
-  by = 5                          # Group by column index 5 (Species)
-)
-# Returns similar structure to Example 2
-```
-
-```{r function-.nest_by_group}
-#
-# Extracted as a standalone function for two reasons:
-#   1. Eliminates duplicated nest_type branching in the main function (DRY).
-#   2. Allows isolated unit testing of the nesting logic.
-#
-# @param dt        A pre-processed data.table ready for nesting.
-# @param group_by  Character vector of grouping key column names.
-# @param sd_cols   Character vector of columns to include in each nested object.
-# @param nest_type "dt" to nest as data.table, "df" to nest as data.frame.
-# @return          A data.table with a `data` list-column containing nested subsets.
-.nest_by_group <- function(dt, group_by, sd_cols, nest_type) {
-  . <- NULL
-
-  if (nest_type == "dt") {
-    # .SD is already a data.table; wrapping in list() incurs zero extra allocation
-    result <- dt[,
-      .(data = list(.SD)),
-      by      = group_by,
-      .SDcols = sd_cols      # <- pin columns precisely; excludes grouping keys
-    ]
-  } else {
-    # nest_type == "df"
-    # setattr() modifies the class on a shallow copy of .SD, avoiding the
-    # deep column-vector duplication that as.data.frame() would trigger
-    result <- dt[,
-      .(data = list(setattr(copy(.SD), "class", "data.frame"))),
-      by      = group_by,
-      .SDcols = sd_cols
-    ]
-  }
-
-  return(result)
-}
-```
-
-
-
-# w2l_split
-    
-```{r function-w2l_split}
-#' Reshape Wide Data to Long Format and Split into a Named List
-#'
-#' @description
-#' `w2l_split` reshapes a wide-format `data.frame` or `data.table` into long
-#' format, then splits the result into a named list keyed by the pivoted column
-#' identifier (`variable`) and any optional grouping variables supplied via
-#' `by`. List element names are derived directly from the grouping key
-#' combinations produced by `split()`, guaranteeing name-to-content alignment.
-#'
-#' @param data `data.frame` or `data.table`. Wide-format input dataset.
-#'   Converted in-place to `data.table` via `setDT()` if necessary (no copy).
-#' @param cols2l `numeric` or `character`. Columns to pivot from wide to long,
-#'   specified as integer indices or column names. Default `NULL`: when `NULL`,
-#'   `by` must be provided and the function splits the data as-is without
-#'   melting.
-#' @param by `numeric` or `character`. Additional grouping variables used as
-#'   secondary split keys, specified as integer indices or column names.
-#'   Default `NULL`.
-#' @param split_type `character`. Class of each list element: `"dt"` for
-#'   `data.table` (default) or `"df"` for `data.frame`.
-#' @param sep `character`. Separator used when concatenating multiple grouping
-#'   key values into a single list-element name. Default `"_"`.
-#'
-#' @return A named list of `data.table` or `data.frame` objects (controlled by
-#'   `split_type`). Names reflect the key combination of `variable` (and `by`
-#'   levels if provided), joined by `sep`.
-#' \itemize{
-#'   \item If `by` is `NULL`, the list is keyed by the pivoted column names only.
-#'   \item If `by` is specified, the list is keyed by `variable` and all `by`
-#'         level combinations.
-#' }
-#'
-#' @details
-#' **Name safety:** list names are produced by `data.table::split()` itself
-#' using its `by` argument, not reconstructed from raw row order. This
-#' eliminates the name-to-content misalignment that arises when `unique()` on
-#' the original data and `split()`'s internal sort order diverge.
-#'
-#' **Column resolution:** both `cols2l` and `by` accept integer column
-#' positions or character column names. Out-of-bounds indices and unknown names
-#' are caught early with informative error messages.
-#'
-#' **Overlap guard:** columns appearing in both `cols2l` and `by` raise an
-#' error before melting to prevent `id.vars` / `measure.vars` conflicts.
-#'
-#' **Factor-free melting:** `melt()` is called with `variable.factor = FALSE`
-#' so the `variable` column is always `character`, keeping `split()` sort order
-#' consistent with lexicographic expectations.
-#'
-#' **Memory efficiency:**
-#' \itemize{
-#'   \item `setDT()` converts `data.frame` inputs by reference — no full copy.
-#'   \item For `split_type = "df"`, `setattr(copy(x), "class", "data.frame")`
-#'         modifies the class on a shallow copy, avoiding the deep
-#'         column-by-column duplication that `as.data.frame()` triggers.
-#' }
-#'
-#' @note
-#' \itemize{
-#'   \item An empty input table (0 rows) triggers a `warning()` and returns an
-#'         empty list immediately.
-#'   \item `cols2l` and `by` must not overlap; shared columns raise an error.
-#'   \item `split_type` values other than `"dt"` or `"df"` raise an error.
-#' }
-#'
-#' @seealso [`tidytable::group_split()`] for a tidyverse-style equivalent.
-#'
-#' @import data.table
-#' @export
-w2l_split <- function(data, cols2l = NULL, by = NULL, split_type = "dt", sep = "_") {
-
-  # ── 0. Internal helper: resolve column indices or names to a character vector
-  .resolve_cols <- function(x, data_names, arg_name) {
-    if (is.numeric(x)) {
-      # Bounds check: all indices must fall within [1, ncol]
-      if (any(x < 1L | x > length(data_names))) {
-        stop(sprintf(
-          "`%s` contains out-of-bounds numeric index/indices (valid range: 1 to %d).",
-          arg_name, length(data_names)
-        ))
-      }
-      return(data_names[x])
-    }
-    if (is.character(x)) {
-      # Single-pass missing-column detection via %chin% (character-optimised %in%)
-      missing_cols <- x[!x %chin% data_names]
-      if (length(missing_cols) > 0L) {
-        stop(sprintf(
-          "`%s` contains column(s) not found in `data`: %s",
-          arg_name, paste(missing_cols, collapse = ", ")
-        ))
-      }
-      return(x)
-    }
-    stop(sprintf(
-      "`%s` must be a numeric index vector or a character column-name vector; got: %s",
-      arg_name, class(x)[1L]
-    ))
-  }
-
-  # ── 1. Input type validation ────────────────────────────────────────────────
-  if (!is.data.frame(data) && !data.table::is.data.table(data)) {
-    stop("`data` must be a data.frame or a data.table.")
-  }
-
-  # Convert by reference: no-op if already a data.table, avoids a full copy otherwise
-  data.table::setDT(data)
-
-  # ── 2. Validate split_type ──────────────────────────────────────────────────
-  if (!split_type %chin% c("dt", "df")) {
-    stop("`split_type` must be either 'dt' or 'df'; got: ", split_type)
-  }
-
-  # ── 3. Early return on empty input ─────────────────────────────────────────
-  if (nrow(data) == 0L) {
-    warning("`data` has 0 rows; returning an empty list.")
-    return(list())
-  }
-
-  data_names <- names(data)
-
-  # ── 4. Resolve `by` columns ────────────────────────────────────────────────
-  if (!is.null(by)) {
-    by <- .resolve_cols(by, data_names, "by")
-  }
-
-  # ── 5. Branch: cols2l is NULL → split as-is, no melting ───────────────────
-  if (is.null(cols2l)) {
-    if (is.null(by)) {
-      stop("When `cols2l` is NULL, `by` must be provided.")
-    }
-
-    # split() names each element after the key combination automatically;
-    # keep.by = FALSE drops the key columns from each list element
-    dt_list <- split(data, by = by, keep.by = FALSE, drop = TRUE, sep = sep)
-    return(.convert_split_type(dt_list, split_type))
-  }
-
-  # ── 6. Resolve `cols2l` and guard against overlap with `by` ────────────────
-  cols2l <- .resolve_cols(cols2l, data_names, "cols2l")
-
-  if (!is.null(by)) {
-    overlap <- cols2l[cols2l %chin% by]
-    if (length(overlap) > 0L) {
-      stop(
-        "`cols2l` and `by` share column(s), which would corrupt the melt structure: ",
-        paste(overlap, collapse = ", ")
-      )
-    }
-  }
-
-  # ── 7. Wide-to-long reshape (melt) ─────────────────────────────────────────
-  # variable.factor = FALSE: keep `variable` as character, ensuring split()
-  # sort order matches lexicographic expectations
-  dt_long <- data.table::melt(
-    data,
-    measure.vars    = cols2l,
-    variable.name   = "variable",
-    value.name      = "value",
-    variable.factor = FALSE   # <- critical: prevents implicit factor coercion
-  )
-
-  # ── 8. Determine split keys and split ──────────────────────────────────────
-  # split() constructs names from key combinations internally — no manual
-  # paste() reconstruction needed, which was the source of the original
-  # name-misalignment bug
-  split_keys <- if (!is.null(by)) c("variable", by) else "variable"
-
-  dt_list <- split(dt_long, by = split_keys, keep.by = FALSE, drop = TRUE, sep = sep)
-
-  # ── 9. Convert to requested output type and return ─────────────────────────
-  return(.convert_split_type(dt_list, split_type))
-}
-```
-  
-```{r example-w2l_split}
-# Example: Wide to long format splitting demonstrations
-
-# Example 1: Basic splitting by Species
-w2l_split(
-  data = iris,                    # Input dataset
-  by = "Species"                  # Split by Species column
-) |> 
-  lapply(head)                    # Show first 6 rows of each split
-
-# Example 2: Split specific columns using numeric indices
-w2l_split(
-  data = iris,                    # Input dataset
-  cols2l = 1:3,                   # Select first 3 columns to split
-  by = 5                          # Split by column index 5 (Species)
-) |> 
-  lapply(head)                    # Show first 6 rows of each split
-
-# Example 3: Split specific columns using column names
-list_res <- w2l_split(
-  data = iris,                    # Input dataset
-  cols2l = c("Sepal.Length",      # Select columns by name
-             "Sepal.Width"),
-  by = "Species"                  # Split by Species column
-)
-lapply(list_res, head)            # Show first 6 rows of each split
-# Returns similar structure to Example 2
-```
-
-
-```{r function-.convert_split_type}
-#
-# Using setattr(copy(x), "class", "data.frame") instead of as.data.frame(x)
-# avoids a deep column-vector duplication on every list element, significantly
-# reducing GC pressure when the list has many elements.
-#
-# @param dt_list   Named list of data.table objects produced by split().
-# @param split_type "dt" to keep as data.table, "df" to convert to data.frame.
-# @return          The same named list with elements of the requested class.
-.convert_split_type <- function(dt_list, split_type) {
-  if (split_type == "df") {
-    # Shallow-copy + class reassignment: avoids deep duplication of column vectors
-    dt_list <- lapply(dt_list, function(x) setattr(copy(x), "class", "data.frame"))
-  }
-  # split_type == "dt": elements are already data.tables; nothing to do
-  dt_list
-}
-```
-
-# nest_cv
-    
-```{r function-nest_cv}
-#' Apply Cross-Validation to Nested Data
-#'
-#' @description
-#' `nest_cv` applies `rsample::vfold_cv` to each nested data frame within a
-#' `data.table`, returning an expanded result table containing the corresponding
-#' training and validation splits for each row.
-#'
-#' @param nest_dt A `data.frame` or `data.table` containing at least one nested
-#'   `data.frame`/`data.table` column.
-#' @param v       Number of folds. Must be an integer >= 2. Default is `10`.
-#' @param repeats Number of repeats. Must be an integer >= 1. Default is `1`.
-#' @param strata  A single character string specifying the stratification column
-#'   name. Set to `NULL` for no stratification. Default is `NULL`.
-#' @param breaks  Number of bins for stratifying a numeric variable. Only used
-#'   when `strata` is non-`NULL`. Default is `4`.
-#' @param pool    Proportion threshold for pooling small strata. Only used when
-#'   `strata` is non-`NULL`. Default is `0.1`.
-#' @param ...     Additional arguments passed to `rsample::vfold_cv`.
-#'
-#' @details
-#' The function performs the following steps:
-#' \enumerate{
-#'   \item Validates that `nest_dt` is a non-empty `data.frame` or `data.table`
-#'         with at least one nested column whose elements all inherit from
-#'         `data.frame`.
-#'   \item Selects the target nested column: prefers a column named `"data"`;
-#'         otherwise falls back to the first detected nested column.
-#'   \item When `strata` is specified, verifies that the column exists in every
-#'         nested data frame before calling `rsample::vfold_cv`.
-#'   \item Iterates over each row, applies `vfold_cv` via `do.call`, expands the
-#'         resulting splits into a `data.table`, and broadcasts the row's
-#'         non-nested metadata columns across all CV rows.
-#'   \item Combines all per-row results with `rbindlist` in a single pass.
-#' }
-#'
-#' @return A `data.table` with the following columns:
-#' \itemize{
-#'   \item All non-nested columns from `nest_dt` (broadcast across CV rows).
-#'   \item `splits`   — cross-validation split objects from `rsample::vfold_cv`.
-#'   \item `id` (and `id2` for repeated CV) — fold identifiers.
-#'   \item `train`    — list column of training data frames for each split.
-#'   \item `validate` — list column of validation data frames for each split.
-#' }
-#'
-#' @note
-#' \itemize{
-#'   \item `nest_dt` must contain at least one nested column of `data.frame`s
-#'         or `data.table`s.
-#'   \item `as.data.table()` is used instead of `data.table::copy()`: if the
-#'         input is already a `data.table`, no copy is made.
-#'   \item `strata` must be a column name present in **all** nested data frames.
-#'   \item `breaks` and `pool` are forwarded to `rsample::vfold_cv` only when
-#'         `strata` is non-`NULL`, avoiding invalid argument errors.
-#'   \item The per-row loop with `rbindlist` corrects a silent bug in naive
-#'         chained `[` approaches where all rows incorrectly shared the first
-#'         row's CV splits.
-#' }
-#'
-#' @seealso
-#' \itemize{
-#'   \item [`rsample::vfold_cv()`]  — underlying cross-validation function
-#'   \item [`rsample::training()`]  — extract training set from a split
-#'   \item [`rsample::testing()`]   — extract test/validation set from a split
-#' }
-#'
-#' @import data.table
-#' @importFrom rsample vfold_cv training testing
-#' @export
-nest_cv <- function(nest_dt,
-                    v       = 10L,
-                    repeats = 1L,
-                    strata  = NULL,
-                    breaks  = 4L,
-                    pool    = 0.1,
-                    ...) {
-
-  # ---------------------------------------------------------------------- #
-  #  0. Declare local variables to suppress R CMD CHECK global binding notes
-  # ---------------------------------------------------------------------- #
-  splits <- train <- validate <- NULL
-
-  # ---------------------------------------------------------------------- #
-  #  1. Input validation
-  # ---------------------------------------------------------------------- #
-  if (!inherits(nest_dt, "data.frame")) {
-    stop("`nest_dt` must be a data.frame or data.table. Received: ",
-         paste(class(nest_dt), collapse = "/"))
-  }
-
-  if (nrow(nest_dt) == 0L) {
-    stop("`nest_dt` must not be empty (0 rows).")
-  }
-
-  if (!is.numeric(v) || length(v) != 1L || v < 2L) {
-    stop("`v` must be a single integer >= 2.")
-  }
-
-  if (!is.numeric(repeats) || length(repeats) != 1L || repeats < 1L) {
-    stop("`repeats` must be a single integer >= 1.")
-  }
-
-  # ---------------------------------------------------------------------- #
-  #  2. Identify nested columns
-  #     A column qualifies if it is a list whose every element inherits from
-  #     "data.frame" (data.table inherits from data.frame, so both are covered)
-  # ---------------------------------------------------------------------- #
-  nested_cols <- names(nest_dt)[vapply(nest_dt, function(col) {
-    is.list(col) &&
-      length(col) > 0L &&
-      all(vapply(col, inherits, logical(1L), what = "data.frame"))
-  }, logical(1L))]
-
-  if (length(nested_cols) == 0L) {
-    stop("`nest_dt` contains no nested data.frame/data.table columns.\n",
-         "  Column types detected: ",
-         paste(names(nest_dt),
-               vapply(nest_dt, function(x) class(x)[1L], character(1L)),
-               sep = "=", collapse = ", "))
-  }
-
-  # Prefer a column named "data"; fall back to the first nested column
-  target_col <- if ("data" %in% nested_cols) "data" else nested_cols[1L]
-
-  if (target_col != "data") {
-    message("[nest_cv] No nested column named 'data' found. ",
-            "Using '", target_col, "' instead.",
-            "\n          Available nested columns: ",
-            paste(nested_cols, collapse = ", "))
-  }
-
-  # ---------------------------------------------------------------------- #
-  #  3. Validate that the strata column exists in every nested data frame
-  # ---------------------------------------------------------------------- #
-  if (!is.null(strata)) {
-    if (!is.character(strata) || length(strata) != 1L) {
-      stop("`strata` must be a single character string (column name).")
-    }
-
-    strata_missing <- vapply(nest_dt[[target_col]], function(df) {
-      !strata %in% names(df)
-    }, logical(1L))
-
-    if (any(strata_missing)) {
-      stop("The `strata` column '", strata, "' is absent from nested ",
-           "data frame(s) at row(s): ",
-           paste(which(strata_missing), collapse = ", "), ".")
-    }
-  }
-
-  # ---------------------------------------------------------------------- #
-  #  4. Coerce to data.table
-  #     as.data.table() is a no-op when the input is already a data.table,
-  #     avoiding the full deep copy that data.table::copy() would incur
-  # ---------------------------------------------------------------------- #
-  dt <- data.table::as.data.table(nest_dt)
-
-  # Non-nested column names used for metadata broadcasting
-  non_nested_cols <- setdiff(names(dt), nested_cols)
-
-  # ---------------------------------------------------------------------- #
-  #  5. Build the vfold_cv argument list
-  #     strata-specific arguments (breaks, pool) are appended only when
-  #     strata is non-NULL, preventing invalid-argument errors in rsample
-  # ---------------------------------------------------------------------- #
-  cv_args <- c(
-    list(v = v, repeats = repeats),
-    if (!is.null(strata)) list(strata = strata, breaks = breaks, pool = pool),
-    list(...)
-  )
-
-  # ---------------------------------------------------------------------- #
-  #  6. Core logic: expand CV splits row-by-row, then combine
-  #
-  #  The original code used `dt[, cv_split[[1]], by = non_nested_cols]`,
-  #  which silently applied the *first* row's splits to every row when
-  #  nest_dt had more than one row. The row-wise loop below fixes that.
-  # ---------------------------------------------------------------------- #
-  n_rows      <- nrow(dt)
-  result_list <- vector("list", n_rows)
-
-  for (i in seq_len(n_rows)) {
-
-    # Extract the nested data frame for row i
-    nested_data_i <- dt[[target_col]][[i]]
-
-    # Generate CV splits for this nested data frame
-    cv_result_i <- do.call(
-      rsample::vfold_cv,
-      c(list(data = nested_data_i), cv_args)
-    )
-
-    # Convert rsample tibble to data.table (no tibble dependency retained)
-    cv_dt_i <- data.table::as.data.table(cv_result_i)
-
-    # Append training and validation list-columns in place (modify by reference)
-    cv_dt_i[, train    := lapply(splits, rsample::training)]
-    cv_dt_i[, validate := lapply(splits, rsample::testing )]
-
-    # Broadcast the non-nested metadata from row i across all CV rows
-    if (length(non_nested_cols) > 0L) {
-      n_cv       <- nrow(cv_dt_i)
-      meta_i     <- dt[i, ..non_nested_cols]
-      # rep() ensures explicit row replication; avoids implicit recycling risks
-      meta_expanded <- meta_i[rep(1L, n_cv)]
-      result_list[[i]] <- data.table::setcolorder(
-        cbind(meta_expanded, cv_dt_i),
-        c(non_nested_cols, setdiff(names(cv_dt_i), non_nested_cols))
-      )
-    } else {
-      result_list[[i]] <- cv_dt_i
-    }
-  }
-
-  # ---------------------------------------------------------------------- #
-  #  7. Combine all per-row results in a single rbindlist pass
-  #     use.names = TRUE  : align by column name (guards against column reorder)
-  #     fill      = FALSE : all rows must have identical structure
-  # ---------------------------------------------------------------------- #
-  data.table::rbindlist(result_list, use.names = TRUE, fill = FALSE)
-}
-```
-  
-```{r example-nest_cv}
-# Example: Cross-validation for nested data.table demonstrations
-
-# Setup test data
-dt_nest <- w2l_nest(
-  data = iris,                   # Input dataset
-  cols2l = 1:2                   # Nest first 2 columns
-)
-
-# Example 1: Basic 2-fold cross-validation
-nest_cv(
-  nest_dt = dt_nest,             # Input nested data.table
-  v = 2                          # Number of folds (2-fold CV)
-)
-
-# Example 2: Repeated 2-fold cross-validation
-nest_cv(
-  nest_dt = dt_nest,             # Input nested data.table
-  v = 2,                         # Number of folds (2-fold CV)
-  repeats = 2                    # Number of repetitions
 )
 ```
 
@@ -3026,7 +2736,292 @@ get_path_info(paths, n = -1, rm_extension = TRUE)
 get_path_info(paths, n = c(2, 3))
 ```
 
+# format_digits
+    
+```{r function-format_digits}
+#' Format Numeric Columns to Fixed-Decimal Character Strings
+#'
+#' @param data        A data.frame or data.table. The input dataset.
+#' @param cols        A character or integer vector specifying columns to format.
+#'                    If NULL (default), all numeric columns are formatted.
+#' @param digits      A non-negative integer specifying decimal places. Defaults to 2.
+#' @param percentage  Logical. If TRUE, values are multiplied by 100 and a "%"
+#'                    sign is appended. Defaults to FALSE.
+#' @param nan_as_na   Logical. If TRUE, NaN is treated identically to NA and
+#'                    coerced to NA_character_. If FALSE (default), NaN is
+#'                    preserved as the string "NaN".
+#'
+#' @return A data.table with the specified numeric columns formatted as character
+#'         strings. The original object is never modified.
+#'
+#' @details
+#' The function processes columns in the following order:
+#' \enumerate{
+#'   \item Validates all input parameters with informative error messages.
+#'   \item Copies the input only once: data.table inputs are deep-copied via
+#'         \code{copy()}; data.frame inputs are copied implicitly by
+#'         \code{as.data.table()}, avoiding a redundant second copy.
+#'   \item Resolves \code{cols} to a character vector of valid numeric column
+#'         names, warning and skipping any non-numeric columns specified.
+#'   \item Applies a vectorised formatting function via
+#'         \code{lapply(.SD, fn)} and \code{:=}, so all target columns are
+#'         dispatched in a single data.table call rather than a column-by-column
+#'         loop.
+#' }
+#'
+#' NA and NaN handling:
+#' \itemize{
+#'   \item \code{NA_real_} is always returned as \code{NA_character_}.
+#'   \item \code{NaN} is returned as \code{"NaN"} by default. Set
+#'         \code{nan_as_na = TRUE} to coerce it to \code{NA_character_} instead.
+#' }
+#'
+#' Rounding uses explicit \code{round()} before \code{sprintf()} to guarantee
+#' consistent results across platforms (Windows, Linux, macOS), where the
+#' underlying C library's rounding behaviour may otherwise differ.
+#'
+#' @note
+#' \itemize{
+#'   \item \code{data} must be a data.frame or data.table.
+#'   \item Integer column indices in \code{cols} are converted to column names
+#'         internally; duplicates are silently removed.
+#'   \item \code{digits} accepts numeric values such as \code{2.0} and coerces
+#'         them to integer; non-integer-valued numbers raise an error.
+#'   \item The function depends only on \code{data.table} and base R.
+#' }
+#'
+#' @import data.table
+#' @export
+format_digits <- function(data,
+                          cols       = NULL,
+                          digits     = 2L,
+                          percentage = FALSE,
+                          nan_as_na  = FALSE) {
 
+  # -- 1. Input validation ---------------------------------------------------
+  if (!is.data.frame(data)) {
+    stop("'data' must be a data.frame or data.table.", call. = FALSE)
+  }
+  if (!is.logical(percentage) || length(percentage) != 1L || is.na(percentage)) {
+    stop("'percentage' must be a single non-NA logical value (TRUE or FALSE).",
+         call. = FALSE)
+  }
+  if (!is.logical(nan_as_na) || length(nan_as_na) != 1L || is.na(nan_as_na)) {
+    stop("'nan_as_na' must be a single non-NA logical value (TRUE or FALSE).",
+         call. = FALSE)
+  }
+
+  # -- 2. Coerce digits to integer (tolerates inputs like 2.0) --------------
+  digits <- suppressWarnings(as.integer(digits))
+  if (is.na(digits) || length(digits) != 1L || digits < 0L) {
+    stop("'digits' must be a single non-negative integer (e.g. 0, 1, 2, ...).",
+         call. = FALSE)
+  }
+
+  # -- 3. Single-copy strategy -----------------------------------------------
+  # data.table input  -> copy() performs one explicit deep copy.
+  # data.frame input  -> as.data.table() allocates a new object; no second
+  #                      copy() needed, avoiding the double-allocation present
+  #                      in the original implementation.
+  result <- if (is.data.table(data)) copy(data) else as.data.table(data)
+
+  # -- 4. Resolve cols to a valid character vector of column names -----------
+  if (is.null(cols)) {
+    # vapply with a fixed return type is safer and faster than sapply
+    target_cols <- names(result)[vapply(result, is.numeric, logical(1L))]
+
+  } else {
+    if (!is.numeric(cols) && !is.character(cols)) {
+      stop("'cols' must be a character vector of column names or an integer ",
+           "vector of column indices.", call. = FALSE)
+    }
+    if (length(cols) == 0L) {
+      stop("'cols' must not be empty. Pass NULL to format all numeric columns.",
+           call. = FALSE)
+    }
+
+    # Convert integer indices to column names
+    if (is.numeric(cols)) {
+      cols    <- as.integer(cols)
+      bad_idx <- cols < 1L | cols > ncol(result)
+      if (any(bad_idx)) {
+        stop("Column indices out of range (valid range: 1-", ncol(result), "): ",
+             paste(cols[bad_idx], collapse = ", "), call. = FALSE)
+      }
+      cols <- names(result)[cols]
+    }
+
+    # Drop duplicates to prevent undefined behaviour from repeated := assignment
+    cols <- unique(cols)
+
+    # Verify all names exist
+    missing_cols <- setdiff(cols, names(result))
+    if (length(missing_cols) > 0L) {
+      stop("The following columns were not found in 'data': ",
+           paste(missing_cols, collapse = ", "), call. = FALSE)
+    }
+
+    # Use .subset2 to extract each column vector directly, bypassing the
+    # [.data.table dispatch overhead - measurably faster on wide tables.
+    is_num <- vapply(cols,
+                     function(cn) is.numeric(.subset2(result, cn)),
+                     logical(1L))
+    non_numeric <- cols[!is_num]
+    if (length(non_numeric) > 0L) {
+      warning("The following columns are not numeric and will be skipped: ",
+              paste(non_numeric, collapse = ", "), call. = FALSE)
+      cols <- cols[is_num]
+    }
+    if (length(cols) == 0L) {
+      message("No formattable numeric columns remain. Returning a copy of the input.")
+      return(result)
+    }
+    target_cols <- cols
+  }
+
+  # -- 5. Edge case: no numeric columns present ------------------------------
+  if (length(target_cols) == 0L) {
+    message("'data' contains no numeric columns. Returning a copy of the input.")
+    return(result)
+  }
+
+  # -- 6. Build the format template once; reuse across all target columns ----
+  fmt_tpl <- paste0("%.", digits, "f", if (percentage) "%%" else "")
+
+  # -- 7. Vectorised formatting function -------------------------------------
+  # Design rationale:
+  #   a) Explicit round() before sprintf() ensures identical rounding across
+  #      platforms; sprintf alone delegates to the C library, whose tie-breaking
+  #      behaviour differs between Windows, Linux, and macOS.
+  #   b) NA_real_ and NaN are handled separately:
+  #        - NA_real_ -> always NA_character_
+  #        - NaN      -> "NaN" by default; NA_character_ when nan_as_na = TRUE
+  #   c) data.table::fifelse (C-level) is used instead of base ifelse to avoid
+  #      R-level type checking and recycling logic (~3-5x faster on large vectors).
+  fmt_fn <- if (percentage) {
+    function(x) {
+      val <- sprintf(fmt_tpl, round(x * 100, digits))
+      val <- fifelse(is.na(x) & !is.nan(x), NA_character_, val)
+      if (nan_as_na) val <- fifelse(is.nan(x), NA_character_, val)
+      val
+    }
+  } else {
+    function(x) {
+      val <- sprintf(fmt_tpl, round(x, digits))
+      val <- fifelse(is.na(x) & !is.nan(x), NA_character_, val)
+      if (nan_as_na) val <- fifelse(is.nan(x), NA_character_, val)
+      val
+    }
+  }
+
+  # -- 8. Batch in-place update via data.table's := -------------------------
+  # lapply(.SD, fmt_fn) dispatches all target columns in a single data.table
+  # call, reducing R->C layer transitions compared to a for + set() loop.
+  result[, (target_cols) := lapply(.SD, fmt_fn), .SDcols = target_cols][]
+
+  return(result)
+}
+```
+  
+```{r example-format_digits}
+# Example: Number formatting demonstrations
+
+# Setup test data
+dt <- data.table::data.table(
+  a = c(0.1234, 0.5678),      # Numeric column 1
+  b = c(0.2345, 0.6789),      # Numeric column 2
+  c = c("text1", "text2")     # Text column
+)
+
+# Example 1: Format all numeric columns
+format_digits(
+  dt,                         # Input data table
+  digits = 2                  # Round to 2 decimal places
+)
+
+# Example 2: Format specific column as percentage
+format_digits(
+  dt,                         # Input data table
+  cols = c("a"),              # Only format column 'a'
+  digits = 2,                 # Round to 2 decimal places
+  percentage = TRUE           # Convert to percentage
+)
+```
+
+# mintyr_example
+    
+```{r function-mintyr_example}
+#' Get path to mintyr examples
+#' 
+#' `mintyr` comes bundled with a number of sample files in
+#' its `inst/extdata` directory. Use `mintyr_example()` to retrieve the full file path to a 
+#' specific example file.
+#' 
+#' @param path Name of the example file to locate. If NULL or missing,
+#'   returns the directory path containing the examples.
+#' @return Character string containing the full path to the requested example file.
+#' @seealso [mintyr::mintyr_examples()] to list all available example files
+#' @export
+mintyr_example <- function(path = NULL) {
+  # Handle case when path is NULL or missing
+  if (is.null(path)) {
+    return(system.file("extdata", package = "mintyr", mustWork = TRUE))
+  }
+  
+  
+  # Get the file path
+  file_path <- system.file("extdata", path, package = "mintyr", mustWork = TRUE)
+  
+  return(file_path)
+}
+```
+  
+```{r example-mintyr_example}
+# Get path to an example file
+mintyr_example("csv_test1.csv")
+```
+
+# mintyr_examples
+    
+```{r function-mintyr_examples}
+#' List all available example files in mintyr package
+#' 
+#' `mintyr` comes bundled with a number of sample files in its `inst/extdata` 
+#' directory. This function lists all available example files, optionally filtered
+#' by a pattern.
+#' 
+#' @param pattern A regular expression to filter filenames. If `NULL` (default),
+#'   all available files are returned.
+#' @return A character vector containing the names of example files. If no files
+#'   match the pattern or if the example directory is empty, returns a zero-length
+#'   character vector.
+#' @seealso [mintyr::mintyr_example()] to get the full path of a specific example file
+#' @export
+mintyr_examples <- function(pattern = NULL) {
+  # Validate pattern if provided
+  if (!is.null(pattern)) {
+    if (!is.character(pattern)) {
+      stop("'pattern' must be a character string or NULL", call. = FALSE)
+    }
+  }
+  
+  # Get the example directory path
+  example_dir <- system.file("extdata", package = "mintyr")
+  
+  # Check if directory exists
+  if (example_dir == "") {
+    return(character(0))
+  }
+  
+  # Get and return matching files
+  list.files(example_dir, pattern = pattern)
+}
+```
+  
+```{r example-mintyr_examples}
+# List all example files
+mintyr_examples()
+```
 <!-- 
 # Inflate your package
 

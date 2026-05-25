@@ -1,8 +1,5 @@
 url: https://tony2015116.github.io/mintyr/
-# template:
-#   params:
-#     bootswatch: cosmo
-#     dev_stats: true
+
 template:
   bootswatch: cosmo
   theme: arrow-dark
@@ -20,15 +17,7 @@ navbar:
       href: https://github.com/tony2015116/mintyr/discussions
 
 
-# development:
-#   mode: release
 reference:
-# - title: import functions
-#   desc: |
-#     import csv or xlsx
-#   contents:
-#   - '`import_csv`'
-#   - '`import_xlsx`'
 - title: Genome selcetion with mintyr
   desc: |
     Streamlines iterative models when working with `ASReml-R` package

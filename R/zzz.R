@@ -3,23 +3,27 @@ utils::globalVariables("..non_nested_cols")
 .onAttach <- function(libname, pkgname) {
   pkg_version <- as.character(utils::packageVersion("mintyr"))
 
-  # Dynamic time greeting logic
+  # 动态时间问候 (使用 ASCII Unicode 转义)
+  # \U0001F989 (🦉), \u2615 (☕), \u2600 (☀️), \U0001F319 (🌙)
   hour <- as.numeric(format(Sys.time(), "%H"))
-  greeting <- if (hour < 12) {
-    "Good morning!"
+  greeting <- if (hour < 5) {
+    "\U0001F989 Late night hacking? Remember to save your workspace."
+  } else if (hour < 12) {
+    "\u2615 Good morning! Coffee first, data second."
   } else if (hour < 18) {
-    "Good afternoon!"
+    "\u2600 Good afternoon! Keep calm and analyze on."
   } else {
-    "Good evening!"
+    "\U0001F319 Good evening! May your code run fast while you sleep."
   }
 
-  # Assemble startup message with Unicode escapes for emojis
-  # \U0001F9E0 is Brain (🧠), \U0001F4A1 is Lightbulb (💡)
+  # 组装启动信息
+  # \U0001F33F (🌿)
   msg <- paste0(
+    "\n",
     "==========================================================\n",
-    " ", greeting, " mintyr (v", pkg_version, ") Loaded.\n",
-    " \U0001F4A1 Reminder: Put First Things First.\n",
-    "=========================================================="
+    " \U0001F33F mintyr v", pkg_version, " Loaded.\n",
+    " ", greeting, "\n",
+    "==========================================================\n"
   )
 
   packageStartupMessage(msg)

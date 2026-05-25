@@ -36,6 +36,99 @@ Fill and run the content of this chunk, before anything else.
 Note: when you will use other flat templates, this part will be in a separate file. Do not be surprised!
 --> 
 
+# w2l_nest
+    
+  
+```{r example-w2l_nest}
+# Example: Wide to long format nesting demonstrations
+
+# Example 1: Basic nesting by group
+w2l_nest(
+  data = iris,                    # Input dataset
+  by = "Species"                  # Group by Species column
+)
+
+# Example 2: Nest specific columns with numeric indices
+w2l_nest(
+  data = iris,                    # Input dataset
+  cols2l = 1:4,                   # Select first 4 columns to nest
+  by = "Species"                  # Group by Species column
+)
+
+# Example 3: Nest specific columns with column names
+w2l_nest(
+  data = iris,                    # Input dataset
+  cols2l = c("Sepal.Length",      # Select columns by name
+             "Sepal.Width", 
+             "Petal.Length"),
+  by = 5                          # Group by column index 5 (Species)
+)
+# Returns similar structure to Example 2
+```
+
+
+
+
+
+# w2l_split
+    
+  
+```{r example-w2l_split}
+# Example: Wide to long format splitting demonstrations
+
+# Example 1: Basic splitting by Species
+w2l_split(
+  data = iris,                    # Input dataset
+  by = "Species"                  # Split by Species column
+) |> 
+  lapply(head)                    # Show first 6 rows of each split
+
+# Example 2: Split specific columns using numeric indices
+w2l_split(
+  data = iris,                    # Input dataset
+  cols2l = 1:3,                   # Select first 3 columns to split
+  by = 5                          # Split by column index 5 (Species)
+) |> 
+  lapply(head)                    # Show first 6 rows of each split
+
+# Example 3: Split specific columns using column names
+list_res <- w2l_split(
+  data = iris,                    # Input dataset
+  cols2l = c("Sepal.Length",      # Select columns by name
+             "Sepal.Width"),
+  by = "Species"                  # Split by Species column
+)
+lapply(list_res, head)            # Show first 6 rows of each split
+# Returns similar structure to Example 2
+```
+
+
+
+# nest_cv
+    
+  
+```{r example-nest_cv}
+# Example: Cross-validation for nested data.table demonstrations
+
+# Setup test data
+dt_nest <- w2l_nest(
+  data = iris,                   # Input dataset
+  cols2l = 1:2                   # Nest first 2 columns
+)
+
+# Example 1: Basic 2-fold cross-validation
+nest_cv(
+  nest_dt = dt_nest,             # Input nested data.table
+  v = 2                          # Number of folds (2-fold CV)
+)
+
+# Example 2: Repeated 2-fold cross-validation
+nest_cv(
+  nest_dt = dt_nest,             # Input nested data.table
+  v = 2,                         # Number of folds (2-fold CV)
+  repeats = 2                    # Number of repetitions
+)
+```
 
 
 # split_cv
@@ -239,51 +332,24 @@ file.remove(files)          # Remove all exported files
 ```
 
 
-# format_digits
-    
-  
-```{r example-format_digits}
-# Example: Number formatting demonstrations
+# import_csv
 
-# Setup test data
-dt <- data.table::data.table(
-  a = c(0.1234, 0.5678),      # Numeric column 1
-  b = c(0.2345, 0.6789),      # Numeric column 2
-  c = c("text1", "text2")     # Text column
+```{r examples-import_csv}
+# Example: CSV file import demonstrations
+
+# Setup test files
+csv_files <- mintyr_example(
+  mintyr_examples("csv_test")     # Get example CSV files
 )
 
-# Example 1: Format all numeric columns
-format_digits(
-  dt,                         # Input data table
-  digits = 2                  # Round to 2 decimal places
+# Example 1: Import and combine CSV files using data.table
+import_csv(
+  csv_files,                      # Input CSV file paths
+  rbind = TRUE,                   # Combine all files into one data.table
+  rbind_label = "_file",          # Column name for file source
+  keep_ext = TRUE,                # Include .csv extension in _file column
+  full_path = TRUE                # Show complete file paths in _file column
 )
-
-# Example 2: Format specific column as percentage
-format_digits(
-  dt,                         # Input data table
-  cols = c("a"),              # Only format column 'a'
-  digits = 2,                 # Round to 2 decimal places
-  percentage = TRUE           # Convert to percentage
-)
-```
-
-
-
-# mintyr_example
-    
-  
-```{r example-mintyr_example}
-# Get path to an example file
-mintyr_example("csv_test1.csv")
-```
-
-
-# mintyr_examples
-    
-  
-```{r example-mintyr_examples}
-# List all example files
-mintyr_examples()
 ```
 
 
@@ -309,122 +375,6 @@ import_xlsx(
   xlsx_files,                     # Input Excel file paths
   rbind = FALSE,                  # Keep sheets as separate data.tables
   sheet = 2                       # Only import first sheet
-)
-```
-
-
-# import_csv
-
-```{r examples-import_csv}
-# Example: CSV file import demonstrations
-
-# Setup test files
-csv_files <- mintyr_example(
-  mintyr_examples("csv_test")     # Get example CSV files
-)
-
-# Example 1: Import and combine CSV files using data.table
-import_csv(
-  csv_files,                      # Input CSV file paths
-  rbind = TRUE,                   # Combine all files into one data.table
-  rbind_label = "_file",          # Column name for file source
-  keep_ext = TRUE,                # Include .csv extension in _file column
-  full_path = TRUE                # Show complete file paths in _file column
-)
-```
-
-
-# w2l_nest
-    
-  
-```{r example-w2l_nest}
-# Example: Wide to long format nesting demonstrations
-
-# Example 1: Basic nesting by group
-w2l_nest(
-  data = iris,                    # Input dataset
-  by = "Species"                  # Group by Species column
-)
-
-# Example 2: Nest specific columns with numeric indices
-w2l_nest(
-  data = iris,                    # Input dataset
-  cols2l = 1:4,                   # Select first 4 columns to nest
-  by = "Species"                  # Group by Species column
-)
-
-# Example 3: Nest specific columns with column names
-w2l_nest(
-  data = iris,                    # Input dataset
-  cols2l = c("Sepal.Length",      # Select columns by name
-             "Sepal.Width", 
-             "Petal.Length"),
-  by = 5                          # Group by column index 5 (Species)
-)
-# Returns similar structure to Example 2
-```
-
-
-
-
-
-# w2l_split
-    
-  
-```{r example-w2l_split}
-# Example: Wide to long format splitting demonstrations
-
-# Example 1: Basic splitting by Species
-w2l_split(
-  data = iris,                    # Input dataset
-  by = "Species"                  # Split by Species column
-) |> 
-  lapply(head)                    # Show first 6 rows of each split
-
-# Example 2: Split specific columns using numeric indices
-w2l_split(
-  data = iris,                    # Input dataset
-  cols2l = 1:3,                   # Select first 3 columns to split
-  by = 5                          # Split by column index 5 (Species)
-) |> 
-  lapply(head)                    # Show first 6 rows of each split
-
-# Example 3: Split specific columns using column names
-list_res <- w2l_split(
-  data = iris,                    # Input dataset
-  cols2l = c("Sepal.Length",      # Select columns by name
-             "Sepal.Width"),
-  by = "Species"                  # Split by Species column
-)
-lapply(list_res, head)            # Show first 6 rows of each split
-# Returns similar structure to Example 2
-```
-
-
-
-# nest_cv
-    
-  
-```{r example-nest_cv}
-# Example: Cross-validation for nested data.table demonstrations
-
-# Setup test data
-dt_nest <- w2l_nest(
-  data = iris,                   # Input dataset
-  cols2l = 1:2                   # Nest first 2 columns
-)
-
-# Example 1: Basic 2-fold cross-validation
-nest_cv(
-  nest_dt = dt_nest,             # Input nested data.table
-  v = 2                          # Number of folds (2-fold CV)
-)
-
-# Example 2: Repeated 2-fold cross-validation
-nest_cv(
-  nest_dt = dt_nest,             # Input nested data.table
-  v = 2,                         # Number of folds (2-fold CV)
-  repeats = 2                    # Number of repetitions
 )
 ```
 
@@ -481,6 +431,51 @@ get_path_info(paths, n = c(2, 3))
 ```
 
 
+# format_digits
+    
+  
+```{r example-format_digits}
+# Example: Number formatting demonstrations
+
+# Setup test data
+dt <- data.table::data.table(
+  a = c(0.1234, 0.5678),      # Numeric column 1
+  b = c(0.2345, 0.6789),      # Numeric column 2
+  c = c("text1", "text2")     # Text column
+)
+
+# Example 1: Format all numeric columns
+format_digits(
+  dt,                         # Input data table
+  digits = 2                  # Round to 2 decimal places
+)
+
+# Example 2: Format specific column as percentage
+format_digits(
+  dt,                         # Input data table
+  cols = c("a"),              # Only format column 'a'
+  digits = 2,                 # Round to 2 decimal places
+  percentage = TRUE           # Convert to percentage
+)
+```
+
+
+# mintyr_example
+    
+  
+```{r example-mintyr_example}
+# Get path to an example file
+mintyr_example("csv_test1.csv")
+```
+
+
+# mintyr_examples
+    
+  
+```{r example-mintyr_examples}
+# List all example files
+mintyr_examples()
+```
 
 <!-- 
 # Inflate your package

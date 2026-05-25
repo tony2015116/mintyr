@@ -105,11 +105,31 @@
 <h2 id="sparkles-key-features">✨ Key Features<a class="anchor" aria-label="anchor" href="#sparkles-key-features"></a>
 </h2>
 <p><code>mintyr</code> covers five critical stages in the lifecycle of breeding data analysis:</p>
-<p><strong>🚀 High-Performance Data Importing (<code>import_xlsx</code>, <code>import_csv</code>)</strong> - Native support for merging multiple files and sheets simultaneously. - Automatically appends source tracking columns (<code>excel_name</code>, <code>sheet_name</code>) to prevent data confusion across different farms or batches. - Utilizes OpenMP multi-threading and in-place <code>data.table</code> conversion for a minimal memory footprint.</p>
-<p><strong>🔄 Automated Data Reshaping &amp; Nesting (<code>w2l_nest</code>, <code>c2p_nest</code>, <code>r2p_nest</code>)</strong> - <code>c2p_nest</code>: Column-to-pairs nested transformation that automatically renames feature columns, providing standard uniform inputs for iterative multi-trait genetic correlation evaluations. - <code>w2l_nest</code> / <code>w2l_split</code>: Wide-to-long format transformations with subsetting and nesting by grouping variables (e.g., farm, breed, or line).</p>
-<p><strong>🧪 Cross-Validation &amp; Model Evaluation (<code>split_cv</code>, <code>nest_cv</code>)</strong> - Provides streamlined k-fold cross-validation and repeated CV splitting tailored for nested <code>data.table</code> structures, facilitating the evaluation of breeding value prediction accuracy (GP).</p>
-<p><strong>📊 Batch Exporting for Breeding Software (<code>export_nest</code>, <code>export_list</code>)</strong> - Automatically builds local folder hierarchies and batch-exports data based on nested groups or list structures (e.g., <code>tempdir()/Line/Breed/data.txt</code>), providing seamless text-file preparation to bridge the gap with command-line driven breeding evaluation software like HIBLUP and DMU.</p>
-<p><strong>🛠️ Phenotypic Statistics &amp; Preprocessing (<code>top_perc</code>, <code>format_digits</code>, <code>get_path_info</code>)</strong> - Quickly extracts the top N% performing individuals for specific traits, supporting independent extraction by analytical groups (e.g., different test batches), alongside robust number formatting and path-parsing utilities.</p>
+<p><strong>🚀 High-Performance Data Importing (<code>import_xlsx</code>, <code>import_csv</code>)</strong></p>
+<ul>
+<li>Native support for merging multiple files and sheets simultaneously.</li>
+<li>Automatically appends source tracking columns (<code>excel_name</code>, <code>sheet_name</code>) to prevent data confusion across different farms or batches.</li>
+<li>Utilizes OpenMP multi-threading and in-place <code>data.table</code> conversion for a minimal memory footprint.</li>
+</ul>
+<p><strong>🔄 Automated Data Reshaping &amp; Nesting (<code>w2l_nest</code>, <code>c2p_nest</code>, <code>r2p_nest</code>)</strong></p>
+<ul>
+<li>
+<code>c2p_nest</code>: Column-to-pairs nested transformation that automatically renames feature columns, providing standard uniform inputs for iterative multi-trait genetic correlation evaluations.</li>
+<li>
+<code>w2l_nest</code> / <code>w2l_split</code>: Wide-to-long format transformations with subsetting and nesting by grouping variables (e.g., farm, breed, or line).</li>
+</ul>
+<p><strong>🧪 Cross-Validation &amp; Model Evaluation (<code>split_cv</code>, <code>nest_cv</code>)</strong></p>
+<ul>
+<li>Provides streamlined k-fold cross-validation and repeated CV splitting tailored for nested <code>data.table</code> structures, facilitating the evaluation of breeding value prediction accuracy (GP).</li>
+</ul>
+<p><strong>📊 Batch Exporting for Breeding Software (<code>export_nest</code>, <code>export_list</code>)</strong></p>
+<ul>
+<li>Automatically builds local folder hierarchies and batch-exports data based on nested groups or list structures (e.g., <code>tempdir()/Line/Breed/data.txt</code>), providing seamless text-file preparation to bridge the gap with command-line driven breeding evaluation software like HIBLUP and DMU.</li>
+</ul>
+<p><strong>🛠️ Phenotypic Statistics &amp; Preprocessing (<code>top_perc</code>, <code>format_digits</code>, <code>get_path_info</code>)</strong></p>
+<ul>
+<li>Quickly extracts the top N% performing individuals for specific traits, supporting independent extraction by analytical groups (e.g., different test batches), alongside robust number formatting and path-parsing utilities.</li>
+</ul>
 </div>
 <div class="section level2">
 <h2 id="inbox_tray-installation">📥 Installation<a class="anchor" aria-label="anchor" href="#inbox_tray-installation"></a>

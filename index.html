@@ -100,51 +100,19 @@
 <!--[![CodeFactor](https://www.codefactor.io/repository/github/tony2015116/mintyr/badge/main)](https://www.codefactor.io/repository/github/tony2015116/mintyr/overview/main)
 [![GitHub R package version](https://img.shields.io/github/r-package/v/tony2015116/mintyr)](#)-->
 <p><code>mintyr</code> is a high-performance data processing toolkit designed specifically for <strong>animal breeding and genomic selection</strong>. Leveraging the zero-copy and multi-threading capabilities of <code>data.table</code>, it significantly simplifies the construction of automated data pipelines in large-scale commercial breeding programs (e.g., coordinating data across nucleus and multiplier farms, or handling multi-trait growth test records).</p>
-<p>The package is not only highly optimized for iterative analysis workflows with the <code>ASReml-R</code> package (supporting dynamic modeling and multi-trait/multi-breed nested grouping), but <strong>is also capable of generating and batch-exporting formatted phenotypic data files required for automated pipeline analyses in other mainstream command-line breeding software (e.g., HIBLUP, DMU, BLUPf90)</strong>.</p>
+<p>The package is not only highly optimized for iterative analysis workflows with the <code>ASReml-R</code> package (supporting dynamic modeling and multi-trait/multi-breed nested grouping), but is also capable of generating and batch-exporting formatted phenotypic data files required for automated pipeline analyses in other mainstream command-line breeding software (e.g., HIBLUP, DMU).</p>
 <div class="section level2">
 <h2 id="sparkles-key-features">✨ Key Features<a class="anchor" aria-label="anchor" href="#sparkles-key-features"></a>
 </h2>
 <p><code>mintyr</code> covers five critical stages in the lifecycle of breeding data analysis:</p>
-<ol style="list-style-type: decimal">
-<li>
-<strong>🚀 High-Performance Data Importing (<code>import_xlsx</code>, <code>import_csv</code>)</strong>
-<ul>
-<li>Native support for merging multiple files and sheets simultaneously.</li>
-<li>Automatically appends source tracking columns (<code>excel_name</code>, <code>sheet_name</code>) to prevent data confusion across different farms or batches.</li>
-<li>Utilizes OpenMP multi-threading and in-place <code>data.table</code> conversion for a minimal memory footprint.</li>
-</ul>
-</li>
-<li>
-<strong>🔄 Automated Data Reshaping &amp; Nesting (<code>w2l_nest</code>, <code>c2p_nest</code>, <code>r2p_nest</code>)</strong>
-<ul>
-<li>
-<code>c2p_nest</code>: Column-to-pairs nested transformation that automatically renames feature columns, providing standard uniform inputs for iterative multi-trait genetic correlation evaluations.</li>
-<li>
-<code>w2l_nest</code> / <code>w2l_split</code>: Wide-to-long format transformations with subsetting and nesting by grouping variables (e.g., farm, breed, or line).</li>
-</ul>
-</li>
-<li>
-<strong>🧪 Cross-Validation &amp; Model Evaluation (<code>split_cv</code>, <code>nest_cv</code>)</strong>
-<ul>
-<li>Provides streamlined k-fold cross-validation and repeated CV splitting tailored for nested <code>data.table</code> structures, facilitating the evaluation of breeding value prediction accuracy (GP).</li>
-</ul>
-</li>
-<li>
-<strong>📊 Batch Exporting for Breeding Software (<code>export_nest</code>, <code>export_list</code>)</strong>
-<ul>
-<li>Automatically builds local folder hierarchies and batch-exports data based on nested groups or list structures (e.g., <code>tempdir()/Line/Breed/data.txt</code>), <strong>providing seamless text-file preparation to bridge the gap with command-line driven breeding evaluation software like DMU and BLUPf90</strong>.</li>
-</ul>
-</li>
-<li>
-<strong>🛠️ Phenotypic Statistics &amp; Preprocessing (<code>top_perc</code>, <code>format_digits</code>, <code>get_path_info</code>)</strong>
-<ul>
-<li>Quickly extracts the top N% performing individuals for specific traits, supporting independent extraction by analytical groups (e.g., different test batches), alongside robust number formatting and path-parsing utilities.</li>
-</ul>
-</li>
-</ol>
+<p><strong>🚀 High-Performance Data Importing (<code>import_xlsx</code>, <code>import_csv</code>)</strong> - Native support for merging multiple files and sheets simultaneously. - Automatically appends source tracking columns (<code>excel_name</code>, <code>sheet_name</code>) to prevent data confusion across different farms or batches. - Utilizes OpenMP multi-threading and in-place <code>data.table</code> conversion for a minimal memory footprint.</p>
+<p><strong>🔄 Automated Data Reshaping &amp; Nesting (<code>w2l_nest</code>, <code>c2p_nest</code>, <code>r2p_nest</code>)</strong> - <code>c2p_nest</code>: Column-to-pairs nested transformation that automatically renames feature columns, providing standard uniform inputs for iterative multi-trait genetic correlation evaluations. - <code>w2l_nest</code> / <code>w2l_split</code>: Wide-to-long format transformations with subsetting and nesting by grouping variables (e.g., farm, breed, or line).</p>
+<p><strong>🧪 Cross-Validation &amp; Model Evaluation (<code>split_cv</code>, <code>nest_cv</code>)</strong> - Provides streamlined k-fold cross-validation and repeated CV splitting tailored for nested <code>data.table</code> structures, facilitating the evaluation of breeding value prediction accuracy (GP).</p>
+<p><strong>📊 Batch Exporting for Breeding Software (<code>export_nest</code>, <code>export_list</code>)</strong> - Automatically builds local folder hierarchies and batch-exports data based on nested groups or list structures (e.g., <code>tempdir()/Line/Breed/data.txt</code>), providing seamless text-file preparation to bridge the gap with command-line driven breeding evaluation software like HIBLUP and DMU.</p>
+<p><strong>🛠️ Phenotypic Statistics &amp; Preprocessing (<code>top_perc</code>, <code>format_digits</code>, <code>get_path_info</code>)</strong> - Quickly extracts the top N% performing individuals for specific traits, supporting independent extraction by analytical groups (e.g., different test batches), alongside robust number formatting and path-parsing utilities.</p>
 </div>
 <div class="section level2">
-<h2 id="installation">Installation<a class="anchor" aria-label="anchor" href="#installation"></a>
+<h2 id="inbox_tray-installation">📥 Installation<a class="anchor" aria-label="anchor" href="#inbox_tray-installation"></a>
 </h2>
 <p>You can install this package from either CRAN or GitHub:</p>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
@@ -154,14 +122,14 @@
 <span><span class="fu">pak</span><span class="fu">::</span><span class="fu"><a href="https://pak.r-lib.org/reference/pak.html" class="external-link">pak</a></span><span class="op">(</span><span class="st">"tony2015116/mintyr"</span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level2">
-<h2 id="cheat-sheet">Cheat sheet<a class="anchor" aria-label="anchor" href="#cheat-sheet"></a>
+<h2 id="clipboard️-cheat-sheet">📋️ Cheat Sheet<a class="anchor" aria-label="anchor" href="#clipboard%EF%B8%8F-cheat-sheet"></a>
 </h2>
 <p><a href="https://raw.githubusercontent.com/tony2015116/mintyr/main/man/figures/cheatsheet.svg" target="_blank" class="external-link"><img src="https://raw.githubusercontent.com/tony2015116/mintyr/main/man/figures/cheatsheet.svg" alt="mintyr package quick reference guide and cheatsheet" width="800" align="center"></a></p>
 </div>
 <div class="section level2">
-<h2 id="acknowledgments">Acknowledgments<a class="anchor" aria-label="anchor" href="#acknowledgments"></a>
+<h2 id="handshake-acknowledgments">🤝 Acknowledgments<a class="anchor" aria-label="anchor" href="#handshake-acknowledgments"></a>
 </h2>
-<p>Special thanks to AI assistance, particularly ChatGPT and Claude, for helping transform the initial concepts and inspirations for the <code>mintyr</code> package into reality. Their contribution has been invaluable in refining ideas, improving code structure, and crafting documentation.</p>
+<p>Special thanks to AI assistance, for helping transform the initial concepts and inspirations for the <code>mintyr</code> package into reality. Their contribution has been invaluable in refining ideas, improving code structure, and crafting documentation.</p>
 </div>
 </div>
   </div>

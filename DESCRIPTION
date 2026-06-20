@@ -12,7 +12,7 @@ Description: A streamlined toolkit specifically designed for genomic
     include zero-copy data importing, automated cross-validation
     splitting, and robust tools to generate and batch-export formatted
     phenotypic files required by various breeding software (e.g.,
-    'ASReml-R', 'DMU', 'BLUPf90'), heavily optimizing iterative variance
+    'ASReml-R', 'HIBLUP', 'DMU'), heavily optimizing iterative variance
     component analysis and large-scale evaluation pipelines.
 License: MIT + file LICENSE
 URL: https://tony2015116.github.io/mintyr/,

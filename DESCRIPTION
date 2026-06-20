@@ -25,7 +25,8 @@ Imports:
     readxl,
     rsample,
     stats,
-    utils
+    utils,
+    writexl
 Suggests: 
     knitr,
     rmarkdown

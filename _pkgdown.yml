@@ -41,6 +41,7 @@ reference:
   contents:
   - '`import_csv`'
   - '`import_xlsx`'
+  - '`export_xlsx`'
   - '`top_perc`'
   - '`get_path_info`'
   - '`format_digits`'

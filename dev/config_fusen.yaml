@@ -7,6 +7,7 @@ flat_teaching.Rmd:
   - R/c2p_nest.R
   - R/export_list.R
   - R/export_nest.R
+  - R/export_xlsx.R
   - R/format_digits.R
   - R/get_path_info.R
   - R/import_csv.R

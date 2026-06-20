@@ -379,6 +379,34 @@ import_xlsx(
 ```
 
 
+# export_xlsx
+    
+  
+```{r example-export_xlsx}
+# Example: Excel file export demonstrations
+# Example 1: Export a plain data.frame to a single workbook
+out_file <- file.path(tempdir(), "test.xlsx")
+export_xlsx(
+  mtcars,                             # Data to export (no tracking columns)
+  path       = out_file,              # Ends in .xlsx -> one workbook
+  sheet_name = "test"                 # Worksheet tab name for the single sheet
+)
+# Clean up the generated file
+file.remove(out_file)
+
+# Example 2: Split into one file per group
+out_files <- export_xlsx(
+  iris,                               # Data to export
+  path      = tempdir(),              # A directory -> one file per file_col value
+  file_col  = "Species",              # Column whose values name the output files
+  drop_cols = FALSE                   # Keep the Species column in each output file
+)
+# Clean up the generated files (export_xlsx returns the written paths)
+file.remove(out_files)
+```
+
+  
+
 # top_perc
     
   
@@ -491,3 +519,7 @@ Build your package from this very Rmd using `fusen::inflate()`
 - Verify your test is in `"tests/testthat/"` directory
 - Verify this Rmd appears in `"vignettes/"` directory 
 -->
+
+
+
+  

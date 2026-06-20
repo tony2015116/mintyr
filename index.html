@@ -105,11 +105,11 @@
 <h2 id="sparkles-key-features">✨ Key Features<a class="anchor" aria-label="anchor" href="#sparkles-key-features"></a>
 </h2>
 <p><code>mintyr</code> covers five critical stages in the lifecycle of breeding data analysis:</p>
-<p><strong>🚀 High-Performance Data Importing (<code>import_xlsx</code>, <code>import_csv</code>, <code>export_xlsx</code>)</strong></p>
+<p><strong>🚀 High-Performance Data I/O (<code>import_xlsx</code>, <code>import_csv</code>, <code>export_xlsx</code>)</strong></p>
 <p>A transparent round-trip for multi-file, multi-sheet tabular data: import many files into one tidy <code>data.table</code>, transform freely, then write the original file/sheet structure back out — no bookkeeping required.</p>
 <ul>
 <li>
-<strong>Import (<code>import_xlsx</code>, <code>import_csv</code>):</strong> native support for merging multiple files and sheets simultaneously, with source tracking columns (<code>excel_name</code>, <code>sheet_name</code>) appended automatically to prevent data confusion across different farms or batches. Uses OpenMP multi-threading and in-place <code>data.table</code> conversion for a minimal memory footprint.</li>
+<strong>Import (<code>import_xlsx</code>, <code>import_csv</code>):</strong> native support for merging multiple files and sheets simultaneously, with source tracking columns (<code>excel_name</code>, <code>sheet_name</code>) appended automatically to prevent data confusion across different farms or batches. In-place <code>data.table</code> conversion keeps the memory footprint minimal, and <code>import_xlsx</code> can spread the per-sheet parse across CPU cores on demand (opt-in via <code>workers</code>) — a fork pool on Linux/macOS, a PSOCK cluster on Windows.</li>
 <li>
 <strong>Export (<code>export_xlsx</code>):</strong> the round-trip companion — a single <code>path</code> argument decides the destination. A <strong>directory</strong> writes one <code>.xlsx</code> per <code>excel_name</code> value (one sheet per <code>sheet_name</code>); a <strong><code>.xlsx</code> file path</strong> writes everything into one workbook. Worksheet splitting follows the data automatically, and the tracking columns are stripped by default so exported sheets match the originals.</li>
 </ul>

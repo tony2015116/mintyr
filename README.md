@@ -22,11 +22,11 @@ The package is not only highly optimized for iterative analysis workflows with t
 
 `mintyr` covers five critical stages in the lifecycle of breeding data analysis:
 
-**🚀 High-Performance Data Importing (`import_xlsx`, `import_csv`, `export_xlsx`)**
+**🚀 High-Performance Data I/O (`import_xlsx`, `import_csv`, `export_xlsx`)**
 
 A transparent round-trip for multi-file, multi-sheet tabular data: import many files into one tidy `data.table`, transform freely, then write the original file/sheet structure back out — no bookkeeping required.
 
-- **Import (`import_xlsx`, `import_csv`):** native support for merging multiple files and sheets simultaneously, with source tracking columns (`excel_name`, `sheet_name`) appended automatically to prevent data confusion across different farms or batches. Uses OpenMP multi-threading and in-place `data.table` conversion for a minimal memory footprint.
+- **Import (`import_xlsx`, `import_csv`):** native support for merging multiple files and sheets simultaneously, with source tracking columns (`excel_name`, `sheet_name`) appended automatically to prevent data confusion across different farms or batches. In-place `data.table` conversion keeps the memory footprint minimal, and `import_xlsx` can spread the per-sheet parse across CPU cores on demand (opt-in via `workers`) — a fork pool on Linux/macOS, a PSOCK cluster on Windows.
 - **Export (`export_xlsx`):** the round-trip companion — a single `path` argument decides the destination. A **directory** writes one `.xlsx` per `excel_name` value (one sheet per `sheet_name`); a **`.xlsx` file path** writes everything into one workbook. Worksheet splitting follows the data automatically, and the tracking columns are stripped by default so exported sheets match the originals.
 
 **🔄 Automated Data Reshaping & Nesting (`w2l_nest`, `c2p_nest`, `r2p_nest`)**

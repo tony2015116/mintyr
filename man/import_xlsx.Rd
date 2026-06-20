@@ -11,8 +11,8 @@ import_xlsx(
   skip = 0L,
   show_excel_name = TRUE,
   show_sheet_name = TRUE,
+  workers = 1L,
   verbose = FALSE,
-  dt_threads = data.table::getDTthreads(),
   ...
 )
 }
@@ -43,19 +43,27 @@ already encoded in list-element names).}
 recording the source sheet. Silently ignored when
 \code{rbind = FALSE}.}
 
-\item{verbose}{\code{logical(1)}. Emit a \code{message()} for every
-empty sheet encountered. Default \code{FALSE}.}
+\item{workers}{\code{integer(1)}. Number of parallel processes used to
+read the (file x sheet) tasks. Default \code{1L} (serial).
+Values \code{> 1} open a fork pool on Unix/macOS or a
+PSOCK cluster on Windows; the pool is capped at the number
+of tasks and always shut down on exit. Parallel reading
+pays off when files are large or numerous; for many tiny
+sheets the process / serialization overhead can dominate,
+so leave this at \code{1L} unless the import is heavy.}
 
-\item{dt_threads}{\code{integer(1)}. OpenMP threads for \code{data.table}
-operations (\code{rbindlist}, \code{:=}, \code{set*}).
-Defaults to the current \code{getDTthreads()} value.
-Always restored on exit.}
+\item{verbose}{\code{logical(1)}. When \code{TRUE}, print one
+\code{message()} per sheet (source file, sheet name, and
+row x col dimensions, with empty sheets flagged) followed
+by a summary line. Default \code{FALSE}. Output is emitted
+from the master process, so it surfaces identically in
+serial and parallel modes.}
 
 \item{...}{Additional arguments forwarded to
 \code{\link[readxl]{read_excel}} (e.g. \code{col_types},
 \code{na}, \code{trim_ws}). \strong{Do not} pass
-\code{sheet} or \code{skip} here; use the dedicated
-parameters above.}
+\code{path}, \code{sheet}, or \code{skip} here; use the
+dedicated parameters above.}
 }
 \value{
 \describe{
@@ -70,16 +78,25 @@ each element named \code{"<filename>_<sheetname>"}. The list carries a
 \description{
 A high-performance function for importing data from one or multiple Excel
 files into \code{data.table} format, with fine-grained control over source
-tracking columns, sheet selection, and row skipping.
+tracking columns, sheet selection, row skipping, and optional parallel
+reading across (file, sheet) pairs.
 
-Performance characteristics (v3 baseline, unchanged here):
+Performance characteristics:
 \itemize{
 \item \code{excel_sheets()} called exactly once per file (cached).
+\item The real cost of an Excel import is \code{read_excel()} parsing,
+which is single-threaded C++ and \emph{not} affected by the
+\code{data.table} thread pool. The flat (file x sheet) task list is
+therefore read in parallel \strong{across processes} when
+\code{workers > 1}: a fork pool on Unix/macOS, a PSOCK cluster on
+Windows. The cluster / fork pool is always torn down on exit.
 \item \code{setDT()} converts tibbles in-place — zero vector copies.
 \item Tracking columns injected via \code{:=} on small per-sheet tables
 \emph{before} the single final \code{rbindlist}.
-\item \code{data.table} OpenMP thread pool optionally widened and always
-restored on exit.
+\item The final \code{rbindlist} uses the ambient \code{data.table} thread
+pool; tune it globally with \code{\link[data.table]{setDTthreads}} if
+needed. Workers are pinned to a single thread during the read phase
+so parallel processes do not oversubscribe cores.
 }
 }
 \examples{

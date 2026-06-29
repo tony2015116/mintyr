@@ -169,7 +169,7 @@ export_xlsx <- function(data,
                         drop_cols  = TRUE,
                         overwrite  = TRUE,
                         verbose    = FALSE) {
-
+  
   # -- 0. Named-list input -----------------------------------------------------
   #
   # list(res1 = data1, res2 = data2, res3 = data3)
@@ -182,54 +182,75 @@ export_xlsx <- function(data,
   # Implementation: the list is handled directly inside the dispatch block
   # (step 3) rather than being "unrolled" into a combined data.frame, which
   # avoids forcing every element to share an identical column set.
-
+  
   is_named_list <- is.list(data) && !is.data.frame(data)
-
+  
   if (is_named_list) {
     if (length(data) == 0L)
       stop("`data` is an empty list -- nothing to export.", call. = FALSE)
-
+    
+    # -- Auto-fill missing names with Sheet1, Sheet2, ... ---------------------
+    # Handles three cases:
+    #   (a) fully unnamed list  -> names(data) is NULL
+    #   (b) partially named     -> some elements have "" as name
+    #   (c) fully named         -> nothing to fill
     nms <- names(data)
-    if (is.null(nms) || any(!nzchar(nms)))
-      stop("Every element of a list `data` must have a non-empty name.",
-           call. = FALSE)
+    if (is.null(nms)) nms <- rep("", length(data))
+    
+    missing <- !nzchar(nms)             # positions that need a generated name
+    if (any(missing)) {
+      # Generate candidate names Sheet1, Sheet2, ... skipping any already used
+      taken    <- nms[!missing]
+      counter  <- 0L
+      for (i in which(missing)) {
+        repeat {
+          counter  <- counter + 1L
+          candidate <- paste0("Sheet", counter)
+          if (!candidate %in% taken) break
+        }
+        nms[[i]] <- candidate
+        taken    <- c(taken, candidate)
+      }
+      names(data) <- nms
+    }
+    
     if (anyDuplicated(nms))
       stop("List names must be unique (they become file / sheet names).",
            call. = FALSE)
-
+    
     not_df <- !vapply(data, is.data.frame, logical(1L))   # data.table / tibble pass
     if (any(not_df))
       stop(sprintf(
         "All list elements must be a data.frame, data.table, or tibble.  Non-conforming element(s): %s",
         paste(nms[not_df], collapse = ", ")), call. = FALSE)
   }
-
+  
   # -- 1. Input validation (data.frame path) ----------------------------------
-
+  
   if (!is_named_list && !is.data.frame(data))
     stop("`data` must be a data.frame, data.table, tibble, or named list of data.frames.",
          call. = FALSE)
-
+  
   if (!is.character(path) || length(path) != 1L || is.na(path) || !nzchar(path))
     stop("`path` must be a single non-empty character string.", call. = FALSE)
-
+  
   if (!is.character(sheet_name) || length(sheet_name) != 1L ||
       is.na(sheet_name) || !nzchar(sheet_name))
     stop("`sheet_name` must be a single non-empty character string.", call. = FALSE)
-
+  
   if (!is.logical(overwrite) || length(overwrite) != 1L || is.na(overwrite))
     stop("`overwrite` must be a single non-NA logical.", call. = FALSE)
-
+  
   # Classify the destination: file (single workbook) vs directory.
   to_single_file <- grepl("\\.xlsx$", path, ignore.case = TRUE)
-
+  
   # -- 2. Helpers -------------------------------------------------------------
-
+  
   .safe_sheet <- function(x) {
     x <- gsub("[\\[\\]\\*\\?\\/\\\\:]", "_", x, perl = TRUE)
     substr(x, 1L, 31L)
   }
-
+  
   .save <- function(sheet_list, file) {
     dir_path <- dirname(file)
     if (!dir.exists(dir_path)) dir.create(dir_path, recursive = TRUE)
@@ -239,13 +260,13 @@ export_xlsx <- function(data,
     writexl::write_xlsx(sheet_list, path = file)
     if (verbose) message(sprintf("Saved: %s", file))
   }
-
+  
   # -- 3a. Named-list dispatch -------------------------------------------------
-
+  
   if (is_named_list) {
     nms        <- names(data)
     safe_nms   <- vapply(nms, .safe_sheet, character(1L))
-
+    
     if (to_single_file) {
       # One workbook, one sheet per list element.
       sheet_list <- stats::setNames(
@@ -257,12 +278,12 @@ export_xlsx <- function(data,
           message(sprintf("  Sheet '%s': %d rows", nm, nrow(sheet_list[[nm]])))
       .save(sheet_list, path)
       return(invisible(stats::setNames(path, path)))
-
+      
     } else {
       # Directory mode: one file per list element.
       if (!dir.exists(path)) dir.create(path, recursive = TRUE)
       out_paths <- file.path(path, paste0(nms, ".xlsx"))
-
+      
       for (i in seq_along(data)) {
         df  <- as.data.frame(data[[i]])
         lbl <- safe_nms[[i]]
@@ -273,25 +294,25 @@ export_xlsx <- function(data,
       return(invisible(stats::setNames(out_paths, nms)))
     }
   }
-
+  
   # -- 3b. data.frame dispatch (original logic) -------------------------------
-
+  
   data_df <- as.data.frame(data)
   data_dt <- if (data.table::is.data.table(data))
     data.table::copy(data)
   else
     data.table::as.data.table(data)
-
+  
   has_file_col  <- file_col  %in% names(data_df)
   has_sheet_col <- sheet_col %in% names(data_df)
-
+  
   .drop <- function(df) {
     if (!drop_cols) return(df)
     cols <- intersect(c(if (has_file_col) file_col, if (has_sheet_col) sheet_col),
                       names(df))
     if (length(cols)) df[, setdiff(names(df), cols), drop = FALSE] else df
   }
-
+  
   .build_sheet_list <- function(sub_dt, sub_df) {
     if (has_file_col && has_sheet_col) {
       keys   <- unique(sub_dt[, c(file_col, sheet_col), with = FALSE])
@@ -318,13 +339,13 @@ export_xlsx <- function(data,
       for (nm in nms) message(sprintf("  Sheet '%s': %d rows", nm, nrow(out[[nm]])))
     out
   }
-
+  
   .plain_sheet_list <- function(df) {
     lbl <- .safe_sheet(sheet_name)
     if (verbose) message(sprintf("  Sheet '%s': %d rows", lbl, nrow(df)))
     stats::setNames(list(df), lbl)
   }
-
+  
   ## (1) Single workbook
   if (to_single_file) {
     sheet_list <- if (has_file_col || has_sheet_col)
@@ -334,7 +355,7 @@ export_xlsx <- function(data,
     .save(sheet_list, path)
     return(invisible(stats::setNames(path, path)))
   }
-
+  
   ## (2) Directory: one file per file_col value
   if (!has_file_col)
     stop(sprintf(
@@ -342,18 +363,18 @@ export_xlsx <- function(data,
              "to split files by.\n",
              "  Pass a file path ending in .xlsx to write a single workbook instead."),
       path, file_col), call. = FALSE)
-
+  
   if (!dir.exists(path)) dir.create(path, recursive = TRUE)
-
+  
   file_vals <- unique(data_dt[[file_col]])
   out_paths <- character(length(file_vals))
-
+  
   for (i in seq_along(file_vals)) {
     fv     <- file_vals[[i]]
     rows   <- which(data_dt[[file_col]] == fv)
     sub_dt <- data_dt[rows]
     sub_df <- data_df[rows, , drop = FALSE]
-
+    
     sheet_list <- if (has_sheet_col)
       .build_sheet_list(sub_dt, sub_df)
     else {
@@ -361,10 +382,10 @@ export_xlsx <- function(data,
       if (verbose) message(sprintf("  Sheet '%s': %d rows", lbl, nrow(sub_df)))
       stats::setNames(list(.drop(sub_df)), lbl)
     }
-
+    
     out_paths[[i]] <- file.path(path, paste0(fv, ".xlsx"))
     .save(sheet_list, out_paths[[i]])
   }
-
+  
   invisible(stats::setNames(out_paths, file_vals))
 }

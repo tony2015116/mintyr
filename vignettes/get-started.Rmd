@@ -383,25 +383,75 @@ import_xlsx(
     
   
 ```{r example-export_xlsx}
-# Example: Excel file export demonstrations
 # Example 1: Export a plain data.frame to a single workbook
 out_file <- file.path(tempdir(), "test.xlsx")
 export_xlsx(
   mtcars,                             # Data to export (no tracking columns)
   path       = out_file,              # Ends in .xlsx -> one workbook
-  sheet_name = "test"                 # Worksheet tab name for the single sheet
+  sheet_name = "mtcars"              # Worksheet tab name for the single sheet
 )
-# Clean up the generated file
 file.remove(out_file)
 
-# Example 2: Split into one file per group
-out_files <- export_xlsx(
-  iris,                               # Data to export
-  path      = tempdir(),              # A directory -> one file per file_col value
-  file_col  = "Species",              # Column whose values name the output files
-  drop_cols = FALSE                   # Keep the Species column in each output file
+# Example 2: Export a data.table to a single workbook
+# data.table input is handled identically to data.frame
+out_file <- file.path(tempdir(), "test.xlsx")
+hah <- data.table::as.data.table(mtcars)
+export_xlsx(
+  hah,                                # data.table input
+  path       = out_file,              # Ends in .xlsx -> one workbook
+  sheet_name = "mtcars"              # Worksheet tab name for the single sheet
 )
-# Clean up the generated files (export_xlsx returns the written paths)
+file.remove(out_file)
+
+# Example 3: Split a data.frame into one sheet per group (single workbook)
+# `iris` has a `Species` column; each species becomes a separate sheet tab
+out_file <- file.path(tempdir(), "iris_by_species.xlsx")
+export_xlsx(
+  iris,                               # Data to export
+  path      = out_file,              # Ends in .xlsx -> one workbook
+  file_col  = "Species",             # Column whose unique values name each sheet
+  drop_cols = FALSE                  # Keep the Species column in each sheet
+)
+file.remove(out_file)
+
+# Example 4: Split a data.table into one sheet per group (single workbook)
+out_file <- file.path(tempdir(), "iris_by_species.xlsx")
+haha <- data.table::as.data.table(iris)
+export_xlsx(
+  haha,                              # data.table input
+  path      = out_file,              # Ends in .xlsx -> one workbook
+  file_col  = "Species",             # Column whose unique values name each sheet
+  drop_cols = FALSE                  # Keep the Species column in each sheet
+)
+file.remove(out_file)
+
+# Example 5: Split into one file per group (directory mode)
+# Omit the .xlsx extension -> directory mode: one file per Species value
+out_files <- export_xlsx(
+  iris,                              # Data to export
+  path      = tempdir(),             # A directory -> one file per file_col value
+  file_col  = "Species",            # Column whose values name the output files
+  drop_cols = FALSE                 # Keep the Species column in each output file
+)
+file.remove(out_files)
+
+# Example 6: Named list -> single workbook, one sheet per element
+# List names (res1, res2) become the sheet tab names
+out_file <- file.path(tempdir(), "combined.xlsx")
+res <- list(res1 = iris, res2 = mtcars)
+export_xlsx(
+  res,                               # Named list of data.frames
+  path    = out_file                 # Ends in .xlsx -> one workbook
+)
+file.remove(out_file)
+
+# Example 7: Named list -> directory, one file per element
+# Omit the .xlsx extension -> one file per list element
+res <- list(res1 = iris, res2 = mtcars)
+out_files <- export_xlsx(
+  res,                               # Named list of data.frames
+  path    = tempdir()               # A directory -> res1.xlsx, res2.xlsx
+)
 file.remove(out_files)
 ```
 

@@ -16,30 +16,33 @@ export_xlsx(
 )
 }
 \arguments{
-\item{data}{A \code{data.frame}, \code{data.table}, or \code{tibble}
-to export.  Tracking columns (\code{file_col} /
-\code{sheet_col}) are optional.}
+\item{data}{A \code{data.frame} / \code{data.table} / \code{tibble},
+\strong{or} a named list of such objects.  For list input,
+names become file names (directory mode) or sheet names
+(single-file mode).  Tracking columns
+(\code{file_col} / \code{sheet_col}) are optional for
+\code{data.frame} input.}
 
-\item{path}{\code{character(1)}.  The output destination.  If it ends
-in \code{.xlsx} (case-insensitive) it is treated as a
-\strong{single workbook}; otherwise it is treated as an
-\strong{output directory} and one file is written per
-\code{file_col} value.  Parent directories are created
+\item{path}{\code{character(1)}.  Output destination.  A path ending
+in \code{.xlsx} (case-insensitive) is treated as a
+\strong{single workbook}; anything else is treated as an
+\strong{output directory}.  Parent directories are created
 recursively as needed.}
 
-\item{file_col}{\code{character(1)}.  Name of the column identifying the
-source file.  Default \code{"excel_name"}.}
+\item{file_col}{\code{character(1)}.  Column identifying the source file
+(used for \code{data.frame} input only).
+Default \code{"excel_name"}.}
 
-\item{sheet_col}{\code{character(1)}.  Name of the column identifying the
-source sheet.  Default \code{"sheet_name"}.}
+\item{sheet_col}{\code{character(1)}.  Column identifying the source sheet
+(used for \code{data.frame} input only).
+Default \code{"sheet_name"}.}
 
-\item{sheet_name}{\code{character(1)}.  Worksheet tab name used when
-\code{data} has neither tracking column (single-sheet
-fallback).  Default \code{"Sheet1"}.}
+\item{sheet_name}{\code{character(1)}.  Worksheet tab name for the
+single-sheet fallback (plain \code{data.frame} with no
+tracking columns).  Default \code{"Sheet1"}.}
 
-\item{drop_cols}{\code{logical(1)}.  When \code{TRUE} (default) the tracking
-columns are removed from every exported sheet so the
-round-trip is transparent.}
+\item{drop_cols}{\code{logical(1)}.  When \code{TRUE} (default) the
+tracking columns are stripped from every exported sheet.}
 
 \item{overwrite}{\code{logical(1)}.  Allow overwriting existing files.
 Default \code{TRUE}.}
@@ -48,34 +51,45 @@ Default \code{TRUE}.}
 written.  Default \code{FALSE}.}
 }
 \value{
-Invisibly, a named \code{character} vector of written file paths:
-named by \code{file_col} value in directory mode, or by \code{path} in
-single-workbook mode.
+Invisibly, a named \code{character} vector of written file paths.
+In directory mode the vector is named by list-element / \code{file_col}
+value; in single-workbook mode it is named by \code{path}.
 }
 \description{
-The natural complement to \code{import_xlsx()}.  Takes a combined data
-object (the kind produced by \code{import_xlsx()} with \code{rbind = TRUE})
-and writes it back to disk.  The output \strong{destination} is decided by a
-single \code{path} argument, and \strong{worksheet splitting follows the
-data automatically} — there are no separate "modes" to choose:
+The natural complement to \code{import_xlsx()}.  Accepts either a combined
+\code{data.frame} (as produced by \code{import_xlsx()} with
+\code{rbind = TRUE}) \strong{or a named list of data.frames}, and writes the
+result to disk.
+
+The output \strong{destination} is controlled by a single \code{path}
+argument -- there are no separate modes to choose:
 
 \itemize{
-\item \strong{\code{path} is a directory} (no \code{.xlsx} extension) —
-write \emph{one file per \code{file_col} value} into that directory,
-with one worksheet per \code{sheet_col} value inside each file.
-This is the transparent round-trip of \code{import_xlsx()}.
-\item \strong{\code{path} is a file} (ends in \code{.xlsx}) — write
-\emph{everything into a single workbook}.  Worksheets are named
-\code{"<file_col>_<sheet_col>"} (or just \code{"<sheet_col>"} /
-\code{"<file_col>"} when only one tracking column is present), and
-plain data without tracking columns becomes a single sheet.
+\item \strong{\code{path} is a directory} (no \code{.xlsx} extension) --
+write \emph{one \code{.xlsx} file per element} into that directory.
+Each file contains a single sheet named after the list element (or
+the \code{file_col} value for \code{data.frame} input).
+\item \strong{\code{path} is a file} (ends in \code{.xlsx}) -- write
+\emph{everything into a single workbook}, one sheet per list element
+(or per \code{sheet_col} / \code{file_col} value for
+\code{data.frame} input).
 }
 
-Columns injected by \code{import_xlsx()} (\code{file_col}, \code{sheet_col})
-are stripped from the output by default so the exported sheets are identical
-to the originals.  Plain \code{data.frame}s without any tracking columns
-(e.g. \code{mtcars}) are supported and are written as a single sheet — but
-only to a file \code{path}, since there is nothing to split files by.
+\subsection{Named-list input}{
+Pass \code{data} as a named list of \code{data.frame}s:
+
+\preformatted{res <- list(res1 = data1, res2 = data2, res3 = data3)
+
+  # Directory mode -- writes res1.xlsx, res2.xlsx, res3.xlsx
+  export_xlsx(res, path = "output/")
+
+  # Single-file mode -- one workbook with sheets res1, res2, res3
+  export_xlsx(res, path = "output/all.xlsx")}
+
+List names must be non-empty and unique.  Each element must be a
+\code{data.frame}, \code{data.table}, or \code{tibble}.  Elements of
+different types may be mixed freely within the same list.
+}
 }
 \details{
 \subsection{Why \pkg{writexl}?}{
@@ -92,28 +106,78 @@ Excel sheet names are limited to 31 characters and may not contain
 The single \code{path} argument is classified purely by its extension: a
 trailing \code{.xlsx} means "one workbook", anything else means "a
 directory of files".  If you want a directory whose name happens to end in
-\code{.xlsx}, append a trailing slash, or pass an explicit file name.
+\code{.xlsx}, append a trailing slash.
 }
 }
 \examples{
-# Example: Excel file export demonstrations
 # Example 1: Export a plain data.frame to a single workbook
 out_file <- file.path(tempdir(), "test.xlsx")
 export_xlsx(
   mtcars,                             # Data to export (no tracking columns)
   path       = out_file,              # Ends in .xlsx -> one workbook
-  sheet_name = "test"                 # Worksheet tab name for the single sheet
+  sheet_name = "mtcars"              # Worksheet tab name for the single sheet
 )
-# Clean up the generated file
 file.remove(out_file)
 
-# Example 2: Split into one file per group
-out_files <- export_xlsx(
-  iris,                               # Data to export
-  path      = tempdir(),              # A directory -> one file per file_col value
-  file_col  = "Species",              # Column whose values name the output files
-  drop_cols = FALSE                   # Keep the Species column in each output file
+# Example 2: Export a data.table to a single workbook
+# data.table input is handled identically to data.frame
+out_file <- file.path(tempdir(), "test.xlsx")
+hah <- data.table::as.data.table(mtcars)
+export_xlsx(
+  hah,                                # data.table input
+  path       = out_file,              # Ends in .xlsx -> one workbook
+  sheet_name = "mtcars"              # Worksheet tab name for the single sheet
 )
-# Clean up the generated files (export_xlsx returns the written paths)
+file.remove(out_file)
+
+# Example 3: Split a data.frame into one sheet per group (single workbook)
+# `iris` has a `Species` column; each species becomes a separate sheet tab
+out_file <- file.path(tempdir(), "iris_by_species.xlsx")
+export_xlsx(
+  iris,                               # Data to export
+  path      = out_file,              # Ends in .xlsx -> one workbook
+  file_col  = "Species",             # Column whose unique values name each sheet
+  drop_cols = FALSE                  # Keep the Species column in each sheet
+)
+file.remove(out_file)
+
+# Example 4: Split a data.table into one sheet per group (single workbook)
+out_file <- file.path(tempdir(), "iris_by_species.xlsx")
+haha <- data.table::as.data.table(iris)
+export_xlsx(
+  haha,                              # data.table input
+  path      = out_file,              # Ends in .xlsx -> one workbook
+  file_col  = "Species",             # Column whose unique values name each sheet
+  drop_cols = FALSE                  # Keep the Species column in each sheet
+)
+file.remove(out_file)
+
+# Example 5: Split into one file per group (directory mode)
+# Omit the .xlsx extension -> directory mode: one file per Species value
+out_files <- export_xlsx(
+  iris,                              # Data to export
+  path      = tempdir(),             # A directory -> one file per file_col value
+  file_col  = "Species",            # Column whose values name the output files
+  drop_cols = FALSE                 # Keep the Species column in each output file
+)
+file.remove(out_files)
+
+# Example 6: Named list -> single workbook, one sheet per element
+# List names (res1, res2) become the sheet tab names
+out_file <- file.path(tempdir(), "combined.xlsx")
+res <- list(res1 = iris, res2 = mtcars)
+export_xlsx(
+  res,                               # Named list of data.frames
+  path    = out_file                 # Ends in .xlsx -> one workbook
+)
+file.remove(out_file)
+
+# Example 7: Named list -> directory, one file per element
+# Omit the .xlsx extension -> one file per list element
+res <- list(res1 = iris, res2 = mtcars)
+out_files <- export_xlsx(
+  res,                               # Named list of data.frames
+  path    = tempdir()               # A directory -> res1.xlsx, res2.xlsx
+)
 file.remove(out_files)
 }

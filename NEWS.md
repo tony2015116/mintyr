@@ -1,3 +1,7 @@
+# mintyr 0.1.4
+
+* Fixed bug in `export_xlsx()`.
+
 # mintyr 0.1.3
 
 * removed `convert_nest()`.

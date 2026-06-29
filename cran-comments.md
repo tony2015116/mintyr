@@ -1,7 +1,10 @@
 ## Resubmission
 
 Changes made:
-* Fixed bug in `convert_nest()`.
+* Removed `convert_nest()`.
+* Combined `get_filename()` and `get_path_segment()` into `get_path_info()`.
+* Added `export_xlsx()`.
+* Focused on data.table and minimized external dependencies.
 
 ## R CMD check results
 

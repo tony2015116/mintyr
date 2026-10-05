@@ -2,8 +2,13 @@ pandoc: 3.8.3
 pkgdown: 2.2.1
 pkgdown_sha: ~
 articles:
-  get-started: get-started.html
-last_built: 2026-10-05T13:29Z
+  cross-validation: cross-validation.html
+  descriptive-statistics: descriptive-statistics.html
+  import-and-export: import-and-export.html
+  mintyr: mintyr.html
+  reshape-and-nest: reshape-and-nest.html
+  utilities: utilities.html
+last_built: 2026-10-05T15:33Z
 urls:
   reference: https://tony2015116.github.io/mintyr/reference
   article: https://tony2015116.github.io/mintyr/articles

@@ -23,6 +23,9 @@
 
     <div id="navbar" class="navbar-collapse collapse">
       <ul class="nav navbar-nav"><li>
+  <a href="../articles/mintyr.html">Get started</a>
+</li>
+<li>
   <a href="../reference/index.html">Reference</a>
 </li>
 <li class="dropdown">
@@ -32,7 +35,19 @@
     <span class="caret"></span>
   </a>
   <ul class="dropdown-menu" role="menu"><li>
-      <a href="../articles/get-started.html">Get started</a>
+      <a href="../articles/import-and-export.html">Import and export</a>
+    </li>
+    <li>
+      <a href="../articles/reshape-and-nest.html">Reshape and nest</a>
+    </li>
+    <li>
+      <a href="../articles/cross-validation.html">Cross-validation</a>
+    </li>
+    <li>
+      <a href="../articles/descriptive-statistics.html">Descriptive statistics</a>
+    </li>
+    <li>
+      <a href="../articles/utilities.html">Utilities</a>
     </li>
   </ul></li>
 <li>
@@ -46,7 +61,7 @@
 </li>
 <li>
   <a href="https://github.com/tony2015116/mintyr/discussions" class="external-link">
-    <span class="fa fa-users fa-lg"></span>
+    <span class="fas fa-users fa-lg"></span>
 
   </a>
 </li>
@@ -63,8 +78,32 @@
     </div>
 
     <table class="ref-index"><colgroup><col class="alias"><col class="title"></colgroup><tbody><tr><th colspan="2">
-          <h2 id="genome-selcetion-with-mintyr">Genome selcetion with mintyr <a href="#genome-selcetion-with-mintyr" class="anchor" aria-hidden="true"></a></h2>
-          <p class="section-desc"></p><p>Streamlines iterative models when working with <code>ASReml-R</code> package</p>
+          <h2 id="import-and-export">Import and export <a href="#import-and-export" class="anchor" aria-hidden="true"></a></h2>
+          <p class="section-desc"></p><p>Read many files and sheets into one table, write the pieces back to files, folders or workbooks.</p>
+        </th>
+      </tr></tbody><tbody><tr><td>
+          <p><code><a href="import_xlsx.html">import_xlsx()</a></code> </p>
+        </td>
+        <td><p>Import Data from XLSX Files</p></td>
+      </tr><tr><td>
+          <p><code><a href="import_csv.html">import_csv()</a></code> </p>
+        </td>
+        <td><p>Flexible CSV/TXT File Import via data.table</p></td>
+      </tr><tr><td>
+          <p><code><a href="export_xlsx.html">export_xlsx()</a></code> </p>
+        </td>
+        <td><p>Export Data to XLSX Files</p></td>
+      </tr><tr><td>
+          <p><code><a href="export_nest.html">export_nest()</a></code> </p>
+        </td>
+        <td><p>Export Nested Data Structures with Hierarchical Directory Organization</p></td>
+      </tr><tr><td>
+          <p><code><a href="export_list.html">export_list()</a></code> </p>
+        </td>
+        <td><p>Export a List of Data Frames with Hierarchical Directory Management</p></td>
+      </tr></tbody><tbody><tr><th colspan="2">
+          <h2 id="reshape-and-nest">Reshape and nest <a href="#reshape-and-nest" class="anchor" aria-hidden="true"></a></h2>
+          <p class="section-desc"></p><p>Wide to long, nested or split by trait and group; pairs of traits; levels of a column side by side.</p>
         </th>
       </tr></tbody><tbody><tr><td>
           <p><code><a href="w2l_nest.html">w2l_nest()</a></code> </p>
@@ -75,14 +114,6 @@
         </td>
         <td><p>Reshape Wide Data to Long Format and Split into a Named List</p></td>
       </tr><tr><td>
-          <p><code><a href="nest_cv.html">nest_cv()</a></code> </p>
-        </td>
-        <td><p>Apply V-Fold Cross-Validation to Nested Data</p></td>
-      </tr><tr><td>
-          <p><code><a href="split_cv.html">split_cv()</a></code> </p>
-        </td>
-        <td><p>Apply V-Fold Cross-Validation to a List of Datasets</p></td>
-      </tr><tr><td>
           <p><code><a href="c2p_nest.html">c2p_nest()</a></code> </p>
         </td>
         <td><p>Column to Pair Nested Transformation</p></td>
@@ -90,49 +121,45 @@
           <p><code><a href="r2p_nest.html">r2p_nest()</a></code> </p>
         </td>
         <td><p>Row to Pair Nested Transformation</p></td>
-      </tr><tr><td>
-          <p><code><a href="export_nest.html">export_nest()</a></code> </p>
-        </td>
-        <td><p>Export Nested Data Structures with Hierarchical Directory Organization</p></td>
-      </tr><tr><td>
-          <p><code><a href="export_list.html">export_list()</a></code> </p>
-        </td>
-        <td><p>Export a List of Data Frames with Hierarchical Directory Management</p></td>
       </tr></tbody><tbody><tr><th colspan="2">
-          <h2 id="useful-functions">Useful functions <a href="#useful-functions" class="anchor" aria-hidden="true"></a></h2>
-          <p class="section-desc"></p><p>Utility functions for phenotypic data processing commonly used</p>
+          <h2 id="cross-validation">Cross-validation <a href="#cross-validation" class="anchor" aria-hidden="true"></a></h2>
+          <p class="section-desc"></p><p>Repeated, stratified k-fold cross-validation within every group.</p>
         </th>
       </tr></tbody><tbody><tr><td>
-          <p><code><a href="import_csv.html">import_csv()</a></code> </p>
+          <p><code><a href="split_cv.html">split_cv()</a></code> </p>
         </td>
-        <td><p>Flexible CSV/TXT File Import via data.table</p></td>
+        <td><p>Apply V-Fold Cross-Validation to a List of Datasets</p></td>
       </tr><tr><td>
-          <p><code><a href="import_xlsx.html">import_xlsx()</a></code> </p>
+          <p><code><a href="nest_cv.html">nest_cv()</a></code> </p>
         </td>
-        <td><p>Import Data from XLSX Files</p></td>
-      </tr><tr><td>
-          <p><code><a href="export_xlsx.html">export_xlsx()</a></code> </p>
+        <td><p>Apply V-Fold Cross-Validation to Nested Data</p></td>
+      </tr></tbody><tbody><tr><th colspan="2">
+          <h2 id="descriptive-statistics">Descriptive statistics <a href="#descriptive-statistics" class="anchor" aria-hidden="true"></a></h2>
+          <p class="section-desc"></p><p>Group summaries, totals, report-ready text and top / bottom X%.</p>
+        </th>
+      </tr></tbody><tbody><tr><td>
+          <p><code><a href="desc_stats.html">desc_stats()</a></code> </p>
         </td>
-        <td><p>Export Data to XLSX Files</p></td>
+        <td><p>Descriptive Statistics by Group, with an Optional Total Row</p></td>
       </tr><tr><td>
           <p><code><a href="top_perc.html">top_perc()</a></code> </p>
         </td>
         <td><p>Select Top or Bottom Percentage of Data</p></td>
       </tr><tr><td>
-          <p><code><a href="desc_stats.html">desc_stats()</a></code> </p>
-        </td>
-        <td><p>Descriptive Statistics by Group, with an Optional Total Row</p></td>
-      </tr><tr><td>
-          <p><code><a href="get_path_info.html">get_path_info()</a></code> </p>
-        </td>
-        <td><p>Extract Path Segments or Filenames from File Paths</p></td>
-      </tr><tr><td>
           <p><code><a href="format_digits.html">format_digits()</a></code> </p>
         </td>
         <td><p>Format Numeric Columns to Fixed-Decimal Character Strings</p></td>
       </tr></tbody><tbody><tr><th colspan="2">
-          <h2 id="data-example">Data example <a href="#data-example" class="anchor" aria-hidden="true"></a></h2>
-          <p class="section-desc"></p><p>Pig performance test examples and other example or example functions</p>
+          <h2 id="utilities">Utilities <a href="#utilities" class="anchor" aria-hidden="true"></a></h2>
+          <p class="section-desc"></p>
+        </th>
+      </tr></tbody><tbody><tr><td>
+          <p><code><a href="get_path_info.html">get_path_info()</a></code> </p>
+        </td>
+        <td><p>Extract Path Segments or Filenames from File Paths</p></td>
+      </tr></tbody><tbody><tr><th colspan="2">
+          <h2 id="example-data">Example data <a href="#example-data" class="anchor" aria-hidden="true"></a></h2>
+          <p class="section-desc"></p>
         </th>
       </tr></tbody><tbody><tr><td>
           <p><code><a href="mintyr_example.html">mintyr_example()</a></code> </p>

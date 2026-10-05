@@ -39,7 +39,7 @@
       </button>
       <span class="navbar-brand">
         <a class="navbar-link" href="index.html">mintyr</a>
-        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="">0.1.3</span>
+        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="">0.2.0</span>
       </span>
     </div>
 
@@ -93,65 +93,243 @@
 <div class="page-header"><h1 id="mintyr-">mintyr <a href="https://tony2015116.github.io/mintyr/"><img src="reference/figures/logo.svg" alt="mintyr package logo" width="120" align="right"></a>
 <a class="anchor" aria-label="anchor" href="#mintyr-"></a>
 </h1></div>
-<!--apple-touch-icon-120x120.png-->
-<!-- <picture><source srcset="reference/figures/apple-touch-icon-120x120.png" media="(prefers-color-scheme: dark)"></picture> -->
 <!-- badges: start -->
 
-<!--[![CodeFactor](https://www.codefactor.io/repository/github/tony2015116/mintyr/badge/main)](https://www.codefactor.io/repository/github/tony2015116/mintyr/overview/main)
-[![GitHub R package version](https://img.shields.io/github/r-package/v/tony2015116/mintyr)](#)-->
-<p><code>mintyr</code> is a high-performance data processing toolkit designed specifically for <strong>animal breeding and genomic selection</strong>. Leveraging the zero-copy and multi-threading capabilities of <code>data.table</code>, it significantly simplifies the construction of automated data pipelines in large-scale commercial breeding programs (e.g., coordinating data across nucleus and multiplier farms, or handling multi-trait growth test records).</p>
-<p>The package is not only highly optimized for iterative analysis workflows with the <code>ASReml-R</code> package (supporting dynamic modeling and multi-trait/multi-breed nested grouping), but is also capable of generating and batch-exporting formatted phenotypic data files required for automated pipeline analyses in other mainstream command-line breeding software (e.g., HIBLUP, DMU).</p>
+<p><strong>mintyr turns “many groups × many variables” data into analysis-ready pieces — and back into files — with <code>data.table</code> speed and no surprises.</strong></p>
+<p>A lot of real-world analysis follows the same loop: take a wide table, split it by trait and group, fit something on every piece (often with cross-validation), then write each piece or result to its own file or sheet. mintyr packages that loop into a small set of consistent functions:</p>
+<pre><code> files ──► import ──► reshape &amp; nest ──► cross-validate / summarise ──► export ──► files
+          (xlsx/csv)   (by trait × group)      (per piece)          (txt/csv/xlsx)</code></pre>
+<p>It was born in animal breeding, where this loop is everywhere (multi-trait, multi-breed, multi-farm data feeding ASReml-R, HIBLUP or DMU), but nothing in it is specific to genetics.</p>
 <div class="section level2">
-<h2 id="sparkles-key-features">✨ Key Features<a class="anchor" aria-label="anchor" href="#sparkles-key-features"></a>
+<h2 id="who-is-it-for">Who is it for?<a class="anchor" aria-label="anchor" href="#who-is-it-for"></a>
 </h2>
-<p><code>mintyr</code> covers five critical stages in the lifecycle of breeding data analysis:</p>
-<p><strong>🚀 High-Performance Data I/O (<code>import_xlsx</code>, <code>import_csv</code>, <code>export_xlsx</code>)</strong></p>
-<p>A transparent round-trip for multi-file, multi-sheet tabular data: import many files into one tidy <code>data.table</code>, transform freely, then write the original file/sheet structure back out — no bookkeeping required.</p>
-<ul>
-<li>
-<strong>Import (<code>import_xlsx</code>, <code>import_csv</code>):</strong> native support for merging multiple files and sheets simultaneously, with source tracking columns (<code>excel_name</code>, <code>sheet_name</code>) appended automatically to prevent data confusion across different farms or batches. In-place <code>data.table</code> conversion keeps the memory footprint minimal, and <code>import_xlsx</code> can spread the per-sheet parse across CPU cores on demand (opt-in via <code>workers</code>) — a fork pool on Linux/macOS, a PSOCK cluster on Windows.</li>
-<li>
-<strong>Export (<code>export_xlsx</code>):</strong> the round-trip companion — a single <code>path</code> argument decides the destination. A <strong>directory</strong> writes one <code>.xlsx</code> per <code>excel_name</code> value (one sheet per <code>sheet_name</code>); a <strong><code>.xlsx</code> file path</strong> writes everything into one workbook. Worksheet splitting follows the data automatically, and the tracking columns are stripped by default so exported sheets match the originals.</li>
-</ul>
-<p><strong>🔄 Automated Data Reshaping &amp; Nesting (<code>w2l_nest</code>, <code>c2p_nest</code>, <code>r2p_nest</code>)</strong></p>
-<ul>
-<li>
-<code>c2p_nest</code>: Column-to-pairs nested transformation that automatically renames feature columns, providing standard uniform inputs for iterative multi-trait genetic correlation evaluations.</li>
-<li>
-<code>w2l_nest</code> / <code>w2l_split</code>: Wide-to-long format transformations with subsetting and nesting by grouping variables (e.g., farm, breed, or line).</li>
-</ul>
-<p><strong>🧪 Cross-Validation &amp; Model Evaluation (<code>split_cv</code>, <code>nest_cv</code>)</strong></p>
-<ul>
-<li>Provides streamlined k-fold cross-validation and repeated CV splitting tailored for nested <code>data.table</code> structures, facilitating the evaluation of breeding value prediction accuracy (GP).</li>
-</ul>
-<p><strong>📊 Batch Exporting for Breeding Software (<code>export_nest</code>, <code>export_list</code>)</strong></p>
-<ul>
-<li>Automatically builds local folder hierarchies and batch-exports data based on nested groups or list structures (e.g., <code>tempdir()/Line/Breed/data.txt</code>), providing seamless text-file preparation to bridge the gap with command-line driven breeding evaluation software like HIBLUP and DMU.</li>
-</ul>
-<p><strong>🛠️ Phenotypic Statistics &amp; Preprocessing (<code>top_perc</code>, <code>format_digits</code>, <code>get_path_info</code>)</strong></p>
-<ul>
-<li>Quickly extracts the top N% performing individuals for specific traits, supporting independent extraction by analytical groups (e.g., different test batches), alongside robust number formatting and path-parsing utilities.</li>
-</ul>
+<table class="table">
+<colgroup>
+<col width="50%">
+<col width="50%">
+</colgroup>
+<thead><tr>
+<th>Field</th>
+<th>Typical use</th>
+</tr></thead>
+<tbody>
+<tr>
+<td>Animal &amp; plant breeding</td>
+<td>Per-trait / per-breed models, genetic correlations across traits or environments, input files for HIBLUP or DMU</td>
+</tr>
+<tr>
+<td>Multi-site / multi-batch experiments</td>
+<td>The same analysis for every site × variable, with results written back per site</td>
+</tr>
+<tr>
+<td>Grouped machine learning</td>
+<td>Reproducible (stratified) k-fold CV run separately within every subgroup</td>
+</tr>
+<tr>
+<td>Reporting</td>
+<td>Read dozens of Excel workbooks, clean them in one table, write them back to the original file/sheet layout</td>
+</tr>
+<tr>
+<td>Any grouped analysis</td>
+<td>Pairwise correlations between many variables, top/bottom-N% summaries per group</td>
+</tr>
+</tbody>
+</table>
 </div>
 <div class="section level2">
-<h2 id="inbox_tray-installation">📥 Installation<a class="anchor" aria-label="anchor" href="#inbox_tray-installation"></a>
+<h2 id="installation">Installation<a class="anchor" aria-label="anchor" href="#installation"></a>
 </h2>
-<p>You can install this package from either CRAN or GitHub:</p>
-<div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co">### From CRAN</span></span>
+<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># From CRAN</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/install.packages.html" class="external-link">install.packages</a></span><span class="op">(</span><span class="st">"mintyr"</span><span class="op">)</span></span>
-<span><span class="co">### From GitHub</span></span>
+<span></span>
+<span><span class="co"># Development version from GitHub</span></span>
 <span><span class="fu">pak</span><span class="fu">::</span><span class="fu"><a href="https://pak.r-lib.org/reference/pak.html" class="external-link">pak</a></span><span class="op">(</span><span class="st">"tony2015116/mintyr"</span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level2">
-<h2 id="clipboard️-cheat-sheet">📋️ Cheat Sheet<a class="anchor" aria-label="anchor" href="#clipboard%EF%B8%8F-cheat-sheet"></a>
+<h2 id="quick-start">Quick start<a class="anchor" aria-label="anchor" href="#quick-start"></a>
+</h2>
+<p>Fit a model for every trait within every group, using 4-fold cross-validation, and export each subset to its own folder:</p>
+<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://tony2015116.github.io/mintyr/">mintyr</a></span><span class="op">)</span></span>
+<span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://r-datatable.com" class="external-link">data.table</a></span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># 1. Wide -&gt; long, nested by trait (`name`) and group (`am`)</span></span>
+<span><span class="va">nested</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/w2l_nest.html">w2l_nest</a></span><span class="op">(</span><span class="va">mtcars</span>, cols <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"mpg"</span>, <span class="st">"qsec"</span><span class="op">)</span>, by <span class="op">=</span> <span class="st">"am"</span><span class="op">)</span></span>
+<span><span class="va">nested</span></span>
+<span><span class="co">#&gt;    name am               data</span></span>
+<span><span class="co">#&gt; 1:  mpg  1 &lt;data.table[13x9]&gt;</span></span>
+<span><span class="co">#&gt; 2:  mpg  0 &lt;data.table[19x9]&gt;</span></span>
+<span><span class="co">#&gt; 3: qsec  1 &lt;data.table[13x9]&gt;</span></span>
+<span><span class="co">#&gt; 4: qsec  0 &lt;data.table[19x9]&gt;</span></span>
+<span></span>
+<span><span class="co"># 2. Reproducible 4-fold CV inside every trait x group</span></span>
+<span><span class="va">cv</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/nest_cv.html">nest_cv</a></span><span class="op">(</span><span class="va">nested</span>, v <span class="op">=</span> <span class="fl">4</span>, seed <span class="op">=</span> <span class="fl">2026</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># 3. Predictive ability per fold, then averaged</span></span>
+<span><span class="va">cv</span><span class="op">[</span>, <span class="va">r</span> <span class="op">:=</span> <span class="fu"><a href="https://rdrr.io/r/base/mapply.html" class="external-link">mapply</a></span><span class="op">(</span><span class="kw">function</span><span class="op">(</span><span class="va">tr</span>, <span class="va">va</span><span class="op">)</span> <span class="op">{</span></span>
+<span>  <span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/lm.html" class="external-link">lm</a></span><span class="op">(</span><span class="va">value</span> <span class="op">~</span> <span class="va">wt</span> <span class="op">+</span> <span class="va">hp</span>, data <span class="op">=</span> <span class="va">tr</span><span class="op">)</span></span>
+<span>  <span class="fu"><a href="https://rdrr.io/r/stats/cor.html" class="external-link">cor</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/predict.html" class="external-link">predict</a></span><span class="op">(</span><span class="va">fit</span>, <span class="va">va</span><span class="op">)</span>, <span class="va">va</span><span class="op">$</span><span class="va">value</span><span class="op">)</span></span>
+<span><span class="op">}</span>, <span class="va">train</span>, <span class="va">validate</span><span class="op">)</span><span class="op">]</span></span>
+<span><span class="va">cv</span><span class="op">[</span>, <span class="fu">.</span><span class="op">(</span>mean_r <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="va">r</span><span class="op">)</span>, <span class="fl">3</span><span class="op">)</span><span class="op">)</span>, by <span class="op">=</span> <span class="fu">.</span><span class="op">(</span><span class="va">name</span>, <span class="va">am</span><span class="op">)</span><span class="op">]</span></span>
+<span><span class="co">#&gt;    name am mean_r</span></span>
+<span><span class="co">#&gt; 1:  mpg  1  0.816</span></span>
+<span><span class="co">#&gt; 2:  mpg  0  0.881</span></span>
+<span><span class="co">#&gt; 3: qsec  1  0.884</span></span>
+<span><span class="co">#&gt; 4: qsec  0  0.858</span></span>
+<span></span>
+<span><span class="co"># 4. One file per trait x group: &lt;path&gt;/&lt;name&gt;/&lt;am&gt;/data.txt</span></span>
+<span><span class="fu"><a href="reference/export_nest.html">export_nest</a></span><span class="op">(</span><span class="va">nested</span>, path <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/file.path.html" class="external-link">file.path</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempdir</a></span><span class="op">(</span><span class="op">)</span>, <span class="st">"by_trait"</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
+</div>
+<div class="section level2">
+<h2 id="whats-inside">What’s inside<a class="anchor" aria-label="anchor" href="#whats-inside"></a>
+</h2>
+<p><strong>Import and export — a lossless round trip</strong></p>
+<table class="table">
+<colgroup>
+<col width="50%">
+<col width="50%">
+</colgroup>
+<thead><tr>
+<th>Function</th>
+<th>What it does</th>
+</tr></thead>
+<tbody>
+<tr>
+<td><code><a href="reference/import_xlsx.html">import_xlsx()</a></code></td>
+<td>Read many workbooks and sheets into one table, with <code>excel_name</code> / <code>sheet_name</code> source columns; optional parallel reading (<code>workers</code>)</td>
+</tr>
+<tr>
+<td><code><a href="reference/import_csv.html">import_csv()</a></code></td>
+<td>Read many CSV/TXT files with <code><a href="https://rdrr.io/pkg/data.table/man/fread.html" class="external-link">fread()</a></code>, with a source-file column</td>
+</tr>
+<tr>
+<td><code><a href="reference/export_xlsx.html">export_xlsx()</a></code></td>
+<td>Write a table back to the original file/sheet layout, or a list of tables into one workbook or one file each</td>
+</tr>
+<tr>
+<td><code><a href="reference/export_nest.html">export_nest()</a></code></td>
+<td>Write every nested table to <code>&lt;path&gt;/&lt;group1&gt;/&lt;group2&gt;/&lt;column&gt;.txt</code>
+</td>
+</tr>
+<tr>
+<td><code><a href="reference/export_list.html">export_list()</a></code></td>
+<td>Write every element of a named list to its own file (names may contain <code>/</code> for sub-folders)</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Reshape and nest</strong></p>
+<table class="table">
+<colgroup>
+<col width="50%">
+<col width="50%">
+</colgroup>
+<thead><tr>
+<th>Function</th>
+<th>What it does</th>
+</tr></thead>
+<tbody>
+<tr>
+<td>
+<code><a href="reference/w2l_nest.html">w2l_nest()</a></code> / <code><a href="reference/w2l_split.html">w2l_split()</a></code>
+</td>
+<td>Wide → long, then nest (list-column) or split (named list) by variable and group</td>
+</tr>
+<tr>
+<td><code><a href="reference/c2p_nest.html">c2p_nest()</a></code></td>
+<td>All pairs (or triples, …) of variables, renamed to <code>value1</code>, <code>value2</code>, … for uniform pairwise analysis</td>
+</tr>
+<tr>
+<td><code><a href="reference/r2p_nest.html">r2p_nest()</a></code></td>
+<td>Same variable across levels of another column (e.g. one column per environment), aligned by an ID</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Cross-validation and summaries</strong></p>
+<table class="table">
+<colgroup>
+<col width="50%">
+<col width="50%">
+</colgroup>
+<thead><tr>
+<th>Function</th>
+<th>What it does</th>
+</tr></thead>
+<tbody>
+<tr>
+<td>
+<code><a href="reference/split_cv.html">split_cv()</a></code> / <code><a href="reference/nest_cv.html">nest_cv()</a></code>
+</td>
+<td>Repeated, optionally stratified k-fold CV for a list of tables or a nested table; returns fold indices and (optionally) the subsets</td>
+</tr>
+<tr>
+<td><code><a href="reference/top_perc.html">top_perc()</a></code></td>
+<td>Statistics of the top / bottom X% per variable and group</td>
+</tr>
+<tr>
+<td><code><a href="reference/format_digits.html">format_digits()</a></code></td>
+<td>Format numeric columns for reports (decimals, percentages)</td>
+</tr>
+<tr>
+<td><code><a href="reference/get_path_info.html">get_path_info()</a></code></td>
+<td>Extract file names or path segments, cross-platform</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="section level2">
+<h2 id="examples-by-use-case">Examples by use case<a class="anchor" aria-label="anchor" href="#examples-by-use-case"></a>
+</h2>
+<p><strong>Pairwise correlations between many variables, per group</strong></p>
+<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">pairs</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/c2p_nest.html">c2p_nest</a></span><span class="op">(</span><span class="va">mtcars</span>, cols <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"mpg"</span>, <span class="st">"hp"</span>, <span class="st">"wt"</span><span class="op">)</span>, by <span class="op">=</span> <span class="st">"am"</span><span class="op">)</span></span>
+<span><span class="va">pairs</span><span class="op">[</span>, <span class="fu">.</span><span class="op">(</span>r <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">sapply</a></span><span class="op">(</span><span class="va">data</span>, <span class="kw">function</span><span class="op">(</span><span class="va">d</span><span class="op">)</span> <span class="fu"><a href="https://rdrr.io/r/stats/cor.html" class="external-link">cor</a></span><span class="op">(</span><span class="va">d</span><span class="op">$</span><span class="va">value1</span>, <span class="va">d</span><span class="op">$</span><span class="va">value2</span><span class="op">)</span><span class="op">)</span><span class="op">)</span>, by <span class="op">=</span> <span class="fu">.</span><span class="op">(</span><span class="va">pairs</span>, <span class="va">am</span><span class="op">)</span><span class="op">]</span></span></code></pre></div>
+<p><strong>The same trait in different environments (e.g. genotype × environment)</strong></p>
+<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># growth: one row per animal x farm</span></span>
+<span><span class="fu"><a href="reference/r2p_nest.html">r2p_nest</a></span><span class="op">(</span><span class="va">growth</span>, names_from <span class="op">=</span> <span class="st">"farm"</span>, cols <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"adg"</span>, <span class="st">"backfat"</span><span class="op">)</span>, id <span class="op">=</span> <span class="st">"animal"</span><span class="op">)</span></span>
+<span><span class="co"># -&gt; per trait: animal | farm1 | farm2, ready for a cross-environment correlation</span></span></code></pre></div>
+<p><strong>Clean many Excel files and put them back where they came from</strong></p>
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">dt</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/import_xlsx.html">import_xlsx</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/list.files.html" class="external-link">list.files</a></span><span class="op">(</span><span class="st">"raw"</span>, pattern <span class="op">=</span> <span class="st">"\\.xlsx$"</span>, full.names <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="va">dt</span> <span class="op">&lt;-</span> <span class="va">dt</span><span class="op">[</span><span class="op">!</span><span class="fu"><a href="https://rdrr.io/r/base/NA.html" class="external-link">is.na</a></span><span class="op">(</span><span class="va">weight</span><span class="op">)</span><span class="op">]</span>                  <span class="co"># any data.table processing</span></span>
+<span><span class="fu"><a href="reference/export_xlsx.html">export_xlsx</a></span><span class="op">(</span><span class="va">dt</span>, path <span class="op">=</span> <span class="st">"cleaned"</span><span class="op">)</span>         <span class="co"># same file names, same sheet names</span></span></code></pre></div>
+<p><strong>Input files for command-line breeding software</strong></p>
+<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="reference/export_nest.html">export_nest</a></span><span class="op">(</span><span class="va">nested</span>, path <span class="op">=</span> <span class="st">"hiblup_runs"</span>, na <span class="op">=</span> <span class="st">"NA"</span><span class="op">)</span>       <span class="co"># HIBLUP</span></span>
+<span><span class="fu"><a href="reference/export_nest.html">export_nest</a></span><span class="op">(</span><span class="va">nested</span>, path <span class="op">=</span> <span class="st">"dmu_runs"</span>, na <span class="op">=</span> <span class="st">"-9999"</span>,       <span class="co"># DMU: numeric missing code,</span></span>
+<span>            col.names <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span>                             <span class="co">#      no header</span></span></code></pre></div>
+</div>
+<div class="section level2">
+<h2 id="design-principles">Design principles<a class="anchor" aria-label="anchor" href="#design-principles"></a>
+</h2>
+<ul>
+<li>
+<strong>No side effects.</strong> Your input objects are never modified by reference.</li>
+<li>
+<strong>No silent data loss.</strong> File names are sanitised; if two outputs would land on the same path, mintyr stops instead of overwriting. <code><a href="reference/r2p_nest.html">r2p_nest()</a></code> refuses ambiguous IDs instead of returning counts.</li>
+<li>
+<strong>Consistent arguments.</strong> <code>data</code> is the input, <code>cols</code> are the columns to work on, <code>by</code> are grouping columns, <code>out_type</code> chooses <code>data.table</code> (<code>"dt"</code>) or <code>data.frame</code> (<code>"df"</code>), <code>path</code> is where files go.</li>
+<li>
+<strong>Light dependencies.</strong> <code>data.table</code>, <code>readxl</code>, <code>writexl</code> and base R; cross-validation is implemented in the package itself.</li>
+<li>
+<strong>Reproducible.</strong> <code>seed</code> makes CV folds reproducible without disturbing your global random-number stream.</li>
+</ul>
+</div>
+<div class="section level2">
+<h2 id="upgrading-from-01x">Upgrading from 0.1.x<a class="anchor" aria-label="anchor" href="#upgrading-from-01x"></a>
+</h2>
+<p>Version 0.2.0 unifies argument names (<code>cols2l</code>, <code>cols2bind</code>, <code>trait</code>, <code>nest_dt</code>, <code>group_cols</code>, <code>export_path</code>, <code>rbind</code>, … → <code>cols</code>, <code>data</code>, <code>by</code>, <code>path</code>, <code>combine</code>, …); the old names are no longer accepted. Cross-validation no longer depends on rsample: the <code>splits</code> column is replaced by <code>train_idx</code> / <code>validate_idx</code>. See <a href="NEWS.html">NEWS</a> for the complete old → new table.</p>
+</div>
+<div class="section level2">
+<h2 id="cheat-sheet">Cheat sheet<a class="anchor" aria-label="anchor" href="#cheat-sheet"></a>
 </h2>
 <p><a href="https://raw.githubusercontent.com/tony2015116/mintyr/main/man/figures/cheatsheet.svg" target="_blank" class="external-link"><img src="https://raw.githubusercontent.com/tony2015116/mintyr/main/man/figures/cheatsheet.svg" alt="mintyr package quick reference guide and cheatsheet" width="800" align="center"></a></p>
 </div>
 <div class="section level2">
-<h2 id="handshake-acknowledgments">🤝 Acknowledgments<a class="anchor" aria-label="anchor" href="#handshake-acknowledgments"></a>
+<h2 id="acknowledgments">Acknowledgments<a class="anchor" aria-label="anchor" href="#acknowledgments"></a>
 </h2>
-<p>Special thanks to AI assistance, for helping transform the initial concepts and inspirations for the <code>mintyr</code> package into reality. Their contribution has been invaluable in refining ideas, improving code structure, and crafting documentation.</p>
+<p>AI assistants helped turn the initial ideas behind mintyr into code, refine its structure and write its documentation.</p>
 </div>
 </div>
   </div>
@@ -195,7 +373,7 @@
 <ul class="list-unstyled">
 <li><a href="https://CRAN.R-project.org/package=mintyr" class="external-link"><img src="https://www.r-pkg.org/badges/version/mintyr" alt="CRAN status"></a></li>
 <li><a href="https://CRAN.R-project.org/package=mintyr" class="external-link"><img src="https://cranlogs.r-pkg.org/badges/grand-total/mintyr" alt="CRAN total downloads"></a></li>
-<li><a href="https://github.com/tony2015116/mintyr" class="external-link"><img src="https://img.shields.io/badge/devel%20version-0.1.3.9000-purple.svg" alt="Dev Version"></a></li>
+<li><a href="https://github.com/tony2015116/mintyr" class="external-link"><img src="https://img.shields.io/badge/devel%20version-0.2.0-purple.svg" alt="Dev Version"></a></li>
 <li><a href="https://lifecycle.r-lib.org/articles/stages.html#experimental" class="external-link"><img src="https://img.shields.io/badge/lifecycle-experimental-orange.svg" alt="Lifecycle: experimental"></a></li>
 <li><a href="https://github.com/tony2015116/mintyr/actions/workflows/R-CMD-check.yaml" class="external-link"><img src="https://github.com/tony2015116/mintyr/actions/workflows/R-CMD-check.yaml/badge.svg" alt="R-CMD-check"></a></li>
 <li><a href="#"><img src="https://img.shields.io/github/last-commit/tony2015116/mintyr" alt="GitHub last commit"></a></li>
@@ -213,7 +391,7 @@
 
 <div class="pkgdown">
   <p></p>
-<p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.2.0.</p>
+<p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.2.1.</p>
 </div>
 
       </footer>

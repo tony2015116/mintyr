@@ -24,7 +24,7 @@ of the file extension and/or the directory prefix.
       </button>
       <span class="navbar-brand">
         <a class="navbar-link" href="../index.html">mintyr</a>
-        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="">0.1.3</span>
+        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="">0.2.0</span>
       </span>
     </div>
 
@@ -67,7 +67,7 @@ of the file extension and/or the directory prefix.
   <div class="col-md-9 contents">
     <div class="page-header">
     <h1>Extract Path Segments or Filenames from File Paths</h1>
-    <small class="dont-index">Source: <a href="https://github.com/tony2015116/mintyr/blob/v0.1.3/R/get_path_info.R" class="external-link"><code>R/get_path_info.R</code></a></small>
+    <small class="dont-index">Source: <a href="https://github.com/tony2015116/mintyr/blob/main/R/get_path_info.R" class="external-link"><code>R/get_path_info.R</code></a></small>
     <div class="hidden name"><code>get_path_info.Rd</code></div>
     </div>
 
@@ -80,14 +80,14 @@ of the file extension and/or the directory prefix.</p></li>
 </ul></div>
 
     <div id="ref-usage">
-    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">get_path_info</span><span class="op">(</span><span class="va">paths</span>, n <span class="op">=</span> <span class="cn">NULL</span>, rm_extension <span class="op">=</span> <span class="cn">TRUE</span>, rm_path <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></code></pre></div>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">get_path_info</span><span class="op">(</span><span class="va">path</span>, n <span class="op">=</span> <span class="cn">NULL</span>, rm_extension <span class="op">=</span> <span class="cn">TRUE</span>, rm_path <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></code></pre></div>
     </div>
 
     <div id="arguments">
     <h2>Arguments</h2>
 
 
-<dl><dt id="arg-paths">paths<a class="anchor" aria-label="anchor" href="#arg-paths"></a></dt>
+<dl><dt id="arg-path">path<a class="anchor" aria-label="anchor" href="#arg-path"></a></dt>
 <dd><p>A <code>character</code> vector of file system paths.
 Supports mixed separators (<code>/</code> and <code>\\</code>) and Windows drive letters (e.g. <code>C:</code>).</p></dd>
 
@@ -112,12 +112,14 @@ segment). Has no effect for intermediate directory segments (e.g. <code>n = 2</c
 <dt id="arg-rm-path">rm_path<a class="anchor" aria-label="anchor" href="#arg-rm-path"></a></dt>
 <dd><p>A <code>logical(1)</code> flag controlling whether the directory prefix is
 stripped, keeping only the filename. Defaults to <code>TRUE</code>.
-Only applies in Mode B (<code>n = NULL</code>); ignored when <code>n</code> is specified.</p></dd>
+Only applies in Mode B (<code>n = NULL</code>); ignored when <code>n</code> is specified.
+With <code>rm_path = FALSE</code> the normalised path keeps its root (<code>/</code>, <code>C:/</code> or
+<code>//</code> for UNC paths), so absolute paths stay absolute.</p></dd>
 
 </dl></div>
     <div id="value">
     <h2>Value</h2>
-    <p>A <code>character</code> vector of the same length as <code>paths</code>:</p><ul><li><p>Returns the extracted segment string when the segment exists.</p></li>
+    <p>A <code>character</code> vector of the same length as <code>path</code>:</p><ul><li><p>Returns the extracted segment string when the segment exists.</p></li>
 <li><p>Returns <code>NA_character_</code> when the segment index exceeds the path depth,
 the input element is <code>NA</code>, or the path reduces to empty after normalisation
 (e.g. <code>"C:/"</code>, <code>"/"</code>).</p></li>
@@ -125,7 +127,8 @@ the input element is <code>NA</code>, or the path reduces to empty after normali
     <div id="details">
     <h2>Details</h2>
     <p><strong>Path normalisation (internal, fully vectorised):</strong></p><ol><li><p>All backslashes and consecutive slashes are collapsed to a single <code>/</code>.</p></li>
-<li><p>Windows drive letter prefixes (<code>C:</code>, <code>D:</code>, etc.) are stripped.</p></li>
+<li><p>Windows drive letter prefixes (<code>C:</code>, <code>D:</code>, etc.) are stripped for
+segment indexing (and restored in full-path mode).</p></li>
 <li><p>Leading and trailing <code>/</code> characters are removed.</p></li>
 <li><p>Paths that are empty after the above steps (e.g. original inputs <code>"C:/"</code>,
 <code>"/"</code>, <code>""</code>) are coerced to <code>NA_character_</code>.</p></li>
@@ -158,9 +161,9 @@ with an explicit <code>anyNA(x)</code> check rather than <code>length(x) == 0</c
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># Mode B: full normalised path, extension stripped</span></span></span>
 <span class="r-in"><span><span class="fu">get_path_info</span><span class="op">(</span><span class="va">paths</span>, rm_path <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [1] "Users/foo/Documents/report" "home/user/.bashrc"         </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [3] "relative/path/to/data"      ".hidden.tar"               </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [5] NA                          </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] "C:/Users/foo/Documents/report" "/home/user/.bashrc"           </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [3] "relative/path/to/data"         ".hidden.tar"                  </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [5] NA                             </span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># Mode A: extract the 2nd path segment</span></span></span>
 <span class="r-in"><span><span class="fu">get_path_info</span><span class="op">(</span><span class="va">paths</span>, n <span class="op">=</span> <span class="fl">2</span><span class="op">)</span></span></span>
@@ -188,7 +191,7 @@ with an explicit <code>anyNA(x)</code> check rather than <code>length(x) == 0</c
 </div>
 
 <div class="pkgdown">
-  <p></p><p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.2.0.</p>
+  <p></p><p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.2.1.</p>
 </div>
 
       </footer></div>

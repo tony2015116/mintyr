@@ -17,7 +17,7 @@
       </button>
       <span class="navbar-brand">
         <a class="navbar-link" href="../index.html">mintyr</a>
-        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="">0.1.3</span>
+        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="">0.2.0</span>
       </span>
     </div>
 
@@ -60,9 +60,122 @@
   <div class="col-md-9 contents">
     <div class="page-header">
       <h1 data-toc-skip>Changelog <small></small></h1>
-      <small>Source: <a href="https://github.com/tony2015116/mintyr/blob/v0.1.3/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
+      <small>Source: <a href="https://github.com/tony2015116/mintyr/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="page-header" data-toc-text="0.2.0" id="mintyr-020">mintyr 0.2.0<a class="anchor" aria-label="anchor" href="#mintyr-020"></a></h2>
+<div class="section level3">
+<h3 id="new-features-0-2-0">New features<a class="anchor" aria-label="anchor" href="#new-features-0-2-0"></a></h3>
+<ul><li>New <code><a href="../reference/desc_stats.html">desc_stats()</a></code>: descriptive statistics by group (presets as in <code>rstatix::get_summary_stats()</code>, plus <code>cv</code>, <code>skew</code>, <code>kurt</code>, <code>ci_low</code> / <code>ci_high</code>), an optional total row (counts add up, statistics use all records), <code>min_n</code>, per-variable <code>digits</code>, <code>labels</code>, report-ready text via <code>fmt = "{mean} ± {sd}"</code> and a wide report layout (<code>shape = "wide"</code>). Computed column by column with data.table’s grouped functions: about a second for a million records in 20,000 groups.</li>
+<li>
+<code><a href="../reference/import_xlsx.html">import_xlsx()</a></code> reads multi-row headers (<code>header_rows</code>, <code>header_sep</code>), using the merged cells stored in .xlsx files (<code>header_fill</code>), accepts sheet names in <code>sheet</code>, and can skip unreadable files / sheets (<code>on_error = "warn"</code>).</li>
+</ul></div>
+<div class="section level3">
+<h3 id="breaking-changes-0-2-0">Breaking changes<a class="anchor" aria-label="anchor" href="#breaking-changes-0-2-0"></a></h3>
+<ul><li><p><code><a href="../reference/top_perc.html">top_perc()</a></code> now computes its statistics with the same engine as <code><a href="../reference/desc_stats.html">desc_stats()</a></code>: columns are lower case (<code>n</code>, <code>min</code>, <code>max</code>, <code>mean</code>, <code>median</code>, <code>sd</code>, <code>se</code>, <code>cv</code>), the CV is <code>NA</code> unless all selected values are positive, and a new <code>stats</code> argument chooses the statistics.</p></li>
+<li><p><code><a href="../reference/split_cv.html">split_cv()</a></code> and <code><a href="../reference/nest_cv.html">nest_cv()</a></code> no longer depend on ‘rsample’. Folds are built with base R / ‘data.table’. The <code>splits</code> column (rsample <code>rsplit</code> objects) is replaced by <code>train_idx</code> / <code>validate_idx</code> (row indices); <code>...</code> is no longer forwarded. New arguments <code>seed</code> (reproducible folds without disturbing the RNG stream), <code>materialize</code> (<code>FALSE</code> keeps only indices) and <code>out_type</code> (<code>"df"</code> returns <code>train</code> / <code>validate</code> as plain data.frames, e.g. for ASReml-R).</p></li>
+<li><p><code><a href="../reference/export_nest.html">export_nest()</a></code> now returns the written file paths (invisibly) instead of a count, consistent with <code><a href="../reference/export_list.html">export_list()</a></code> and <code><a href="../reference/export_xlsx.html">export_xlsx()</a></code>.</p></li>
+<li><p><code><a href="../reference/export_nest.html">export_nest()</a></code> stops when the grouping columns do not identify rows uniquely (files would overwrite each other) or name unknown columns.</p></li>
+<li><p><code><a href="../reference/export_nest.html">export_nest()</a></code> / <code><a href="../reference/export_list.html">export_list()</a></code> write missing values as <code>NA</code> and do not quote fields by default (<code>na</code>, <code>quote</code> and <code>...</code> are passed to <code><a href="https://rdrr.io/pkg/data.table/man/fwrite.html" class="external-link">fwrite()</a></code>).</p></li>
+<li><p><code><a href="../reference/r2p_nest.html">r2p_nest()</a></code> gains <code>id</code>; it stops instead of silently returning counts when <code>id</code> + <code>names_from</code> do not identify rows uniquely.</p></li>
+<li><p><code>get_path_info(rm_path = FALSE)</code> keeps the root (<code>/</code>, <code>C:/</code>, <code>//</code>).</p></li>
+</ul></div>
+<div class="section level3">
+<h3 id="unified-argument-names-0-2-0">Unified argument names<a class="anchor" aria-label="anchor" href="#unified-argument-names-0-2-0"></a></h3>
+<p>The old argument names have been removed; code written for 0.1.x must be updated (calls with old names now fail with “unused argument”).</p>
+<table class="table"><colgroup><col width="33%"><col width="33%"><col width="33%"></colgroup><thead><tr><th>Function(s)</th>
+<th>Old</th>
+<th>New</th>
+</tr></thead><tbody><tr><td>
+<code><a href="../reference/nest_cv.html">nest_cv()</a></code>, <code><a href="../reference/split_cv.html">split_cv()</a></code>, <code><a href="../reference/export_nest.html">export_nest()</a></code>, <code><a href="../reference/export_list.html">export_list()</a></code>
+</td>
+<td>
+<code>nest_dt</code>, <code>split_dt</code>
+</td>
+<td><code>data</code></td>
+</tr><tr><td>
+<code><a href="../reference/w2l_nest.html">w2l_nest()</a></code>, <code><a href="../reference/w2l_split.html">w2l_split()</a></code>
+</td>
+<td><code>cols2l</code></td>
+<td><code>cols</code></td>
+</tr><tr><td><code><a href="../reference/c2p_nest.html">c2p_nest()</a></code></td>
+<td><code>cols2bind</code></td>
+<td><code>cols</code></td>
+</tr><tr><td><code><a href="../reference/r2p_nest.html">r2p_nest()</a></code></td>
+<td>
+<code>rows2bind</code>, <code>by</code>
+</td>
+<td>
+<code>names_from</code>, <code>cols</code>
+</td>
+</tr><tr><td><code><a href="../reference/export_nest.html">export_nest()</a></code></td>
+<td>
+<code>nest_cols</code>, <code>group_cols</code>
+</td>
+<td>
+<code>cols</code>, <code>by</code>
+</td>
+</tr><tr><td><code><a href="../reference/top_perc.html">top_perc()</a></code></td>
+<td><code>trait</code></td>
+<td><code>cols</code></td>
+</tr><tr><td>
+<code><a href="../reference/w2l_nest.html">w2l_nest()</a></code>, <code><a href="../reference/w2l_split.html">w2l_split()</a></code>, <code><a href="../reference/c2p_nest.html">c2p_nest()</a></code>, <code><a href="../reference/r2p_nest.html">r2p_nest()</a></code>
+</td>
+<td>
+<code>nest_type</code>, <code>split_type</code>
+</td>
+<td><code>out_type</code></td>
+</tr><tr><td>
+<code><a href="../reference/export_nest.html">export_nest()</a></code>, <code><a href="../reference/export_list.html">export_list()</a></code>
+</td>
+<td><code>export_path</code></td>
+<td><code>path</code></td>
+</tr><tr><td><code><a href="../reference/get_path_info.html">get_path_info()</a></code></td>
+<td><code>paths</code></td>
+<td><code>path</code></td>
+</tr><tr><td>
+<code><a href="../reference/import_csv.html">import_csv()</a></code>, <code><a href="../reference/import_xlsx.html">import_xlsx()</a></code>
+</td>
+<td><code>rbind</code></td>
+<td><code>combine</code></td>
+</tr><tr><td><code><a href="../reference/import_csv.html">import_csv()</a></code></td>
+<td><code>rbind_label</code></td>
+<td><code>file_col</code></td>
+</tr><tr><td><code><a href="../reference/import_xlsx.html">import_xlsx()</a></code></td>
+<td>
+<code>show_excel_name</code>, <code>show_sheet_name</code> (logical)</td>
+<td>
+<code>file_col</code>, <code>sheet_col</code> (column name, <code>NULL</code> to omit)</td>
+</tr></tbody></table></div>
+<div class="section level3">
+<h3 id="bug-fixes-0-2-0">Bug fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-0-2-0"></a></h3>
+<ul><li>
+<code><a href="../reference/w2l_nest.html">w2l_nest()</a></code> / <code><a href="../reference/w2l_split.html">w2l_split()</a></code> no longer turn the caller’s data.frame into a data.table by reference.</li>
+<li>
+<code>w2l_split(sep = )</code> works on every data.table version.</li>
+<li>
+<code><a href="../reference/split_cv.html">split_cv()</a></code> / <code><a href="../reference/export_list.html">export_list()</a></code> reject a single data.frame.</li>
+<li>
+<code><a href="../reference/import_xlsx.html">import_xlsx()</a></code>: tables returned by parallel workers get a valid self-reference; duplicated base names are warned about and made unique.</li>
+<li>
+<code><a href="../reference/import_csv.html">import_csv()</a></code>: dots in directory names are no longer taken for an extension.</li>
+<li>
+<code><a href="../reference/export_list.html">export_list()</a></code> / <code><a href="../reference/export_nest.html">export_nest()</a></code> sanitise path components.</li>
+<li>
+<code><a href="../reference/export_xlsx.html">export_xlsx()</a></code> rejects <code>.xls</code>/<code>.xlsm</code> paths and sheets above Excel’s row limit.</li>
+<li>
+<code><a href="../reference/top_perc.html">top_perc()</a></code> keeps groups too small to select any record (<code>N = 0</code>, with a warning); <code><a href="../reference/format_digits.html">format_digits()</a></code> validates <code>digits</code> before using it.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="other-0-2-0">Other<a class="anchor" aria-label="anchor" href="#other-0-2-0"></a></h3>
+<ul><li>Regression tests for all functions.</li>
+</ul></div>
+</div>
+    <div class="section level2">
+<h2 class="page-header" data-toc-text="0.1.4" id="mintyr-014">mintyr 0.1.4<a class="anchor" aria-label="anchor" href="#mintyr-014"></a></h2>
+<ul><li>Fixed bug in <code><a href="../reference/export_xlsx.html">export_xlsx()</a></code>.</li>
+</ul></div>
     <div class="section level2">
 <h2 class="page-header" data-toc-text="0.1.3" id="mintyr-013">mintyr 0.1.3<small>2026-06-20</small><a class="anchor" aria-label="anchor" href="#mintyr-013"></a></h2>
 <ul><li>removed <code>convert_nest()</code>.</li>
@@ -98,7 +211,7 @@
 </div>
 
 <div class="pkgdown">
-  <p></p><p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.2.0.</p>
+  <p></p><p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.2.1.</p>
 </div>
 
       </footer></div>

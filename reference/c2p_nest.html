@@ -20,7 +20,7 @@ support uniform iterative analyses such as genetic correlation estimation."><met
       </button>
       <span class="navbar-brand">
         <a class="navbar-link" href="../index.html">mintyr</a>
-        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="">0.1.3</span>
+        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="">0.2.0</span>
       </span>
     </div>
 
@@ -63,7 +63,7 @@ support uniform iterative analyses such as genetic correlation estimation."><met
   <div class="col-md-9 contents">
     <div class="page-header">
     <h1>Column to Pair Nested Transformation</h1>
-    <small class="dont-index">Source: <a href="https://github.com/tony2015116/mintyr/blob/v0.1.3/R/c2p_nest.R" class="external-link"><code>R/c2p_nest.R</code></a></small>
+    <small class="dont-index">Source: <a href="https://github.com/tony2015116/mintyr/blob/main/R/c2p_nest.R" class="external-link"><code>R/c2p_nest.R</code></a></small>
     <div class="hidden name"><code>c2p_nest.Rd</code></div>
     </div>
 
@@ -75,7 +75,7 @@ support uniform iterative analyses such as genetic correlation estimation.</p>
     </div>
 
     <div id="ref-usage">
-    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">c2p_nest</span><span class="op">(</span><span class="va">data</span>, <span class="va">cols2bind</span>, by <span class="op">=</span> <span class="cn">NULL</span>, pairs_n <span class="op">=</span> <span class="fl">2L</span>, sep <span class="op">=</span> <span class="st">"-"</span>, nest_type <span class="op">=</span> <span class="st">"dt"</span><span class="op">)</span></span></code></pre></div>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">c2p_nest</span><span class="op">(</span><span class="va">data</span>, <span class="va">cols</span>, by <span class="op">=</span> <span class="cn">NULL</span>, pairs_n <span class="op">=</span> <span class="fl">2L</span>, sep <span class="op">=</span> <span class="st">"-"</span>, out_type <span class="op">=</span> <span class="st">"dt"</span><span class="op">)</span></span></code></pre></div>
     </div>
 
     <div id="arguments">
@@ -86,9 +86,10 @@ support uniform iterative analyses such as genetic correlation estimation.</p>
 <dd><p>A data.frame or data.table to be transformed.</p></dd>
 
 
-<dt id="arg-cols-bind">cols2bind<a class="anchor" aria-label="anchor" href="#arg-cols-bind"></a></dt>
+<dt id="arg-cols">cols<a class="anchor" aria-label="anchor" href="#arg-cols"></a></dt>
 <dd><p>A character vector of column names or a numeric vector of
-column indices to be combined into pairs. Must not overlap with <code>by</code>.</p></dd>
+column indices to be combined into pairs. Must not overlap with <code>by</code>.
+Duplicated entries are removed with a warning.</p></dd>
 
 
 <dt id="arg-by">by<a class="anchor" aria-label="anchor" href="#arg-by"></a></dt>
@@ -106,7 +107,7 @@ combination (e.g., 2 for pairwise). Default is <code>2</code>.</p></dd>
 the <code>pairs</code> identifier column. Default is <code>"-"</code>.</p></dd>
 
 
-<dt id="arg-nest-type">nest_type<a class="anchor" aria-label="anchor" href="#arg-nest-type"></a></dt>
+<dt id="arg-out-type">out_type<a class="anchor" aria-label="anchor" href="#arg-out-type"></a></dt>
 <dd><p>A character string specifying the class of each nested
 object: <code>"dt"</code> (data.table, default) or <code>"df"</code> (data.frame).</p></dd>
 
@@ -122,20 +123,20 @@ object: <code>"dt"</code> (data.table, default) or <code>"df"</code> (data.frame
 
 <dt>data</dt>
 <dd><p>List-column. Each cell holds a data.table (or data.frame when
-<code>nest_type = "df"</code>) containing <code>value1</code>, <code>value2</code>, ...,
-plus any extra columns that were neither in <code>cols2bind</code> nor
+<code>out_type = "df"</code>) containing <code>value1</code>, <code>value2</code>, ...,
+plus any extra columns that were neither in <code>cols</code> nor
 <code>by</code>.</p></dd>
 
 
 </dl></div>
     <div id="details">
     <h2>Details</h2>
-    <p>The columns specified in <code>cols2bind</code> are renamed to <code>value1</code>,
+    <p>The columns specified in <code>cols</code> are renamed to <code>value1</code>,
 <code>value2</code>, ... within each nested subset. The original column names are
 preserved in the <code>pairs</code> column (e.g., <code>"Sepal.Length-Sepal.Width"</code>),
 ensuring full traceability for downstream iterative analyses such as genetic
 correlation estimation.</p>
-<p>Columns that belong to neither <code>cols2bind</code> nor <code>by</code> (referred to
+<p>Columns that belong to neither <code>cols</code> nor <code>by</code> (referred to
 internally as "extra columns") are retained inside the nested subsets so
 that covariates or ID fields remain accessible. Grouping columns (<code>by</code>)
 are <em>not</em> duplicated inside the nested data because they are already
@@ -143,6 +144,9 @@ present as outer key columns in the returned table.</p>
 <p>When the number of requested combinations exceeds 500 a message is emitted;
 above 5000 a warning is raised, as memory usage grows linearly with the
 combination count.</p>
+<p>The names <code>value1</code>, <code>value2</code>, ..., <code>pairs</code> and
+<code>data</code> are reserved: <code>data</code> must not contain other columns
+with these names. The input object is never modified.</p>
     </div>
     <div id="see-also">
     <h2>See also</h2>
@@ -157,7 +161,7 @@ combination count.</p>
 <span class="r-in"><span><span class="co"># Example 1: Basic column-to-pairs nesting with custom separator</span></span></span>
 <span class="r-in"><span><span class="fu">c2p_nest</span><span class="op">(</span></span></span>
 <span class="r-in"><span>  <span class="va">iris</span>,                   <span class="co"># Input iris dataset</span></span></span>
-<span class="r-in"><span>  cols2bind <span class="op">=</span> <span class="va">col_names</span>,  <span class="co"># Columns to be combined as pairs</span></span></span>
+<span class="r-in"><span>  cols <span class="op">=</span> <span class="va">col_names</span>,       <span class="co"># Columns to be combined as pairs</span></span></span>
 <span class="r-in"><span>  pairs_n <span class="op">=</span> <span class="fl">2</span>,            <span class="co"># Create pairs of 2 columns</span></span></span>
 <span class="r-in"><span>  sep <span class="op">=</span> <span class="st">"&amp;"</span>               <span class="co"># Custom separator for pair names</span></span></span>
 <span class="r-in"><span><span class="op">)</span></span></span>
@@ -173,49 +177,7 @@ combination count.</p>
 <span class="r-in"><span><span class="co"># Example 2: Column-to-pairs nesting with numeric indices and grouping</span></span></span>
 <span class="r-in"><span><span class="fu">c2p_nest</span><span class="op">(</span></span></span>
 <span class="r-in"><span>  <span class="va">iris</span>,                   <span class="co"># Input iris dataset</span></span></span>
-<span class="r-in"><span>  cols2bind <span class="op">=</span> <span class="fl">1</span><span class="op">:</span><span class="fl">3</span>,        <span class="co"># First 3 columns to be combined</span></span></span>
-<span class="r-in"><span>  pairs_n <span class="op">=</span> <span class="fl">2</span>,            <span class="co"># Create pairs of 2 columns</span></span></span>
-<span class="r-in"><span>  by <span class="op">=</span> <span class="fl">5</span>                  <span class="co"># Group by 5th column (Species)</span></span></span>
-<span class="r-in"><span><span class="op">)</span></span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>                        pairs    Species               data</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>                       &lt;char&gt;     &lt;fctr&gt;             &lt;list&gt;</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 1:  Sepal.Length-Sepal.Width     setosa &lt;data.table[50x3]&gt;</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 2:  Sepal.Length-Sepal.Width versicolor &lt;data.table[50x3]&gt;</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 3:  Sepal.Length-Sepal.Width  virginica &lt;data.table[50x3]&gt;</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 4: Sepal.Length-Petal.Length     setosa &lt;data.table[50x3]&gt;</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 5: Sepal.Length-Petal.Length versicolor &lt;data.table[50x3]&gt;</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 6: Sepal.Length-Petal.Length  virginica &lt;data.table[50x3]&gt;</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 7:  Sepal.Width-Petal.Length     setosa &lt;data.table[50x3]&gt;</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 8:  Sepal.Width-Petal.Length versicolor &lt;data.table[50x3]&gt;</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 9:  Sepal.Width-Petal.Length  virginica &lt;data.table[50x3]&gt;</span>
-<span class="r-in"><span><span class="co"># Returns a nested data.table where:</span></span></span>
-<span class="r-in"><span><span class="co"># - pairs: combined column names</span></span></span>
-<span class="r-in"><span><span class="co"># - Species: grouping variable</span></span></span>
-<span class="r-in"><span><span class="co"># - data: list column containing data.tables grouped by Species</span></span></span>
-<span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="co"># Example data preparation: Define column names for combination</span></span></span>
-<span class="r-in"><span><span class="va">col_names</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"Sepal.Length"</span>, <span class="st">"Sepal.Width"</span>, <span class="st">"Petal.Length"</span><span class="op">)</span></span></span>
-<span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="co"># Example 1: Basic column-to-pairs nesting with custom separator</span></span></span>
-<span class="r-in"><span><span class="fu">c2p_nest</span><span class="op">(</span></span></span>
-<span class="r-in"><span>  <span class="va">iris</span>,                   <span class="co"># Input iris dataset</span></span></span>
-<span class="r-in"><span>  cols2bind <span class="op">=</span> <span class="va">col_names</span>,  <span class="co"># Columns to be combined as pairs</span></span></span>
-<span class="r-in"><span>  pairs_n <span class="op">=</span> <span class="fl">2</span>,            <span class="co"># Create pairs of 2 columns</span></span></span>
-<span class="r-in"><span>  sep <span class="op">=</span> <span class="st">"&amp;"</span>               <span class="co"># Custom separator for pair names</span></span></span>
-<span class="r-in"><span><span class="op">)</span></span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>                        pairs                data</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>                       &lt;char&gt;              &lt;list&gt;</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 1:  Sepal.Length&amp;Sepal.Width &lt;data.table[150x4]&gt;</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 2: Sepal.Length&amp;Petal.Length &lt;data.table[150x4]&gt;</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 3:  Sepal.Width&amp;Petal.Length &lt;data.table[150x4]&gt;</span>
-<span class="r-in"><span><span class="co"># Returns a nested data.table where:</span></span></span>
-<span class="r-in"><span><span class="co"># - pairs: combined column names (e.g., "Sepal.Length&amp;Sepal.Width")</span></span></span>
-<span class="r-in"><span><span class="co"># - data: list column containing data.tables with value1, value2 columns</span></span></span>
-<span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="co"># Example 2: Column-to-pairs nesting with numeric indices and grouping</span></span></span>
-<span class="r-in"><span><span class="fu">c2p_nest</span><span class="op">(</span></span></span>
-<span class="r-in"><span>  <span class="va">iris</span>,                   <span class="co"># Input iris dataset</span></span></span>
-<span class="r-in"><span>  cols2bind <span class="op">=</span> <span class="fl">1</span><span class="op">:</span><span class="fl">3</span>,        <span class="co"># First 3 columns to be combined</span></span></span>
+<span class="r-in"><span>  cols <span class="op">=</span> <span class="fl">1</span><span class="op">:</span><span class="fl">3</span>,             <span class="co"># First 3 columns to be combined</span></span></span>
 <span class="r-in"><span>  pairs_n <span class="op">=</span> <span class="fl">2</span>,            <span class="co"># Create pairs of 2 columns</span></span></span>
 <span class="r-in"><span>  by <span class="op">=</span> <span class="fl">5</span>                  <span class="co"># Group by 5th column (Species)</span></span></span>
 <span class="r-in"><span><span class="op">)</span></span></span>
@@ -248,7 +210,7 @@ combination count.</p>
 </div>
 
 <div class="pkgdown">
-  <p></p><p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.2.0.</p>
+  <p></p><p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.2.1.</p>
 </div>
 
       </footer></div>

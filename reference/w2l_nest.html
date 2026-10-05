@@ -20,7 +20,7 @@ table contains a nested data.table or data.frame in the data list-column."><meta
       </button>
       <span class="navbar-brand">
         <a class="navbar-link" href="../index.html">mintyr</a>
-        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="">0.1.3</span>
+        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="">0.2.0</span>
       </span>
     </div>
 
@@ -63,7 +63,7 @@ table contains a nested data.table or data.frame in the data list-column."><meta
   <div class="col-md-9 contents">
     <div class="page-header">
     <h1>Reshape Wide Data to Long Format and Nest by Specified Columns</h1>
-    <small class="dont-index">Source: <a href="https://github.com/tony2015116/mintyr/blob/v0.1.3/R/w2l_nest.R" class="external-link"><code>R/w2l_nest.R</code></a></small>
+    <small class="dont-index">Source: <a href="https://github.com/tony2015116/mintyr/blob/main/R/w2l_nest.R" class="external-link"><code>R/w2l_nest.R</code></a></small>
     <div class="hidden name"><code>w2l_nest.Rd</code></div>
     </div>
 
@@ -75,7 +75,7 @@ table contains a nested <code>data.table</code> or <code>data.frame</code> in th
     </div>
 
     <div id="ref-usage">
-    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">w2l_nest</span><span class="op">(</span><span class="va">data</span>, cols2l <span class="op">=</span> <span class="cn">NULL</span>, by <span class="op">=</span> <span class="cn">NULL</span>, nest_type <span class="op">=</span> <span class="st">"dt"</span><span class="op">)</span></span></code></pre></div>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">w2l_nest</span><span class="op">(</span><span class="va">data</span>, cols <span class="op">=</span> <span class="cn">NULL</span>, by <span class="op">=</span> <span class="cn">NULL</span>, out_type <span class="op">=</span> <span class="st">"dt"</span><span class="op">)</span></span></code></pre></div>
     </div>
 
     <div id="arguments">
@@ -84,10 +84,11 @@ table contains a nested <code>data.table</code> or <code>data.frame</code> in th
 
 <dl><dt id="arg-data">data<a class="anchor" aria-label="anchor" href="#arg-data"></a></dt>
 <dd><p><code>data.frame</code> or <code>data.table</code>. Wide-format input dataset.
-Converted in-place to <code>data.table</code> via <code>setDT()</code> if necessary (no copy).</p></dd>
+The input object is never modified: a <code>data.frame</code> is converted with
+<code><a href="https://rdrr.io/pkg/data.table/man/as.data.table.html" class="external-link">as.data.table()</a></code>, a <code>data.table</code> is read as-is.</p></dd>
 
 
-<dt id="arg-cols-l">cols2l<a class="anchor" aria-label="anchor" href="#arg-cols-l"></a></dt>
+<dt id="arg-cols">cols<a class="anchor" aria-label="anchor" href="#arg-cols"></a></dt>
 <dd><p><code>numeric</code> or <code>character</code>. Columns to pivot from wide to long,
 specified as integer indices or column names. Default <code>NULL</code>: when <code>NULL</code>,
 <code>by</code> must be provided and the function performs a pure nest operation
@@ -100,7 +101,7 @@ hierarchical nesting, specified as integer indices or column names.
 Default <code>NULL</code>.</p></dd>
 
 
-<dt id="arg-nest-type">nest_type<a class="anchor" aria-label="anchor" href="#arg-nest-type"></a></dt>
+<dt id="arg-out-type">out_type<a class="anchor" aria-label="anchor" href="#arg-out-type"></a></dt>
 <dd><p><code>character</code>. Class of each nested subset:
 <code>"dt"</code> for <code>data.table</code> (default) or <code>"df"</code> for <code>data.frame</code>.</p></dd>
 
@@ -114,30 +115,32 @@ are never duplicated inside the nested objects.</p>
     </div>
     <div id="details">
     <h2>Details</h2>
-    <p><strong>Column resolution:</strong> both <code>cols2l</code> and <code>by</code> accept either integer column
+    <p><strong>Column resolution:</strong> both <code>cols</code> and <code>by</code> accept either integer column
 positions or character column names. Out-of-bounds indices and unknown names
 are caught early with informative error messages.</p>
-<p><strong>Overlap guard:</strong> if any column appears in both <code>cols2l</code> and <code>by</code>, the
+<p><strong>Overlap guard:</strong> if any column appears in both <code>cols</code> and <code>by</code>, the
 function stops with an error before attempting to melt, preventing silent
 structural corruption.</p>
-<p><strong>Factor-free melting:</strong> <code>melt()</code> is called with <code>variable.factor = FALSE</code>
+<p><strong>Factor-free melting:</strong> <code><a href="https://rdrr.io/pkg/data.table/man/melt.data.table.html" class="external-link">melt()</a></code> is called with <code>variable.factor = FALSE</code>
 so the <code>name</code> column is always <code>character</code>, avoiding unexpected factor-level
 ordering in downstream grouping operations.</p>
-<p><strong>Memory efficiency:</strong></p><ul><li><p><code>setDT()</code> converts <code>data.frame</code> inputs by reference — no full copy.</p></li>
-<li><p><code>.SDcols</code> restricts <code>.SD</code> to non-key columns, eliminating redundant
-storage of grouping keys inside each nested object.</p></li>
-<li><p>For <code>nest_type = "df"</code>, <code>setattr(copy(.SD), "class", "data.frame")</code>
-modifies the class attribute on a shallow copy rather than performing
-a deep column-by-column duplication as <code><a href="https://rdrr.io/r/base/as.data.frame.html" class="external-link">as.data.frame()</a></code> would.</p></li>
-</ul></div>
+<p><strong>No side effects:</strong> earlier versions called <code><a href="https://rdrr.io/pkg/data.table/man/setDT.html" class="external-link">setDT()</a></code> on the argument,
+which silently turned the caller's <code>data.frame</code> into a <code>data.table</code>. The
+input is now left untouched.</p>
+<p><strong>Memory efficiency:</strong> <code>.SDcols</code> restricts <code>.SD</code> to non-key columns, so
+grouping keys are never stored redundantly inside each nested object.</p>
+    </div>
     <div id="note">
     <h2>Note</h2>
 
 <ul><li><p>Passing an empty table (0 rows) triggers a <code><a href="https://rdrr.io/r/base/warning.html" class="external-link">warning()</a></code> and returns
-an empty nested <code>data.table</code> immediately.</p></li>
-<li><p><code>cols2l</code> and <code>by</code> must not overlap; overlapping columns will raise
+a 0-row table with the regular column structure
+(<code>name</code>, the <code>by</code> columns and <code>data</code>).</p></li>
+<li><p><code>name</code> and <code>value</code> are reserved for the long format; <code>data</code> must
+not contain other columns with these names.</p></li>
+<li><p><code>cols</code> and <code>by</code> must not overlap; overlapping columns will raise
 an error.</p></li>
-<li><p><code>nest_type</code> values other than <code>"dt"</code> or <code>"df"</code> raise an error.</p></li>
+<li><p><code>out_type</code> values other than <code>"dt"</code> or <code>"df"</code> raise an error.</p></li>
 </ul></div>
     <div id="see-also">
     <h2>See also</h2>
@@ -162,7 +165,7 @@ an error.</p></li>
 <span class="r-in"><span><span class="co"># Example 2: Nest specific columns with numeric indices</span></span></span>
 <span class="r-in"><span><span class="fu">w2l_nest</span><span class="op">(</span></span></span>
 <span class="r-in"><span>  data <span class="op">=</span> <span class="va">iris</span>,                    <span class="co"># Input dataset</span></span></span>
-<span class="r-in"><span>  cols2l <span class="op">=</span> <span class="fl">1</span><span class="op">:</span><span class="fl">4</span>,                   <span class="co"># Select first 4 columns to nest</span></span></span>
+<span class="r-in"><span>  cols <span class="op">=</span> <span class="fl">1</span><span class="op">:</span><span class="fl">4</span>,                   <span class="co"># Select first 4 columns to nest</span></span></span>
 <span class="r-in"><span>  by <span class="op">=</span> <span class="st">"Species"</span>                  <span class="co"># Group by Species column</span></span></span>
 <span class="r-in"><span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>             name    Species               data</span>
@@ -183,9 +186,9 @@ an error.</p></li>
 <span class="r-in"><span><span class="co"># Example 3: Nest specific columns with column names</span></span></span>
 <span class="r-in"><span><span class="fu">w2l_nest</span><span class="op">(</span></span></span>
 <span class="r-in"><span>  data <span class="op">=</span> <span class="va">iris</span>,                    <span class="co"># Input dataset</span></span></span>
-<span class="r-in"><span>  cols2l <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"Sepal.Length"</span>,      <span class="co"># Select columns by name</span></span></span>
-<span class="r-in"><span>             <span class="st">"Sepal.Width"</span>, </span></span>
-<span class="r-in"><span>             <span class="st">"Petal.Length"</span><span class="op">)</span>,</span></span>
+<span class="r-in"><span>  cols <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"Sepal.Length"</span>,        <span class="co"># Select columns by name</span></span></span>
+<span class="r-in"><span>           <span class="st">"Sepal.Width"</span>,</span></span>
+<span class="r-in"><span>           <span class="st">"Petal.Length"</span><span class="op">)</span>,</span></span>
 <span class="r-in"><span>  by <span class="op">=</span> <span class="fl">5</span>                          <span class="co"># Group by column index 5 (Species)</span></span></span>
 <span class="r-in"><span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>            name    Species               data</span>
@@ -214,7 +217,7 @@ an error.</p></li>
 </div>
 
 <div class="pkgdown">
-  <p></p><p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.2.0.</p>
+  <p></p><p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.2.1.</p>
 </div>
 
       </footer></div>

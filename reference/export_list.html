@@ -3,7 +3,7 @@
 data.table objects to txt or csv files.  Element names may
 contain forward-slashes (/) to encode arbitrary subdirectory depth, e.g.
 "group_a/subject_01/results" writes
-&amp;lt;export_path&amp;gt;/group_a/subject_01/results.txt.
+&amp;lt;path&amp;gt;/group_a/subject_01/results.txt.
 Unnamed elements are automatically labelled split_&amp;lt;i&amp;gt;.'><meta property="og:image" content="https://tony2015116.github.io/mintyr/logo.svg"><!-- mathjax --><script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/MathJax.js" integrity="sha256-nvJJv9wWKEm88qvoQl9ekL2J+k/RWIsaSScxxlsrv8k=" crossorigin="anonymous"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/config/TeX-AMS-MML_HTMLorMML.js" integrity="sha256-84DKXVJXs0/F8OTMzX4UR909+jtl4G7SPypPavF+GfA=" crossorigin="anonymous"></script><!--[if lt IE 9]>
 <script src="https://oss.maxcdn.com/html5shiv/3.7.3/html5shiv.min.js"></script>
 <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
@@ -22,7 +22,7 @@ Unnamed elements are automatically labelled split_&amp;lt;i&amp;gt;.'><meta prop
       </button>
       <span class="navbar-brand">
         <a class="navbar-link" href="../index.html">mintyr</a>
-        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="">0.1.3</span>
+        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="">0.2.0</span>
       </span>
     </div>
 
@@ -65,7 +65,7 @@ Unnamed elements are automatically labelled split_&amp;lt;i&amp;gt;.'><meta prop
   <div class="col-md-9 contents">
     <div class="page-header">
     <h1>Export a List of Data Frames with Hierarchical Directory Management</h1>
-    <small class="dont-index">Source: <a href="https://github.com/tony2015116/mintyr/blob/v0.1.3/R/export_list.R" class="external-link"><code>R/export_list.R</code></a></small>
+    <small class="dont-index">Source: <a href="https://github.com/tony2015116/mintyr/blob/main/R/export_list.R" class="external-link"><code>R/export_list.R</code></a></small>
     <div class="hidden name"><code>export_list.Rd</code></div>
     </div>
 
@@ -74,24 +74,31 @@ Unnamed elements are automatically labelled split_&amp;lt;i&amp;gt;.'><meta prop
 <code>data.table</code> objects to <code>txt</code> or <code>csv</code> files.  Element names may
 contain forward-slashes (<code>/</code>) to encode arbitrary subdirectory depth, e.g.
 <code>"group_a/subject_01/results"</code> writes
-<code>&lt;export_path&gt;/group_a/subject_01/results.txt</code>.
+<code>&lt;path&gt;/group_a/subject_01/results.txt</code>.
 Unnamed elements are automatically labelled <code>split_&lt;i&gt;</code>.</p>
     </div>
 
     <div id="ref-usage">
-    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">export_list</span><span class="op">(</span><span class="va">split_dt</span>, export_path <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempdir</a></span><span class="op">(</span><span class="op">)</span>, file_type <span class="op">=</span> <span class="st">"txt"</span><span class="op">)</span></span></code></pre></div>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">export_list</span><span class="op">(</span></span>
+<span>  <span class="va">data</span>,</span>
+<span>  path <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempdir</a></span><span class="op">(</span><span class="op">)</span>,</span>
+<span>  file_type <span class="op">=</span> <span class="st">"txt"</span>,</span>
+<span>  na <span class="op">=</span> <span class="st">"NA"</span>,</span>
+<span>  quote <span class="op">=</span> <span class="cn">FALSE</span>,</span>
+<span>  <span class="va">...</span></span>
+<span><span class="op">)</span></span></code></pre></div>
     </div>
 
     <div id="arguments">
     <h2>Arguments</h2>
 
 
-<dl><dt id="arg-split-dt">split_dt<a class="anchor" aria-label="anchor" href="#arg-split-dt"></a></dt>
+<dl><dt id="arg-data">data<a class="anchor" aria-label="anchor" href="#arg-data"></a></dt>
 <dd><p>A non-empty <code>list</code> whose elements are <code>data.frame</code>,
 <code>data.table</code>, or any object coercible via <code><a href="https://rdrr.io/pkg/data.table/man/as.data.table.html" class="external-link">data.table::as.data.table()</a></code>.</p></dd>
 
 
-<dt id="arg-export-path">export_path<a class="anchor" aria-label="anchor" href="#arg-export-path"></a></dt>
+<dt id="arg-path">path<a class="anchor" aria-label="anchor" href="#arg-path"></a></dt>
 <dd><p>Single character string - the root export directory.
 Created recursively if absent. Defaults to <code><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempdir()</a></code>.</p></dd>
 
@@ -100,10 +107,28 @@ Created recursively if absent. Defaults to <code><a href="https://rdrr.io/r/base
 <dd><p><code>"txt"</code> (tab-separated, default) or <code>"csv"</code>
 (comma-separated). Case-insensitive.</p></dd>
 
+
+<dt id="arg-na">na<a class="anchor" aria-label="anchor" href="#arg-na"></a></dt>
+<dd><p>Single string written for missing values. Default <code>"NA"</code>.
+Use e.g. <code>"-9999"</code> for DMU.</p></dd>
+
+
+<dt id="arg-quote">quote<a class="anchor" aria-label="anchor" href="#arg-quote"></a></dt>
+<dd><p>Passed to <code><a href="https://rdrr.io/pkg/data.table/man/fwrite.html" class="external-link">fwrite</a></code>. Default
+<code>FALSE</code>: with a non-empty <code>na</code>, <code>fwrite</code>'s <code>"auto"</code>
+would quote every header and character field, which command-line
+breeding programs (HIBLUP, DMU, ...) cannot parse. Use <code>"auto"</code> if
+values may contain the separator.</p></dd>
+
+
+<dt id="arg--">...<a class="anchor" aria-label="anchor" href="#arg--"></a></dt>
+<dd><p>Further arguments passed to <code><a href="https://rdrr.io/pkg/data.table/man/fwrite.html" class="external-link">fwrite</a></code>
+(e.g. <code>col.names = FALSE</code>).</p></dd>
+
 </dl></div>
     <div id="value">
     <h2>Value</h2>
-    <p>An invisible named <code>character</code> vector of the absolute file paths
+    <p>An invisible named <code>character</code> vector of the file paths
 written, with length equal to the number of successfully exported elements.
 The total count is accessible via <code><a href="https://rdrr.io/r/base/length.html" class="external-link">length()</a></code> on the return value.</p>
     </div>
@@ -115,17 +140,15 @@ inside the hot path.</p></li>
 <li><p>Unique subdirectories are collected and created in one batch
 (<code>k</code> <code><a href="https://rdrr.io/r/base/files2.html" class="external-link">dir.create()</a></code> syscalls, where <code>k</code> \(\le\) <code>n</code>).</p></li>
 <li><p>The field separator is resolved once at function entry.</p></li>
-<li><p><code>as.data.table()</code> on an existing <code>data.table</code> is a
+<li><p><code><a href="https://rdrr.io/pkg/data.table/man/as.data.table.html" class="external-link">as.data.table()</a></code> on an existing <code>data.table</code> is a
 reference-pass (no copy).</p></li>
-</ul><p><strong>Error handling:</strong>
+</ul><p><strong>Name handling:</strong> each <code>/</code>-separated component of an element name is
+sanitised separately (invalid characters become <code>_</code>; <code>..</code> cannot
+escape <code>path</code>). If two elements map to the same file
+(compared case-insensitively), the function stops instead of overwriting.</p>
+<p><strong>Error handling:</strong>
 Individual element failures emit a <code>warning</code> and are skipped; the
 remaining elements continue to be processed.</p>
-    </div>
-    <div id="dependencies">
-    <h2>Dependencies</h2>
-
-
-<p>Requires the <span class="pkg">data.table</span> package.</p>
     </div>
     <div id="see-also">
     <h2>See also</h2>
@@ -135,41 +158,38 @@ remaining elements continue to be processed.</p>
     <div id="ref-examples">
     <h2>Examples</h2>
     <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="co"># Example: Export split data to files</span></span></span>
+<span class="r-in"><span><span class="va">out_dir</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/file.path.html" class="external-link">file.path</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempdir</a></span><span class="op">(</span><span class="op">)</span>, <span class="st">"mintyr_export_list"</span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># Step 1: Create split data structure</span></span></span>
 <span class="r-in"><span><span class="va">dt_split</span> <span class="op">&lt;-</span> <span class="fu"><a href="w2l_split.html">w2l_split</a></span><span class="op">(</span></span></span>
 <span class="r-in"><span>  data <span class="op">=</span> <span class="va">iris</span>,              <span class="co"># Input iris dataset</span></span></span>
-<span class="r-in"><span>  cols2l <span class="op">=</span> <span class="fl">1</span><span class="op">:</span><span class="fl">2</span>,             <span class="co"># Columns to be split</span></span></span>
+<span class="r-in"><span>  cols <span class="op">=</span> <span class="fl">1</span><span class="op">:</span><span class="fl">2</span>,               <span class="co"># Columns to be split</span></span></span>
 <span class="r-in"><span>  by <span class="op">=</span> <span class="st">"Species"</span>            <span class="co"># Grouping variable</span></span></span>
 <span class="r-in"><span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># Step 2: Export split data to files</span></span></span>
-<span class="r-in"><span><span class="fu">export_list</span><span class="op">(</span></span></span>
-<span class="r-in"><span>  split_dt <span class="op">=</span> <span class="va">dt_split</span>       <span class="co"># Input list of data.tables</span></span></span>
+<span class="r-in"><span><span class="va">files</span> <span class="op">&lt;-</span> <span class="fu">export_list</span><span class="op">(</span></span></span>
+<span class="r-in"><span>  data <span class="op">=</span> <span class="va">dt_split</span>,          <span class="co"># Input list of data.tables</span></span></span>
+<span class="r-in"><span>  path <span class="op">=</span> <span class="va">out_dir</span></span></span>
 <span class="r-in"><span><span class="op">)</span></span></span>
-<span class="r-msg co"><span class="r-pr">#&gt;</span> [ export_list ] Export complete. 6 / 6 file(s) written to: /tmp/RtmpC8fThJ</span>
-<span class="r-in"><span><span class="co"># Returns the number of files created</span></span></span>
-<span class="r-in"><span><span class="co"># Files are saved in tempdir() with .txt extension</span></span></span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> [ export_list ] Export complete. 6 / 6 file(s) written to: /tmp/RtmpbEyCmr/mintyr_export_list</span>
+<span class="r-in"><span><span class="co"># Returns (invisibly) a named vector of the written file paths</span></span></span>
+<span class="r-in"><span><span class="va">files</span></span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>                                              Sepal.Length_setosa </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>     "/tmp/RtmpbEyCmr/mintyr_export_list/Sepal.Length_setosa.txt" </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>                                          Sepal.Length_versicolor </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> "/tmp/RtmpbEyCmr/mintyr_export_list/Sepal.Length_versicolor.txt" </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>                                           Sepal.Length_virginica </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  "/tmp/RtmpbEyCmr/mintyr_export_list/Sepal.Length_virginica.txt" </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>                                               Sepal.Width_setosa </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>      "/tmp/RtmpbEyCmr/mintyr_export_list/Sepal.Width_setosa.txt" </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>                                           Sepal.Width_versicolor </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  "/tmp/RtmpbEyCmr/mintyr_export_list/Sepal.Width_versicolor.txt" </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>                                            Sepal.Width_virginica </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   "/tmp/RtmpbEyCmr/mintyr_export_list/Sepal.Width_virginica.txt" </span>
 <span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="co"># Check exported files</span></span></span>
-<span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/list.files.html" class="external-link">list.files</a></span><span class="op">(</span></span></span>
-<span class="r-in"><span>  path <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempdir</a></span><span class="op">(</span><span class="op">)</span>,         <span class="co"># Default export directory</span></span></span>
-<span class="r-in"><span>  pattern <span class="op">=</span> <span class="st">"txt"</span>,          <span class="co"># File type pattern to search</span></span></span>
-<span class="r-in"><span>  recursive <span class="op">=</span> <span class="cn">TRUE</span>          <span class="co"># Search in subdirectories</span></span></span>
-<span class="r-in"><span><span class="op">)</span></span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [1] "Sepal.Length_setosa.txt"     "Sepal.Length_versicolor.txt"</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [3] "Sepal.Length_virginica.txt"  "Sepal.Width_setosa.txt"     </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [5] "Sepal.Width_versicolor.txt"  "Sepal.Width_virginica.txt"  </span>
-<span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="co"># Clean up exported files</span></span></span>
-<span class="r-in"><span><span class="va">files</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/list.files.html" class="external-link">list.files</a></span><span class="op">(</span></span></span>
-<span class="r-in"><span>  path <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempdir</a></span><span class="op">(</span><span class="op">)</span>,         <span class="co"># Default export directory</span></span></span>
-<span class="r-in"><span>  pattern <span class="op">=</span> <span class="st">"txt"</span>,          <span class="co"># File type pattern to search</span></span></span>
-<span class="r-in"><span>  recursive <span class="op">=</span> <span class="cn">TRUE</span>,         <span class="co"># Search in subdirectories</span></span></span>
-<span class="r-in"><span>  full.names <span class="op">=</span> <span class="cn">TRUE</span>         <span class="co"># Return full file paths</span></span></span>
-<span class="r-in"><span><span class="op">)</span></span></span>
-<span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/files.html" class="external-link">file.remove</a></span><span class="op">(</span><span class="va">files</span><span class="op">)</span>          <span class="co"># Remove all exported files</span></span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [1] TRUE TRUE TRUE TRUE TRUE TRUE</span>
+<span class="r-in"><span><span class="co"># Clean up</span></span></span>
+<span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/unlink.html" class="external-link">unlink</a></span><span class="op">(</span><span class="va">out_dir</span>, recursive <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></span>
 </code></pre></div>
     </div>
   </div>
@@ -184,7 +204,7 @@ remaining elements continue to be processed.</p>
 </div>
 
 <div class="pkgdown">
-  <p></p><p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.2.0.</p>
+  <p></p><p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.2.1.</p>
 </div>
 
       </footer></div>

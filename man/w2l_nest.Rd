@@ -4,13 +4,14 @@
 \alias{w2l_nest}
 \title{Reshape Wide Data to Long Format and Nest by Specified Columns}
 \usage{
-w2l_nest(data, cols2l = NULL, by = NULL, nest_type = "dt")
+w2l_nest(data, cols = NULL, by = NULL, out_type = "dt")
 }
 \arguments{
 \item{data}{\code{data.frame} or \code{data.table}. Wide-format input dataset.
-Converted in-place to \code{data.table} via \code{setDT()} if necessary (no copy).}
+The input object is never modified: a \code{data.frame} is converted with
+\code{as.data.table()}, a \code{data.table} is read as-is.}
 
-\item{cols2l}{\code{numeric} or \code{character}. Columns to pivot from wide to long,
+\item{cols}{\code{numeric} or \code{character}. Columns to pivot from wide to long,
 specified as integer indices or column names. Default \code{NULL}: when \code{NULL},
 \code{by} must be provided and the function performs a pure nest operation
 (no melting).}
@@ -19,7 +20,7 @@ specified as integer indices or column names. Default \code{NULL}: when \code{NU
 hierarchical nesting, specified as integer indices or column names.
 Default \code{NULL}.}
 
-\item{nest_type}{\code{character}. Class of each nested subset:
+\item{out_type}{\code{character}. Class of each nested subset:
 \code{"dt"} for \code{data.table} (default) or \code{"df"} for \code{data.frame}.}
 }
 \value{
@@ -35,11 +36,11 @@ any optional grouping variables supplied via \code{by}. Each row of the returned
 table contains a nested \code{data.table} or \code{data.frame} in the \code{data} list-column.
 }
 \details{
-\strong{Column resolution:} both \code{cols2l} and \code{by} accept either integer column
+\strong{Column resolution:} both \code{cols} and \code{by} accept either integer column
 positions or character column names. Out-of-bounds indices and unknown names
 are caught early with informative error messages.
 
-\strong{Overlap guard:} if any column appears in both \code{cols2l} and \code{by}, the
+\strong{Overlap guard:} if any column appears in both \code{cols} and \code{by}, the
 function stops with an error before attempting to melt, preventing silent
 structural corruption.
 
@@ -47,23 +48,23 @@ structural corruption.
 so the \code{name} column is always \code{character}, avoiding unexpected factor-level
 ordering in downstream grouping operations.
 
-\strong{Memory efficiency:}
-\itemize{
-\item \code{setDT()} converts \code{data.frame} inputs by reference — no full copy.
-\item \code{.SDcols} restricts \code{.SD} to non-key columns, eliminating redundant
-storage of grouping keys inside each nested object.
-\item For \code{nest_type = "df"}, \code{setattr(copy(.SD), "class", "data.frame")}
-modifies the class attribute on a shallow copy rather than performing
-a deep column-by-column duplication as \code{as.data.frame()} would.
-}
+\strong{No side effects:} earlier versions called \code{setDT()} on the argument,
+which silently turned the caller's \code{data.frame} into a \code{data.table}. The
+input is now left untouched.
+
+\strong{Memory efficiency:} \code{.SDcols} restricts \code{.SD} to non-key columns, so
+grouping keys are never stored redundantly inside each nested object.
 }
 \note{
 \itemize{
 \item Passing an empty table (0 rows) triggers a \code{warning()} and returns
-an empty nested \code{data.table} immediately.
-\item \code{cols2l} and \code{by} must not overlap; overlapping columns will raise
+a 0-row table with the regular column structure
+(\code{name}, the \code{by} columns and \code{data}).
+\item \code{name} and \code{value} are reserved for the long format; \code{data} must
+not contain other columns with these names.
+\item \code{cols} and \code{by} must not overlap; overlapping columns will raise
 an error.
-\item \code{nest_type} values other than \code{"dt"} or \code{"df"} raise an error.
+\item \code{out_type} values other than \code{"dt"} or \code{"df"} raise an error.
 }
 }
 \examples{
@@ -78,20 +79,20 @@ w2l_nest(
 # Example 2: Nest specific columns with numeric indices
 w2l_nest(
   data = iris,                    # Input dataset
-  cols2l = 1:4,                   # Select first 4 columns to nest
+  cols = 1:4,                   # Select first 4 columns to nest
   by = "Species"                  # Group by Species column
 )
 
 # Example 3: Nest specific columns with column names
 w2l_nest(
   data = iris,                    # Input dataset
-  cols2l = c("Sepal.Length",      # Select columns by name
-             "Sepal.Width", 
-             "Petal.Length"),
+  cols = c("Sepal.Length",        # Select columns by name
+           "Sepal.Width",
+           "Petal.Length"),
   by = 5                          # Group by column index 5 (Species)
 )
 # Returns similar structure to Example 2
 }
 \seealso{
-\code{\link[tidytable:nest_by]{tidytable::nest_by()}} for a tidyverse-style equivalent.
+\code{tidytable::nest_by()} for a tidyverse-style equivalent.
 }

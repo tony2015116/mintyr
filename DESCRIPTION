@@ -1,6 +1,6 @@
 Package: mintyr
 Title: High-Performance Phenotypic Data Pipelines for Breeding
-Version: 0.1.4
+Version: 0.2.0
 Authors@R: c(
     person("Guo Meng", , , "tony2015116@163.com", role = c("aut", "cre")),
     person("Guo Meng", role = "cph")
@@ -24,17 +24,18 @@ Imports:
     data.table,
     parallel,
     readxl,
-    rsample,
     stats,
     utils,
     writexl
 Suggests: 
     knitr,
-    rmarkdown
+    rmarkdown,
+    testthat (>= 3.0.0)
 VignetteBuilder: 
     knitr
-Config/fusen/version: 0.6.0
+Config/fusen/version: 0.7.2
+Config/roxygen2/version: 8.1.0
+Config/testthat/edition: 3
 Encoding: UTF-8
 LazyData: true
 Roxygen: list(markdown = TRUE)
-RoxygenNote: 7.3.2

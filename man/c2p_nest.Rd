@@ -4,13 +4,14 @@
 \alias{c2p_nest}
 \title{Column to Pair Nested Transformation}
 \usage{
-c2p_nest(data, cols2bind, by = NULL, pairs_n = 2L, sep = "-", nest_type = "dt")
+c2p_nest(data, cols, by = NULL, pairs_n = 2L, sep = "-", out_type = "dt")
 }
 \arguments{
 \item{data}{A data.frame or data.table to be transformed.}
 
-\item{cols2bind}{A character vector of column names or a numeric vector of
-column indices to be combined into pairs. Must not overlap with \code{by}.}
+\item{cols}{A character vector of column names or a numeric vector of
+column indices to be combined into pairs. Must not overlap with \code{by}.
+Duplicated entries are removed with a warning.}
 
 \item{by}{A character vector of column names or a numeric vector of column
 indices to group by. Default is \code{NULL}.}
@@ -21,7 +22,7 @@ combination (e.g., 2 for pairwise). Default is \code{2}.}
 \item{sep}{A single character string used as a separator when constructing
 the \code{pairs} identifier column. Default is \code{"-"}.}
 
-\item{nest_type}{A character string specifying the class of each nested
+\item{out_type}{A character string specifying the class of each nested
 object: \code{"dt"} (data.table, default) or \code{"df"} (data.frame).}
 }
 \value{
@@ -31,8 +32,8 @@ A \code{data.table} with columns:
 \code{"Sepal.Length-Sepal.Width"}.}
 \item{...}{Any \code{by} grouping columns, one per variable.}
 \item{data}{List-column. Each cell holds a data.table (or data.frame when
-\code{nest_type = "df"}) containing \code{value1}, \code{value2}, ...,
-plus any extra columns that were neither in \code{cols2bind} nor
+\code{out_type = "df"}) containing \code{value1}, \code{value2}, ...,
+plus any extra columns that were neither in \code{cols} nor
 \code{by}.}
 }
 }
@@ -43,13 +44,13 @@ columns to \code{value1}, \code{value2}, ... (up to \code{pairs_n}) to
 support uniform iterative analyses such as genetic correlation estimation.
 }
 \details{
-The columns specified in \code{cols2bind} are renamed to \code{value1},
+The columns specified in \code{cols} are renamed to \code{value1},
 \code{value2}, ... within each nested subset. The original column names are
 preserved in the \code{pairs} column (e.g., \code{"Sepal.Length-Sepal.Width"}),
 ensuring full traceability for downstream iterative analyses such as genetic
 correlation estimation.
 
-Columns that belong to neither \code{cols2bind} nor \code{by} (referred to
+Columns that belong to neither \code{cols} nor \code{by} (referred to
 internally as "extra columns") are retained inside the nested subsets so
 that covariates or ID fields remain accessible. Grouping columns (\code{by})
 are \emph{not} duplicated inside the nested data because they are already
@@ -58,6 +59,10 @@ present as outer key columns in the returned table.
 When the number of requested combinations exceeds 500 a message is emitted;
 above 5000 a warning is raised, as memory usage grows linearly with the
 combination count.
+
+The names \code{value1}, \code{value2}, ..., \code{pairs} and
+\code{data} are reserved: \code{data} must not contain other columns
+with these names. The input object is never modified.
 }
 \examples{
 # Example data preparation: Define column names for combination
@@ -66,7 +71,7 @@ col_names <- c("Sepal.Length", "Sepal.Width", "Petal.Length")
 # Example 1: Basic column-to-pairs nesting with custom separator
 c2p_nest(
   iris,                   # Input iris dataset
-  cols2bind = col_names,  # Columns to be combined as pairs
+  cols = col_names,       # Columns to be combined as pairs
   pairs_n = 2,            # Create pairs of 2 columns
   sep = "&"               # Custom separator for pair names
 )
@@ -77,33 +82,7 @@ c2p_nest(
 # Example 2: Column-to-pairs nesting with numeric indices and grouping
 c2p_nest(
   iris,                   # Input iris dataset
-  cols2bind = 1:3,        # First 3 columns to be combined
-  pairs_n = 2,            # Create pairs of 2 columns
-  by = 5                  # Group by 5th column (Species)
-)
-# Returns a nested data.table where:
-# - pairs: combined column names
-# - Species: grouping variable
-# - data: list column containing data.tables grouped by Species
-
-# Example data preparation: Define column names for combination
-col_names <- c("Sepal.Length", "Sepal.Width", "Petal.Length")
-
-# Example 1: Basic column-to-pairs nesting with custom separator
-c2p_nest(
-  iris,                   # Input iris dataset
-  cols2bind = col_names,  # Columns to be combined as pairs
-  pairs_n = 2,            # Create pairs of 2 columns
-  sep = "&"               # Custom separator for pair names
-)
-# Returns a nested data.table where:
-# - pairs: combined column names (e.g., "Sepal.Length&Sepal.Width")
-# - data: list column containing data.tables with value1, value2 columns
-
-# Example 2: Column-to-pairs nesting with numeric indices and grouping
-c2p_nest(
-  iris,                   # Input iris dataset
-  cols2bind = 1:3,        # First 3 columns to be combined
+  cols = 1:3,             # First 3 columns to be combined
   pairs_n = 2,            # Create pairs of 2 columns
   by = 5                  # Group by 5th column (Species)
 )

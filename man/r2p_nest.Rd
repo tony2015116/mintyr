@@ -4,51 +4,64 @@
 \alias{r2p_nest}
 \title{Row to Pair Nested Transformation}
 \usage{
-r2p_nest(data, rows2bind, by, nest_type = "dt")
+r2p_nest(data, names_from, cols, out_type = "dt", id = NULL)
 }
 \arguments{
-\item{data}{Input \verb{data frame} or \verb{data table}.}
+\item{data}{Input \code{data.frame} or \code{data.table}. It is never modified.}
 
-\item{rows2bind}{A character column name or numeric index to be used as row values.}
+\item{names_from}{A single column name or index whose levels become columns.}
 
-\item{by}{A character vector or numeric vector of column indices to transform.}
+\item{cols}{A character vector of column names or numeric indices: the
+trait columns to pivot.}
 
-\item{nest_type}{Output nesting format (\code{"dt"} or \code{"df"}). Default \code{"dt"}.}
+\item{out_type}{Output nesting format (\code{"dt"} or \code{"df"}). Default \code{"dt"}.}
+
+\item{id}{Identifier column(s) used to align rows across levels of
+\code{names_from}. Default \code{NULL} uses all columns that are neither in \code{cols}
+nor \code{names_from} (a message lists them); supplying \code{id} explicitly is
+strongly recommended.}
 }
 \value{
-A nested \code{data.table} containing \code{name} and \code{data} columns, with
-all contextual features preserved inside the nested structures.
+A nested \code{data.table} with columns \code{name} (trait) and \code{data}.
+Each nested table holds the \code{id} columns plus one column per level of
+\code{names_from}.
 }
 \description{
-A sophisticated data transformation tool for performing row pair conversion
-and creating nested data structures. It smartly iterates through variables
-to perfectly preserve non-target contextual variables while utilizing
-native \code{dcast} for extreme performance.
+Pivots the levels of one column (\code{names_from}, e.g. environment, farm or
+test station) into separate columns for every trait in \code{cols}, aligning
+records by the identifier columns \code{id} (e.g. the animal ID). The result is
+nested by trait, ready for iterative analyses such as genetic correlations
+of the same trait across environments.
+}
+\details{
+The combination of \code{id} and \code{names_from} must identify every row uniquely.
+Otherwise \code{dcast()} would aggregate duplicated records with \code{length()} and
+silently replace trait values by counts; the function stops instead.
+
+Other trait columns in \code{cols} are never used as identifiers: their values
+differ between environments and would prevent any pairing.
 }
 \examples{
-# Example: Row-to-pairs nesting with column names
-r2p_nest(
-  mtcars,
-  rows2bind = "cyl",
-  by = c("hp", "drat", "wt")
+# Example: the same traits recorded on the same animals in two farms
+set.seed(1)
+growth <- data.frame(
+  animal = rep(sprintf("A\%02d", 1:6), each = 2),
+  farm   = rep(c("farm1", "farm2"), times = 6),
+  adg    = round(rnorm(12, 900, 50)),     # average daily gain
+  bf     = round(rnorm(12, 11, 1.5), 1)   # backfat
 )
-# Example 1: Row-to-pairs nesting with column names
-r2p_nest(
-  mtcars,                     # Input mtcars dataset
-  rows2bind = "cyl",          # Column to be used as row values
-  by = c("hp", "drat", "wt")  # Columns to be transformed into pairs
-)
-# Returns a nested data.table where:
-# - name: variable names (hp, drat, wt)
-# - data: list column containing data.tables with rows grouped by cyl values
 
-# Example 2: Row-to-pairs nesting with numeric indices
+# Example 1: column names
 r2p_nest(
-  mtcars,                     # Input mtcars dataset
-  rows2bind = 2,              # Use 2nd column (cyl) as row values
-  by = 4:6                    # Use columns 4-6 (hp, drat, wt) for pairs
+  growth,
+  names_from = "farm",           # levels become columns: farm1, farm2
+  cols      = c("adg", "bf"),    # traits to pivot
+  id        = "animal"           # aligns records of the same animal
 )
 # Returns a nested data.table where:
-# - name: variable names from columns 4-6
-# - data: list column containing data.tables with rows grouped by cyl values
+# - name: trait names (adg, bf)
+# - data: one row per animal with columns animal, farm1, farm2
+
+# Example 2: numeric indices
+r2p_nest(growth, names_from = 2, cols = 3:4, id = 1)
 }

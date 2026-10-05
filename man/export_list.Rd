@@ -4,20 +4,39 @@
 \alias{export_list}
 \title{Export a List of Data Frames with Hierarchical Directory Management}
 \usage{
-export_list(split_dt, export_path = tempdir(), file_type = "txt")
+export_list(
+  data,
+  path = tempdir(),
+  file_type = "txt",
+  na = "NA",
+  quote = FALSE,
+  ...
+)
 }
 \arguments{
-\item{split_dt}{A non-empty \code{list} whose elements are \code{data.frame},
+\item{data}{A non-empty \code{list} whose elements are \code{data.frame},
 \code{data.table}, or any object coercible via \code{data.table::as.data.table()}.}
 
-\item{export_path}{Single character string - the root export directory.
+\item{path}{Single character string - the root export directory.
 Created recursively if absent. Defaults to \code{tempdir()}.}
 
 \item{file_type}{\code{"txt"} (tab-separated, default) or \code{"csv"}
 (comma-separated). Case-insensitive.}
+
+\item{na}{Single string written for missing values. Default \code{"NA"}.
+Use e.g. \code{"-9999"} for DMU.}
+
+\item{quote}{Passed to \code{\link[data.table]{fwrite}}. Default
+\code{FALSE}: with a non-empty \code{na}, \code{fwrite}'s \code{"auto"}
+would quote every header and character field, which command-line
+breeding programs (HIBLUP, DMU, ...) cannot parse. Use \code{"auto"} if
+values may contain the separator.}
+
+\item{...}{Further arguments passed to \code{\link[data.table]{fwrite}}
+(e.g. \code{col.names = FALSE}).}
 }
 \value{
-An invisible named \code{character} vector of the absolute file paths
+An invisible named \code{character} vector of the file paths
 written, with length equal to the number of successfully exported elements.
 The total count is accessible via \code{length()} on the return value.
 }
@@ -26,7 +45,7 @@ Exports every element of a named (or unnamed) \code{list} of \code{data.frame} /
 \code{data.table} objects to \code{txt} or \code{csv} files.  Element names may
 contain forward-slashes (\code{/}) to encode arbitrary subdirectory depth, e.g.
 \code{"group_a/subject_01/results"} writes
-\code{<export_path>/group_a/subject_01/results.txt}.
+\code{<path>/group_a/subject_01/results.txt}.
 Unnamed elements are automatically labelled \code{split_<i>}.
 }
 \details{
@@ -42,47 +61,36 @@ inside the hot path.
 reference-pass (no copy).
 }
 
+\strong{Name handling:} each \code{/}-separated component of an element name is
+sanitised separately (invalid characters become \code{_}; \code{..} cannot
+escape \code{path}). If two elements map to the same file
+(compared case-insensitively), the function stops instead of overwriting.
+
 \strong{Error handling:}
 Individual element failures emit a \code{warning} and are skipped; the
 remaining elements continue to be processed.
 }
-\section{Dependencies}{
-
-Requires the \pkg{data.table} package.
-}
-
 \examples{
 # Example: Export split data to files
+out_dir <- file.path(tempdir(), "mintyr_export_list")
 
 # Step 1: Create split data structure
 dt_split <- w2l_split(
   data = iris,              # Input iris dataset
-  cols2l = 1:2,             # Columns to be split
+  cols = 1:2,               # Columns to be split
   by = "Species"            # Grouping variable
 )
 
 # Step 2: Export split data to files
-export_list(
-  split_dt = dt_split       # Input list of data.tables
+files <- export_list(
+  data = dt_split,          # Input list of data.tables
+  path = out_dir
 )
-# Returns the number of files created
-# Files are saved in tempdir() with .txt extension
+# Returns (invisibly) a named vector of the written file paths
+files
 
-# Check exported files
-list.files(
-  path = tempdir(),         # Default export directory
-  pattern = "txt",          # File type pattern to search
-  recursive = TRUE          # Search in subdirectories
-)
-
-# Clean up exported files
-files <- list.files(
-  path = tempdir(),         # Default export directory
-  pattern = "txt",          # File type pattern to search
-  recursive = TRUE,         # Search in subdirectories
-  full.names = TRUE         # Return full file paths
-)
-file.remove(files)          # Remove all exported files
+# Clean up
+unlink(out_dir, recursive = TRUE)
 }
 \seealso{
 \code{\link[data.table]{fwrite}}

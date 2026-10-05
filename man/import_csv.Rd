@@ -6,8 +6,8 @@
 \usage{
 import_csv(
   file,
-  rbind = TRUE,
-  rbind_label = "_file",
+  combine = TRUE,
+  file_col = "_file",
   full_path = FALSE,
   keep_ext = FALSE,
   ...
@@ -17,15 +17,15 @@ import_csv(
 \item{file}{A non-empty \code{character} vector of file paths to CSV/TXT files.
 All paths must point to existing, accessible files.}
 
-\item{rbind}{A \code{logical} scalar controlling the combination strategy:
+\item{combine}{A \code{logical} scalar controlling the combination strategy:
 \itemize{
 \item \code{TRUE} (default): Combine all files into a single \code{data.table}.
 \item \code{FALSE}: Return a named \code{list} of individual \code{data.table} objects.
 }}
 
-\item{rbind_label}{A \code{character} scalar or \code{NULL} specifying the source-tracking
+\item{file_col}{A \code{character} scalar or \code{NULL} specifying the source-tracking
 column name (default: \code{"_file"}). Set to \code{NULL} to suppress the source column.
-Only applies when \code{rbind = TRUE}.}
+Only applies when \code{combine = TRUE}.}
 
 \item{full_path}{A \code{logical} scalar controlling path representation in labels:
 \itemize{
@@ -45,10 +45,10 @@ retained in labels:
 }
 \value{
 \itemize{
-\item \code{rbind = TRUE}: A single \code{data.table} containing all imported rows.
-If \code{rbind_label} is not \code{NULL}, the first column contains the source
+\item \code{combine = TRUE}: A single \code{data.table} containing all imported rows.
+If \code{file_col} is not \code{NULL}, the first column contains the source
 file label for each row.
-\item \code{rbind = FALSE}: A named \code{list} of \code{data.table} objects.
+\item \code{combine = FALSE}: A named \code{list} of \code{data.table} objects.
 List names are derived from file paths according to \code{full_path} and
 \code{keep_ext} settings.
 }
@@ -67,18 +67,22 @@ Label generation is controlled by the combination of \code{full_path} and \code{
 \code{full_path = TRUE,  keep_ext = TRUE}  \tab Full path with extension: \code{"/path/to/data.csv"} \cr
 }
 
-When \code{rbind = TRUE} and \code{rbind_label} is not \code{NULL},
-\code{\link[data.table]{rbindlist}} is called with \code{idcol = rbind_label},
+When \code{combine = TRUE} and \code{file_col} is not \code{NULL},
+\code{\link[data.table]{rbindlist}} is called with \code{idcol = file_col},
 which generates the source column directly during the merge step without any
 intermediate copies.
 }
 \note{
 \itemize{
 \item All specified files must exist and be readable at call time.
-\item \code{rbind = TRUE} assumes compatible column structures across files;
+\item \code{combine = TRUE} assumes compatible column structures across files;
 mismatched columns are automatically aligned via \code{fill = TRUE}.
-\item Logical parameters (\code{rbind}, \code{full_path}, \code{keep_ext}) reject
+\item Logical parameters (\code{combine}, \code{full_path}, \code{keep_ext}) reject
 \code{NA} values explicitly.
+\item Only the extension of the file itself is stripped; dots in directory
+names (e.g. \code{"v1.2/file"}) are left intact.
+\item Duplicated labels (same file name in different folders) trigger a
+warning and are made unique with \code{make.unique()}.
 }
 }
 \examples{
@@ -92,8 +96,8 @@ csv_files <- mintyr_example(
 # Example 1: Import and combine CSV files using data.table
 import_csv(
   csv_files,                      # Input CSV file paths
-  rbind = TRUE,                   # Combine all files into one data.table
-  rbind_label = "_file",          # Column name for file source
+  combine = TRUE,                 # Combine all files into one data.table
+  file_col = "_file",             # Column name for file source
   keep_ext = TRUE,                # Include .csv extension in _file column
   full_path = TRUE                # Show complete file paths in _file column
 )

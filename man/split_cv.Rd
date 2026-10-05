@@ -2,117 +2,128 @@
 % Please edit documentation in R/split_cv.R
 \name{split_cv}
 \alias{split_cv}
-\title{Apply Cross-Validation to a List of Datasets}
+\title{Apply V-Fold Cross-Validation to a List of Datasets}
 \usage{
 split_cv(
-  split_dt,
+  data,
   v = 10L,
   repeats = 1L,
   strata = NULL,
   breaks = 4L,
   pool = 0.1,
-  ...
+  seed = NULL,
+  materialize = TRUE,
+  out_type = "dt"
 )
 }
 \arguments{
-\item{split_dt}{A \code{list} whose every element is a \code{data.frame} or
-\code{data.table}. Must be non-empty.}
+\item{data}{A \code{list} whose every element is a \code{data.frame} or
+\code{data.table}. Must be non-empty. A single \code{data.frame} is not accepted
+(wrap it in \code{list()}).}
 
-\item{v}{Number of folds. Must be a single integer >= 2.
-Default is \code{10}.}
+\item{v}{Number of folds. A single integer >= 2. Default \code{10}.}
 
-\item{repeats}{Number of repeats. Must be a single integer >= 1.
-Default is \code{1}.}
+\item{repeats}{Number of repeats. A single integer >= 1. Default \code{1}.}
 
-\item{strata}{A single character string naming the stratification column.
-The column must exist in \strong{every} dataset. Set to \code{NULL} for no
-stratification. Default is \code{NULL}.}
+\item{strata}{\code{NULL} (default) or a single column name present in
+\strong{every} dataset. Rows are shuffled within each stratum so that every
+fold receives a proportional share of each stratum.}
 
-\item{breaks}{Number of bins when stratifying a numeric variable. Used
-only when \code{strata} is non-\code{NULL}. Default is \code{4}.}
+\item{breaks}{Number of quantile bins used when \code{strata} is numeric with
+more than \code{breaks} distinct values. Default \code{4}.}
 
-\item{pool}{Proportion threshold for pooling small strata. Used only
-when \code{strata} is non-\code{NULL}. Default is \code{0.1}.}
+\item{pool}{Strata holding less than this proportion of the rows are
+merged with the next-smallest stratum. A number in \verb{[0, 0.5)}.
+Default \code{0.1}.}
 
-\item{...}{Additional arguments forwarded to \code{rsample::vfold_cv}.}
+\item{seed}{\code{NULL} (default) or a single number for reproducible folds.
+The caller's random-number stream is restored on exit.}
+
+\item{materialize}{Logical. If \code{TRUE} (default), \code{train} / \code{validate}
+list-columns holding the subsets are added. \code{FALSE} keeps only the row
+indices, which needs far less memory for large data.}
+
+\item{out_type}{Class of the \code{train} / \code{validate} subsets: \code{"dt"}
+(\code{data.table}, default) or \code{"df"} (plain \code{data.frame}, e.g. for
+'ASReml-R' or other modelling functions that expect a \code{data.frame}).
+Factor levels are kept in full in every subset. Only used when
+\code{materialize = TRUE}; the returned fold table itself is always a
+\code{data.table}.}
 }
 \value{
-A \code{list} of \code{data.table} objects (one per input dataset), each
-containing:
+A \code{list} of \code{data.table} objects (one per input dataset, names of
+\code{data} preserved), each with one row per fold and the columns:
 \itemize{
-\item \code{splits}   — rsample split objects.
-\item \code{id}       — fold identifier (always present).
-\item \code{id2}      — repeat identifier (present only when \code{repeats > 1}).
-\item \code{train}    — list-column of training data frames.
-\item \code{validate} — list-column of validation data frames.
+\item \code{id}           — fold label (\code{Fold1}, ...), or repeat label
+(\code{Repeat1}, ...) when \code{repeats > 1}.
+\item \code{id2}          — fold label, only when \code{repeats > 1}.
+\item \code{train_idx}    — list-column of training row indices.
+\item \code{validate_idx} — list-column of validation row indices.
+\item \code{train}, \code{validate} — list-columns of subsets, \code{data.table} or
+\code{data.frame} according to \code{out_type} (only when
+\code{materialize = TRUE}).
 }
-The output list preserves the names of \code{split_dt}.
 }
 \description{
-\code{split_cv} applies \code{rsample::vfold_cv} to each dataset in a named or
-unnamed list, returning a list of \code{data.table} objects that each contain
-the CV split objects alongside the corresponding training and validation
-sets.
+\code{split_cv} creates (optionally repeated and stratified) v-fold
+cross-validation splits for every dataset in a list. It is implemented
+with base R and \code{data.table} only and returns, per dataset, a
+\code{data.table} of fold identifiers, row indices and (optionally) the
+training / validation subsets.
 }
 \details{
-For each dataset in \code{split_dt} the function:
-\enumerate{
-\item Validates inputs once before entering the processing loop.
-\item Builds a \code{vfold_cv} argument list, appending stratification
-parameters only when \code{strata} is non-\code{NULL} to avoid passing
-unsupported arguments to \code{rsample}.
-\item Converts the rsample tibble to a \code{data.table} in a single
-\code{as.data.table()} call, preserving all fold-identifier columns
-(\code{id}, \code{id2}) without hard-coding on the value of \code{repeats}.
-\item Appends \code{train} and \code{validate} list-columns by reference via \verb{:=}.
-}
-}
-\note{
-\itemize{
-\item When \code{strata} is specified, it must exist in \strong{all} datasets;
-a missing column raises an error rather than silently falling back
-to unstratified CV.
-\item \code{breaks} and \code{pool} are forwarded to \code{rsample::vfold_cv} only
-when \code{strata} is non-\code{NULL}, preventing invalid-argument errors.
-\item \code{as.data.table()} on an already-\code{data.table} input is a no-op
-(no copy is made).
-}
+Fold sizes differ by at most one row. With stratification, rows are
+shuffled within strata, the strata are laid out one after another and fold
+labels are dealt out cyclically, so each stratum is spread evenly across
+folds. The stratification rules (\code{breaks}, \code{pool}) follow the same idea
+as \code{rsample::vfold_cv()}, but the random fold assignments are not
+identical to rsample's.
+
+Training and validation subsets can always be rebuilt from the indices:
+\code{data[[1]][res[[1]]$train_idx[[k]], ]}.
+
+For mixed-model cross-validation (e.g. genomic prediction with
+'ASReml-R') a common alternative to subsetting is masking: keep all
+records, set the phenotypes of \code{validate_idx} to \code{NA}, fit the model on
+the full data and correlate the predicted breeding values of the masked
+individuals with their observations. \code{materialize = FALSE} is enough for
+this, since only the indices are needed.
 }
 \examples{
 # Prepare example data: Convert first 3 columns of iris dataset to long format and split
-dt_split <- w2l_split(data = iris, cols2l = 1:3)
+dt_split <- w2l_split(data = iris, cols = 1:3)
 # dt_split is now a list containing 3 data tables for Sepal.Length, Sepal.Width, and Petal.Length
 
 # Example 1: Single cross-validation (no repeats)
 split_cv(
-  split_dt = dt_split,  # Input list of split data
+  data = dt_split,      # Input list of split data
   v = 3,                # Set 3-fold cross-validation
-  repeats = 1           # Perform cross-validation once (no repeats)
+  repeats = 1,          # Perform cross-validation once (no repeats)
+  seed = 123            # Reproducible folds
 )
 # Returns a list where each element contains:
-# - splits: rsample split objects
-# - id: fold numbers (Fold1, Fold2, Fold3)
-# - train: training set data
-# - validate: validation set data
+# - id: fold labels (Fold1, Fold2, Fold3)
+# - train_idx / validate_idx: row indices of each fold
+# - train / validate: training and validation subsets
 
 # Example 2: Repeated cross-validation
 split_cv(
-  split_dt = dt_split,  # Input list of split data
+  data = dt_split,      # Input list of split data
   v = 3,                # Set 3-fold cross-validation
-  repeats = 2           # Perform cross-validation twice
+  repeats = 2,          # Perform cross-validation twice
+  seed = 123
 )
 # Returns a list where each element contains:
-# - splits: rsample split objects
-# - id: repeat numbers (Repeat1, Repeat2)
-# - id2: fold numbers (Fold1, Fold2, Fold3)
-# - train: training set data
-# - validate: validation set data
+# - id: repeat labels (Repeat1, Repeat2)
+# - id2: fold labels (Fold1, Fold2, Fold3)
+# - train_idx / validate_idx, train / validate
+
+# Example 3: Stratified CV, indices only (memory friendly)
+res <- split_cv(dt_split, v = 5, strata = "Species", seed = 1,
+                materialize = FALSE)
+# Rebuild the training set of fold 1 of the first dataset when needed
+head(dt_split[[1]][res[[1]]$train_idx[[1]], ])
 }
 \seealso{
-\itemize{
-\item \code{\link[rsample:vfold_cv]{rsample::vfold_cv()}}  — underlying cross-validation function
-\item \code{\link[rsample:initial_split]{rsample::training()}}  — extract training set from a split
-\item \code{\link[rsample:initial_split]{rsample::testing()}}   — extract validation set from a split
-\item \code{\link[=nest_cv]{nest_cv()}}            — nested data.table variant of this utility
-}
+\code{\link[=nest_cv]{nest_cv()}} for the nested \code{data.table} variant.
 }

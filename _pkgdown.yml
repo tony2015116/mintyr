@@ -43,6 +43,7 @@ reference:
   - '`import_xlsx`'
   - '`export_xlsx`'
   - '`top_perc`'
+  - '`desc_stats`'
   - '`get_path_info`'
   - '`format_digits`'
 - title: Data example

@@ -4,10 +4,10 @@
 \alias{get_path_info}
 \title{Extract Path Segments or Filenames from File Paths}
 \usage{
-get_path_info(paths, n = NULL, rm_extension = TRUE, rm_path = TRUE)
+get_path_info(path, n = NULL, rm_extension = TRUE, rm_path = TRUE)
 }
 \arguments{
-\item{paths}{A \code{character} vector of file system paths.
+\item{path}{A \code{character} vector of file system paths.
 Supports mixed separators (\code{/} and \verb{\\\\}) and Windows drive letters (e.g. \verb{C:}).}
 
 \item{n}{A \code{numeric} segment index. Defaults to \code{NULL} (enters filename mode).
@@ -29,10 +29,12 @@ segment). Has no effect for intermediate directory segments (e.g. \code{n = 2}).
 
 \item{rm_path}{A \code{logical(1)} flag controlling whether the directory prefix is
 stripped, keeping only the filename. Defaults to \code{TRUE}.
-Only applies in Mode B (\code{n = NULL}); ignored when \code{n} is specified.}
+Only applies in Mode B (\code{n = NULL}); ignored when \code{n} is specified.
+With \code{rm_path = FALSE} the normalised path keeps its root (\code{/}, \verb{C:/} or
+\verb{//} for UNC paths), so absolute paths stay absolute.}
 }
 \value{
-A \code{character} vector of the same length as \code{paths}:
+A \code{character} vector of the same length as \code{path}:
 \itemize{
 \item Returns the extracted segment string when the segment exists.
 \item Returns \code{NA_character_} when the segment index exceeds the path depth,
@@ -54,7 +56,8 @@ of the file extension and/or the directory prefix.
 \strong{Path normalisation (internal, fully vectorised):}
 \enumerate{
 \item All backslashes and consecutive slashes are collapsed to a single \code{/}.
-\item Windows drive letter prefixes (\verb{C:}, \verb{D:}, etc.) are stripped.
+\item Windows drive letter prefixes (\verb{C:}, \verb{D:}, etc.) are stripped for
+segment indexing (and restored in full-path mode).
 \item Leading and trailing \code{/} characters are removed.
 \item Paths that are empty after the above steps (e.g. original inputs \code{"C:/"},
 \code{"/"}, \code{""}) are coerced to \code{NA_character_}.
@@ -102,5 +105,5 @@ get_path_info(paths, n = -1, rm_extension = TRUE)
 get_path_info(paths, n = c(2, 3))
 }
 \seealso{
-\code{\link[base:basename]{base::basename()}}, \code{\link[tools:fileutils]{tools::file_path_sans_ext()}}
+\code{\link[base:basename]{base::basename()}}, \code{\link[tools:file_path_sans_ext]{tools::file_path_sans_ext()}}
 }

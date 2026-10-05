@@ -5,108 +5,112 @@
 \title{Export Nested Data Structures with Hierarchical Directory Organization}
 \usage{
 export_nest(
-  nest_dt,
-  group_cols = NULL,
-  nest_cols = NULL,
-  export_path = tempdir(),
-  file_type = "txt"
+  data,
+  by = NULL,
+  cols = NULL,
+  path = tempdir(),
+  file_type = "txt",
+  na = "NA",
+  quote = FALSE,
+  ...
 )
 }
 \arguments{
-\item{nest_dt}{A \code{data.frame} or \code{data.table} containing at least one
+\item{data}{A \code{data.frame} or \code{data.table} containing at least one
 nested list-column. Must have one or more rows.}
 
-\item{group_cols}{Optional character vector of column names used to build the
+\item{by}{Optional character vector of column names used to build the
 hierarchical output directory structure. When \code{NULL} (default), all non-nested
 columns are used automatically.}
 
-\item{nest_cols}{Optional character vector of nested column names to export. When
+\item{cols}{Optional character vector of nested column names to export. When
 \code{NULL} (default), all columns whose elements are \code{data.frame}/\code{data.table}
 objects are exported automatically; custom-object list-columns are reported and skipped.
 Specifying a non-\code{data.frame} column triggers a warning and that column is skipped.}
 
-\item{export_path}{Single character string specifying the root export directory.
+\item{path}{Single character string specifying the root export directory.
 Defaults to \code{tempdir()}. Created recursively if it does not exist.}
 
 \item{file_type}{Either \code{"txt"} (tab-separated, default) or \code{"csv"}
 (comma-separated). Case-insensitive.}
+
+\item{na}{Single string written for missing values. Default \code{"NA"}
+(\code{fwrite}'s own default, an empty field, breaks whitespace-delimited
+readers). Use e.g. \code{"-9999"} for DMU.}
+
+\item{quote}{Passed to \code{\link[data.table]{fwrite}}. Default
+\code{FALSE}: with a non-empty \code{na}, \code{fwrite}'s \code{"auto"}
+would quote every header and character field, which command-line
+breeding programs (HIBLUP, DMU, ...) cannot parse. Use \code{"auto"} if
+values may contain the separator.}
+
+\item{...}{Further arguments passed to \code{\link[data.table]{fwrite}}
+(e.g. \code{col.names = FALSE} for software that expects no header).}
 }
 \value{
-An invisible \code{integer} giving the total number of files successfully written.
-Returns \code{0L} when no exportable columns are found or all nested data are empty/\code{NULL}.
+An invisible \code{character} vector of the files written
+(length 0 when nothing was written).
 }
 \description{
 Exports list-columns containing \code{data.frame} or \code{data.table} objects from a
 \code{data.frame}/\code{data.table} to \code{txt} or \code{csv} files, automatically
 constructing a hierarchical directory structure from non-nested columns.
 Exportable nested columns (those holding \code{data.frame}/\code{data.table} elements)
-are distinguished from non-exportable custom-object columns (e.g. \code{rsplit} from
-the rsample package); only the former are written to disk by default.
+are distinguished from non-exportable custom-object columns (e.g. fitted model
+objects); only the former are written to disk by default.
 }
 \details{
 \strong{Nested column classification (mutually exclusive):}
 \itemize{
 \item \emph{Exportable} — every element inherits from \code{data.frame} or \code{data.table}.
 \item \emph{Non-exportable} — empty lists or elements of any other class
-(e.g. \code{rsplit}, \code{vfold_split}). Reported to the console; never written.
+(e.g. model objects). Reported to the console; never written.
 }
 
 \strong{Directory layout:}
-\code{export_path / <group1_value> / <group2_value> / <nest_col_name>.<file_type>}
+\code{path / <group1_value> / <group2_value> / <nest_col_name>.<file_type>}
+
+Group values are sanitised (characters that are invalid in file names,
+such as slashes, colons or asterisks, become underscores), so they can
+never create extra directory levels. The
+grouping columns must identify every row uniquely; otherwise rows would
+overwrite each other's files and the function stops with an error listing
+the duplicated targets.
 
 \strong{Performance notes:}
 \itemize{
 \item Row data is accessed via \code{.subset2()} (zero-copy column access) rather than
-\code{nest_dt[i]}, eliminating per-row \code{data.table} allocation in the hot loop.
-\item All \code{n} output directory paths are pre-computed in a single vectorised
-\code{do.call(file.path, ...)} call before the loop; only the \code{k} unique paths
-are then passed to \code{dir.create()}, replacing \code{n} syscalls with \code{k}
-(\code{k <= n}; often \code{k << n} when many rows share the same group).
+\code{data[i]}, eliminating per-row \code{data.table} allocation in the hot loop.
+\item All output directory paths are pre-computed in a single vectorised
+\code{do.call(file.path, ...)} call; only the unique directories are created.
 \item The field separator and output filenames are computed once before the loop.
-\item \code{seq_len()} is used instead of \code{1:n} to avoid the \code{1:0} edge-case bug.
-\item All list-column introspection uses \code{vapply} with explicit \code{FUN.VALUE} to
-guarantee return types and prevent silent coercion.
 }
 }
-\section{Dependencies}{
-
-Requires the \pkg{data.table} package for data manipulation and file I/O (\code{fwrite}).
-}
-
 \examples{
-# Example 1: Basic nested data export workflow
+# Example: Basic nested data export workflow
+# A dedicated sub-folder of tempdir() keeps the clean-up safe
+out_dir <- file.path(tempdir(), "mintyr_export_nest")
+
 # Step 1: Create nested data structure
 dt_nest <- w2l_nest(
   data = iris,              # Input iris dataset
-  cols2l = 1:2,             # Columns to be nested
+  cols = 1:2,               # Columns to be nested
   by = "Species"            # Grouping variable
 )
 
 # Step 2: Export nested data to files
-export_nest(
-  nest_dt = dt_nest,        # Input nested data.table
-  nest_cols = "data",       # Column containing nested data
-  group_cols = c("name", "Species")  # Columns to create directory structure
+files <- export_nest(
+  data = dt_nest,                    # Input nested data.table
+  cols = "data",                     # Column containing nested data
+  by = c("name", "Species"),         # Columns to create directory structure
+  path = out_dir
 )
-# Returns the number of files created
-# Creates directory structure: tempdir()/name/Species/data.txt
+# Returns (invisibly) the paths of the written files
+# Directory structure: out_dir/<name>/<Species>/data.txt
+files
 
-# Check exported files
-list.files(
-  path = tempdir(),         # Default export directory
-  pattern = "txt",          # File type pattern to search
-  recursive = TRUE          # Search in subdirectories
-)
-# Returns list of created files and their paths
-
-# Clean up exported files
-files <- list.files(
-  path = tempdir(),         # Default export directory
-  pattern = "txt",          # File type pattern to search
-  recursive = TRUE,         # Search in subdirectories
-  full.names = TRUE         # Return full file paths
-)
-file.remove(files)          # Remove all exported files
+# Clean up
+unlink(out_dir, recursive = TRUE)
 }
 \seealso{
 \code{\link[data.table]{fwrite}}

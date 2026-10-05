@@ -4,13 +4,13 @@
 \alias{w2l_split}
 \title{Reshape Wide Data to Long Format and Split into a Named List}
 \usage{
-w2l_split(data, cols2l = NULL, by = NULL, split_type = "dt", sep = "_")
+w2l_split(data, cols = NULL, by = NULL, out_type = "dt", sep = "_")
 }
 \arguments{
 \item{data}{\code{data.frame} or \code{data.table}. Wide-format input dataset.
-Converted in-place to \code{data.table} via \code{setDT()} if necessary (no copy).}
+The input object is never modified.}
 
-\item{cols2l}{\code{numeric} or \code{character}. Columns to pivot from wide to long,
+\item{cols}{\code{numeric} or \code{character}. Columns to pivot from wide to long,
 specified as integer indices or column names. Default \code{NULL}: when \code{NULL},
 \code{by} must be provided and the function splits the data as-is without
 melting.}
@@ -19,7 +19,7 @@ melting.}
 secondary split keys, specified as integer indices or column names.
 Default \code{NULL}.}
 
-\item{split_type}{\code{character}. Class of each list element: \code{"dt"} for
+\item{out_type}{\code{character}. Class of each list element: \code{"dt"} for
 \code{data.table} (default) or \code{"df"} for \code{data.frame}.}
 
 \item{sep}{\code{character}. Separator used when concatenating multiple grouping
@@ -27,7 +27,7 @@ key values into a single list-element name. Default \code{"_"}.}
 }
 \value{
 A named list of \code{data.table} or \code{data.frame} objects (controlled by
-\code{split_type}). Names reflect the key combination of \code{variable} (and \code{by}
+\code{out_type}). Names reflect the key combination of \code{variable} (and \code{by}
 levels if provided), joined by \code{sep}.
 \itemize{
 \item If \code{by} is \code{NULL}, the list is keyed by the pivoted column names only.
@@ -43,36 +43,33 @@ identifier (\code{variable}) and any optional grouping variables supplied via
 combinations produced by \code{split()}, guaranteeing name-to-content alignment.
 }
 \details{
-\strong{Name safety:} list names are produced by \code{data.table::split()} itself
-using its \code{by} argument, not reconstructed from raw row order. This
-eliminates the name-to-content misalignment that arises when \code{unique()} on
-the original data and \code{split()}'s internal sort order diverge.
+\strong{Name safety:} list names are built from each element's own key values
+(joined by \code{sep}), so names always match contents. This also makes \code{sep}
+work on every data.table version (\code{split(sep = )} is only honoured from
+data.table 1.16.0 on).
 
-\strong{Column resolution:} both \code{cols2l} and \code{by} accept integer column
+\strong{Column resolution:} both \code{cols} and \code{by} accept integer column
 positions or character column names. Out-of-bounds indices and unknown names
 are caught early with informative error messages.
 
-\strong{Overlap guard:} columns appearing in both \code{cols2l} and \code{by} raise an
+\strong{Overlap guard:} columns appearing in both \code{cols} and \code{by} raise an
 error before melting to prevent \code{id.vars} / \code{measure.vars} conflicts.
 
 \strong{Factor-free melting:} \code{melt()} is called with \code{variable.factor = FALSE}
 so the \code{variable} column is always \code{character}, keeping \code{split()} sort order
 consistent with lexicographic expectations.
 
-\strong{Memory efficiency:}
-\itemize{
-\item \code{setDT()} converts \code{data.frame} inputs by reference — no full copy.
-\item For \code{split_type = "df"}, \code{setattr(copy(x), "class", "data.frame")}
-modifies the class on a shallow copy, avoiding the deep
-column-by-column duplication that \code{as.data.frame()} triggers.
-}
+\strong{Memory efficiency:} the elements returned by \code{split()} are independent
+objects, so for \code{out_type = "df"} they are converted in place with
+\code{setDF()} and no column vector is duplicated. The input itself is never
+modified.
 }
 \note{
 \itemize{
 \item An empty input table (0 rows) triggers a \code{warning()} and returns an
 empty list immediately.
-\item \code{cols2l} and \code{by} must not overlap; shared columns raise an error.
-\item \code{split_type} values other than \code{"dt"} or \code{"df"} raise an error.
+\item \code{cols} and \code{by} must not overlap; shared columns raise an error.
+\item \code{out_type} values other than \code{"dt"} or \code{"df"} raise an error.
 }
 }
 \examples{
@@ -88,7 +85,7 @@ w2l_split(
 # Example 2: Split specific columns using numeric indices
 w2l_split(
   data = iris,                    # Input dataset
-  cols2l = 1:3,                   # Select first 3 columns to split
+  cols = 1:3,                   # Select first 3 columns to split
   by = 5                          # Split by column index 5 (Species)
 ) |> 
   lapply(head)                    # Show first 6 rows of each split
@@ -96,13 +93,13 @@ w2l_split(
 # Example 3: Split specific columns using column names
 list_res <- w2l_split(
   data = iris,                    # Input dataset
-  cols2l = c("Sepal.Length",      # Select columns by name
-             "Sepal.Width"),
+  cols = c("Sepal.Length",        # Select columns by name
+           "Sepal.Width"),
   by = "Species"                  # Split by Species column
 )
 lapply(list_res, head)            # Show first 6 rows of each split
 # Returns similar structure to Example 2
 }
 \seealso{
-\code{\link[tidytable:group_split]{tidytable::group_split()}} for a tidyverse-style equivalent.
+\code{tidytable::group_split()} for a tidyverse-style equivalent.
 }

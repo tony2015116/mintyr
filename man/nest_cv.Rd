@@ -2,81 +2,66 @@
 % Please edit documentation in R/nest_cv.R
 \name{nest_cv}
 \alias{nest_cv}
-\title{Apply Cross-Validation to Nested Data}
+\title{Apply V-Fold Cross-Validation to Nested Data}
 \usage{
 nest_cv(
-  nest_dt,
+  data,
   v = 10L,
   repeats = 1L,
   strata = NULL,
   breaks = 4L,
   pool = 0.1,
-  ...
+  seed = NULL,
+  materialize = TRUE,
+  out_type = "dt"
 )
 }
 \arguments{
-\item{nest_dt}{A \code{data.frame} or \code{data.table} containing at least one nested
-\code{data.frame}/\code{data.table} column.}
+\item{data}{A \code{data.frame} or \code{data.table} containing at least one nested
+\code{data.frame}/\code{data.table} column. A column named \code{data} is used if
+present, otherwise the first nested column.}
 
-\item{v}{Number of folds. Must be an integer >= 2. Default is \code{10}.}
+\item{v}{Number of folds. A single integer >= 2. Default \code{10}.}
 
-\item{repeats}{Number of repeats. Must be an integer >= 1. Default is \code{1}.}
+\item{repeats}{Number of repeats. A single integer >= 1. Default \code{1}.}
 
-\item{strata}{A single character string specifying the stratification column
-name. Set to \code{NULL} for no stratification. Default is \code{NULL}.}
+\item{strata}{\code{NULL} (default) or a single column name present in
+\strong{every} dataset. Rows are shuffled within each stratum so that every
+fold receives a proportional share of each stratum.}
 
-\item{breaks}{Number of bins for stratifying a numeric variable. Only used
-when \code{strata} is non-\code{NULL}. Default is \code{4}.}
+\item{breaks}{Number of quantile bins used when \code{strata} is numeric with
+more than \code{breaks} distinct values. Default \code{4}.}
 
-\item{pool}{Proportion threshold for pooling small strata. Only used when
-\code{strata} is non-\code{NULL}. Default is \code{0.1}.}
+\item{pool}{Strata holding less than this proportion of the rows are
+merged with the next-smallest stratum. A number in \verb{[0, 0.5)}.
+Default \code{0.1}.}
 
-\item{...}{Additional arguments passed to \code{rsample::vfold_cv}.}
+\item{seed}{\code{NULL} (default) or a single number for reproducible folds.
+The caller's random-number stream is restored on exit.}
+
+\item{materialize}{Logical. If \code{TRUE} (default), \code{train} / \code{validate}
+list-columns holding the subsets are added. \code{FALSE} keeps only the row
+indices, which needs far less memory for large data.}
+
+\item{out_type}{Class of the \code{train} / \code{validate} subsets: \code{"dt"}
+(\code{data.table}, default) or \code{"df"} (plain \code{data.frame}, e.g. for
+'ASReml-R' or other modelling functions that expect a \code{data.frame}).
+Factor levels are kept in full in every subset. Only used when
+\code{materialize = TRUE}; the returned fold table itself is always a
+\code{data.table}.}
 }
 \value{
-A \code{data.table} with the following columns:
-\itemize{
-\item All non-nested columns from \code{nest_dt} (broadcast across CV rows).
-\item \code{splits}   — cross-validation split objects from \code{rsample::vfold_cv}.
-\item \code{id} (and \code{id2} for repeated CV) — fold identifiers.
-\item \code{train}    — list column of training data frames for each split.
-\item \code{validate} — list column of validation data frames for each split.
-}
+A \code{data.table} with all non-nested columns of \code{data}, followed by
+the columns described in \code{\link[=split_cv]{split_cv()}} (\code{id}, \code{id2}, \code{train_idx},
+\code{validate_idx} and, if \code{materialize = TRUE}, \code{train} / \code{validate}, whose
+class follows \code{out_type}).
+Other nested columns are dropped (a message lists them).
 }
 \description{
-\code{nest_cv} applies \code{rsample::vfold_cv} to each nested data frame within a
-\code{data.table}, returning an expanded result table containing the corresponding
-training and validation splits for each row.
-}
-\details{
-The function performs the following steps:
-\enumerate{
-\item Validates that \code{nest_dt} is a non-empty \code{data.frame} or \code{data.table}
-with at least one nested column whose elements all inherit from
-\code{data.frame}.
-\item Selects the target nested column: prefers a column named \code{"data"};
-otherwise falls back to the first detected nested column.
-\item When \code{strata} is specified, verifies that the column exists in every
-nested data frame before calling \code{rsample::vfold_cv}.
-\item Iterates over each row, applies \code{vfold_cv} via \code{do.call}, expands the
-resulting splits into a \code{data.table}, and broadcasts the row's
-non-nested metadata columns across all CV rows.
-\item Combines all per-row results with \code{rbindlist} in a single pass.
-}
-}
-\note{
-\itemize{
-\item \code{nest_dt} must contain at least one nested column of \code{data.frame}s
-or \code{data.table}s.
-\item \code{as.data.table()} is used instead of \code{data.table::copy()}: if the
-input is already a \code{data.table}, no copy is made.
-\item \code{strata} must be a column name present in \strong{all} nested data frames.
-\item \code{breaks} and \code{pool} are forwarded to \code{rsample::vfold_cv} only when
-\code{strata} is non-\code{NULL}, avoiding invalid argument errors.
-\item The per-row loop with \code{rbindlist} corrects a silent bug in naive
-chained \code{[} approaches where all rows incorrectly shared the first
-row's CV splits.
-}
+\code{nest_cv} creates v-fold cross-validation splits for each nested data frame
+of a nested \code{data.table} (e.g. the output of \code{\link[=w2l_nest]{w2l_nest()}}) and returns one
+row per fold, with the outer (non-nested) columns broadcast to every fold.
+The cross-validation itself is performed by \code{\link[=split_cv]{split_cv()}}.
 }
 \examples{
 # Example: Cross-validation for nested data.table demonstrations
@@ -84,26 +69,36 @@ row's CV splits.
 # Setup test data
 dt_nest <- w2l_nest(
   data = iris,                   # Input dataset
-  cols2l = 1:2                   # Nest first 2 columns
+  cols = 1:2                     # Nest first 2 columns
 )
 
-# Example 1: Basic 2-fold cross-validation
+# Example 1: Basic 2-fold cross-validation (reproducible)
 nest_cv(
-  nest_dt = dt_nest,             # Input nested data.table
-  v = 2                          # Number of folds (2-fold CV)
-)
-
-# Example 2: Repeated 2-fold cross-validation
-nest_cv(
-  nest_dt = dt_nest,             # Input nested data.table
+  data = dt_nest,                # Input nested data.table
   v = 2,                         # Number of folds (2-fold CV)
-  repeats = 2                    # Number of repetitions
+  seed = 123                     # Reproducible folds
 )
+
+# Example 2: Repeated 2-fold CV, keeping only the split objects
+nest_cv(
+  data = dt_nest,                # Input nested data.table
+  v = 2,                         # Number of folds (2-fold CV)
+  repeats = 2,                   # Number of repetitions
+  seed = 123,
+  materialize = FALSE            # No train/validate copies (saves memory)
+)
+
+# Example 3: data.frame subsets, ready for ASReml-R / lm() / glm()
+cv_df <- nest_cv(dt_nest, v = 2, seed = 123, out_type = "df")
+class(cv_df$train[[1]])        # "data.frame"
+
+# Example 4: masking-style CV (keep all rows, hide validation phenotypes)
+cv_idx <- nest_cv(dt_nest, v = 2, seed = 123, materialize = FALSE)
+cv_idx[dt_nest, on = "name", full := i.data]   # attach the full nested table
+masked <- as.data.frame(cv_idx$full[[1]])      # a copy: dt_nest stays intact
+masked$value[cv_idx$validate_idx[[1]]] <- NA
+sum(is.na(masked$value))       # validation records to be predicted
 }
 \seealso{
-\itemize{
-\item \code{\link[rsample:vfold_cv]{rsample::vfold_cv()}}  — underlying cross-validation function
-\item \code{\link[rsample:initial_split]{rsample::training()}}  — extract training set from a split
-\item \code{\link[rsample:initial_split]{rsample::testing()}}   — extract test/validation set from a split
-}
+\code{\link[=split_cv]{split_cv()}}
 }

@@ -6,13 +6,17 @@
 \usage{
 import_xlsx(
   file,
-  rbind = TRUE,
+  combine = TRUE,
   sheet = NULL,
   skip = 0L,
-  show_excel_name = TRUE,
-  show_sheet_name = TRUE,
+  header_rows = 1L,
+  header_sep = "_",
+  header_fill = "auto",
+  file_col = "excel_name",
+  sheet_col = "sheet_name",
   workers = 1L,
   verbose = FALSE,
+  on_error = "stop",
   ...
 )
 }
@@ -20,28 +24,44 @@ import_xlsx(
 \item{file}{Non-empty \code{character} vector of paths to existing
 \code{.xlsx} / \code{.xls} files.}
 
-\item{rbind}{\code{logical(1)}. \code{TRUE} (default) binds all sheets
+\item{combine}{\code{logical(1)}. \code{TRUE} (default) binds all sheets
 into a single \code{data.table}. \code{FALSE} returns a
 flat named list keyed as \code{"<filename>_<sheetname>"}.}
 
-\item{sheet}{Positive \code{integer} vector or \code{NULL} (default).
-\code{NULL} imports every sheet. Indices must be valid
-across all supplied files.}
+\item{sheet}{Positive \code{integer} vector, \code{character} vector of
+sheet names, or \code{NULL} (default, every sheet).
+Indices / names must exist in all supplied files.}
 
 \item{skip}{Non-negative \code{integer(1)}. Number of rows to skip
-before reading the header. Forwarded directly to
-\code{\link[readxl]{read_excel}}. Default \code{0L}.}
+before the header (e.g. a title row). Default \code{0L}.}
 
-\item{show_excel_name}{\code{logical(1)}. When \code{TRUE} (default) and
-\code{rbind = TRUE}, prepends an \code{excel_name} column
-recording the source filename (extension stripped).
-Silently ignored when \code{rbind = FALSE} (provenance is
-already encoded in list-element names).}
+\item{header_rows}{Positive \code{integer(1)}. Number of header rows below
+the skipped rows. Default \code{1L} (ordinary sheets).
+Values \code{> 1} combine the rows into one name per
+column (see Details); data start on the next row.}
 
-\item{show_sheet_name}{\code{logical(1)}. When \code{TRUE} (default) and
-\code{rbind = TRUE}, prepends a \code{sheet_name} column
-recording the source sheet. Silently ignored when
-\code{rbind = FALSE}.}
+\item{header_sep}{\code{character(1)}. Separator used to join the levels of
+a multi-row header. Default \code{"_"}.}
+
+\item{header_fill}{How merged header cells are resolved when
+\code{header_rows > 1}: \code{"auto"} (default) reads the
+merged ranges stored in \code{.xlsx}/\code{.xlsm} files and
+falls back to \code{"right"} for \code{.xls};
+\code{"right"} fills upper levels to the right (heuristic,
+no merge information needed); \code{"none"} uses the
+cells as they are.}
+
+\item{file_col}{\code{character(1)} or \code{NULL}. Name of the column
+recording the source file (extension stripped) when
+\code{combine = TRUE}. Default \code{"excel_name"};
+\code{NULL} omits the column. Ignored when
+\code{combine = FALSE} (provenance is in the list names).}
+
+\item{sheet_col}{\code{character(1)} or \code{NULL}. Name of the column
+recording the source sheet when \code{combine = TRUE}.
+Default \code{"sheet_name"}; \code{NULL} omits it.
+The defaults match \code{export_xlsx()}, so the result
+can be written back to the original layout.}
 
 \item{workers}{\code{integer(1)}. Number of parallel processes used to
 read the (file x sheet) tasks. Default \code{1L} (serial).
@@ -59,18 +79,28 @@ by a summary line. Default \code{FALSE}. Output is emitted
 from the master process, so it surfaces identically in
 serial and parallel modes.}
 
+\item{on_error}{\code{"stop"} (default) or \code{"warn"}. With
+\code{"stop"}, any file or sheet that cannot be read
+aborts the import with one error listing \emph{all}
+failures. With \code{"warn"}, failed files/sheets are
+skipped and listed in a single warning; the import only
+fails when nothing could be read.}
+
 \item{...}{Additional arguments forwarded to
 \code{\link[readxl]{read_excel}} (e.g. \code{col_types},
 \code{na}, \code{trim_ws}). \strong{Do not} pass
 \code{path}, \code{sheet}, or \code{skip} here; use the
-dedicated parameters above.}
+dedicated parameters above. With \code{header_rows > 1},
+\code{col_names} and \code{range} are set internally and
+must not be passed either; \code{col_types} then refers
+to the data columns.}
 }
 \value{
 \describe{
-\item{\code{rbind = TRUE}}{A \code{data.table}. Tracking columns
+\item{\code{combine = TRUE}}{A \code{data.table}. Tracking columns
 \code{excel_name} and/or \code{sheet_name} are prepended when their
-respective \code{show_*} flags are \code{TRUE}.}
-\item{\code{rbind = FALSE}}{A named \code{list} of \code{data.table}s,
+respective \code{file_col} / \code{sheet_col} are not \code{NULL}.}
+\item{\code{combine = FALSE}}{A named \code{list} of \code{data.table}s,
 each element named \code{"<filename>_<sheetname>"}. The list carries a
 \code{"source_files"} attribute with the original file paths.}
 }
@@ -78,8 +108,8 @@ each element named \code{"<filename>_<sheetname>"}. The list carries a
 \description{
 A high-performance function for importing data from one or multiple Excel
 files into \code{data.table} format, with fine-grained control over source
-tracking columns, sheet selection, row skipping, and optional parallel
-reading across (file, sheet) pairs.
+tracking columns, sheet selection, row skipping, multi-row headers, and
+optional parallel reading across (file, sheet) pairs.
 
 Performance characteristics:
 \itemize{
@@ -99,6 +129,50 @@ needed. Workers are pinned to a single thread during the read phase
 so parallel processes do not oversubscribe cores.
 }
 }
+\details{
+\strong{Multi-row headers.} Many hand-made workbooks have a title row and
+a header spread over several rows with merged cells, e.g.
+\preformatted{
+row 1  Growth test records
+row 2  ID | Breed | Weight (kg)   | Backfat (mm)
+row 3     |       | Start | End   | P2 | Loin
+row 4  A001 | Duroc | 28.5 | 102.3 | 11.2 | 56.1
+}
+\code{import_xlsx(f, skip = 1, header_rows = 2)} returns the columns
+\code{ID}, \code{Breed}, \code{Weight (kg)_Start}, \code{Weight (kg)_End},
+\code{Backfat (mm)_P2}, \code{Backfat (mm)_Loin}. The rules are:
+\itemize{
+\item Merged cells only store their value in their top-left cell. With
+\code{header_fill = "auto"} the merged ranges are read from the
+workbook itself (\code{<mergeCell>} entries of the sheet XML), and each
+range is filled with its value, horizontally and vertically. Header
+cells that are genuinely empty stay empty, so a column whose upper
+cell is blank gets only its lower label.
+\item Without merge information (\code{.xls} files, or
+\code{header_fill = "right"}), every level except the last is filled to
+the right, restarting wherever a higher level starts a new label.
+\item Per column, empty parts and repeated parts (vertically merged
+cells) are dropped and the remaining parts joined with
+\code{header_sep}; line breaks inside a cell become spaces.
+\item Columns without any header become \code{col_<j>}; duplicates are
+made unique.
+\item The header block is read as text, but the data block is read
+separately, so numbers and dates keep their types (reading the whole
+sheet as text would turn dates into serial numbers such as
+\code{"45296"}).
+\item Completely empty data rows (spacer or trailing rows) are dropped.
+}
+Labels that are only \emph{visually} spread over several columns with
+"Center Across Selection" (instead of real merging) are not merges; use
+\code{header_fill = "right"} for such sheets. Reading the merge
+information re-scans the sheet XML once, which costs a fraction of the
+import time and only happens when \code{header_rows > 1}.
+}
+\note{
+Files that share the same base name in different folders cannot be told
+apart by \code{file_col}; a warning is issued and the labels are made
+unique, so a later \code{export_xlsx()} round trip does not merge them.
+}
 \examples{
 # Example: Excel file import demonstrations
 
@@ -110,13 +184,35 @@ xlsx_files <- mintyr_example(
 # Example 1: Import and combine all sheets from all files
 import_xlsx(
   xlsx_files,                     # Input Excel file paths
-  rbind = TRUE                    # Combine all sheets into one data.table
+  combine = TRUE                  # Combine all sheets into one data.table
 )
 
 # Example 2: Import specific sheets separately
 import_xlsx(
   xlsx_files,                     # Input Excel file paths
-  rbind = FALSE,                  # Keep sheets as separate data.tables
-  sheet = 2                       # Only import first sheet
+  combine = FALSE,                 # Keep sheets as separate data.tables
+  sheet = 2                       # Only import the second sheet
 )
+
+# Example 3: Multi-row header with merged cells and a title row
+# (row 1 = title, rows 2-3 = header, data from row 4)
+mh_file <- mintyr_example("multiheader_test.xlsx")
+import_xlsx(
+  mh_file,
+  skip = 1,                       # Skip the title row
+  header_rows = 2                 # Combine two header rows into one name
+)
+# The last column has an empty, unmerged upper cell: it is named "Note".
+# The heuristic fill would wrongly call it "Backfat (mm)_Note":
+names(import_xlsx(mh_file, sheet = 1, skip = 1, header_rows = 2,
+                  header_fill = "right"))
+
+# Example 4: Batch import that skips unreadable files instead of stopping
+bad_file <- tempfile(fileext = ".xlsx")
+writeLines("not a workbook", bad_file)
+res <- suppressWarnings(
+  import_xlsx(c(mh_file, bad_file), skip = 1, header_rows = 2, on_error = "warn")
+)
+unique(res$excel_name)
+unlink(bad_file)
 }

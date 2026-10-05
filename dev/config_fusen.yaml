@@ -4,7 +4,9 @@ flat_teaching.Rmd:
   R:
   - R/w2l_split.R
   - R/w2l_nest.R
+  - R/resolve_cols.R
   - R/c2p_nest.R
+  - R/desc_stats.R
   - R/export_list.R
   - R/export_nest.R
   - R/export_xlsx.R
@@ -18,7 +20,23 @@ flat_teaching.Rmd:
   - R/r2p_nest.R
   - R/split_cv.R
   - R/top_perc.R
-  tests: []
+  tests:
+  - tests/testthat/test-resolve_cols.R
+  - tests/testthat/test-w2l_nest.R
+  - tests/testthat/test-w2l_split.R
+  - tests/testthat/test-nest_cv.R
+  - tests/testthat/test-split_cv.R
+  - tests/testthat/test-c2p_nest.R
+  - tests/testthat/test-r2p_nest.R
+  - tests/testthat/test-export_nest.R
+  - tests/testthat/test-export_list.R
+  - tests/testthat/test-import_csv.R
+  - tests/testthat/test-import_xlsx.R
+  - tests/testthat/test-export_xlsx.R
+  - tests/testthat/test-top_perc.R
+  - tests/testthat/test-desc_stats.R
+  - tests/testthat/test-get_path_info.R
+  - tests/testthat/test-format_digits.R
   vignettes: vignettes/get-started.Rmd
   inflate:
     flat_file: dev/flat_teaching.Rmd
@@ -28,3 +46,4 @@ flat_teaching.Rmd:
     document: true
     overwrite: 'yes'
     clean: true
+    codecov: false

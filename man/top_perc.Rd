@@ -4,7 +4,14 @@
 \alias{top_perc}
 \title{Select Top or Bottom Percentage of Data}
 \usage{
-top_perc(data, perc, trait, by = NULL, keep_data = FALSE)
+top_perc(
+  data,
+  perc,
+  cols,
+  by = NULL,
+  keep_data = FALSE,
+  stats = c("n", "min", "max", "mean", "median", "sd", "se", "cv")
+)
 }
 \arguments{
 \item{data}{A data.frame or data.table.}
@@ -13,20 +20,27 @@ top_perc(data, perc, trait, by = NULL, keep_data = FALSE)
 Positive values (e.g., 0.05) select the top X\% of largest values.
 Negative values (e.g., -0.1) select the bottom X\% of smallest values.}
 
-\item{trait}{A character vector of column names to analyse.}
+\item{cols}{Numeric trait column(s) to analyse, as names or indices.}
 
-\item{by}{A character vector of column names to group by. Default is NULL.}
+\item{by}{Grouping column(s), as names or indices. Default is NULL.}
 
 \item{keep_data}{Logical. If TRUE, returns a named list where each element
 contains both \code{stat} (summary statistics) and \code{data} (the
 subset rows). If FALSE (default), returns a single combined data.frame of
 statistics for all \code{perc} values.}
+
+\item{stats}{Statistics of the selected records, computed exactly as in
+\code{\link[=desc_stats]{desc_stats()}} (same names and definitions). Default
+\code{c("n", "min", "max", "mean", "median", "sd", "se", "cv")}; any of
+\code{"n", "min", "max", "mean", "median", "q1", "q3", "iqr", "mad",
+"sd", "se", "ci", "ci_low", "ci_high", "cv", "skew", "kurt"}.}
 }
 \value{
 \itemize{
 \item \code{keep_data = FALSE}: a \code{data.frame} with one row per
-\code{by} / \code{trait} / \code{perc} combination, containing columns
-\code{n, min, max, mean, median, sd, se, cv, selection}.
+\code{by} / \code{cols} / \code{perc} combination: the \code{by}
+columns, \code{variable}, the requested \code{stats} and
+\code{selection}.
 \item \code{keep_data = TRUE}: a named list (one element per \code{perc}
 value) where each element is a list with \code{$stat} and \code{$data}.
 }
@@ -36,20 +50,31 @@ Selects the top (largest) or bottom (smallest) percentage of data based on
 specified traits. Positive percentages extract the largest values; negative
 percentages extract the smallest values.
 }
+\details{
+Ranking uses \code{ties.method = "min"}, so tied values at the cut-off are
+all selected and slightly more than the requested share can be returned.
+Missing values are removed before ranking. Groups with fewer than
+\code{1 / abs(perc)} non-missing records cannot contribute a single
+record: they are kept in the summary with \code{n = 0} and a warning is
+issued.
+}
 \examples{
 # Example 1: Basic usage with single trait
 # This example selects the top 10\% of observations based on Petal.Width
 # keep_data=TRUE returns both summary statistics and the filtered data
 top_perc(iris, 
          perc = 0.1,                # Select top 10\%
-         trait = c("Petal.Width"),  # Column to analyze
+         cols = c("Petal.Width"),   # Column to analyze
          keep_data = TRUE)          # Return both stats and filtered data
 
 # Example 2: Using grouping with 'by' parameter
 # This example performs the same analysis but separately for each Species
-# Returns nested list with stats and filtered data for each group
+# Returns a data.frame of summary statistics, one row per Species
 top_perc(iris, 
          perc = 0.1,                # Select top 10\%
-         trait = c("Petal.Width"),  # Column to analyze
+         cols = c("Petal.Width"),   # Column to analyze
          by = "Species")            # Group by Species
+}
+\seealso{
+\code{\link[=desc_stats]{desc_stats()}} for statistics of all records.
 }

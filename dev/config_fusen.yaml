@@ -1,49 +1,127 @@
-flat_teaching.Rmd:
-  path: dev/flat_teaching.Rmd
+flat_cross_validation.Rmd:
+  path: dev/flat_cross_validation.Rmd
+  state: active
+  R:
+  - R/nest_cv.R
+  - R/split_cv.R
+  tests:
+  - tests/testthat/test-split_cv.R
+  - tests/testthat/test-nest_cv.R
+  vignettes: vignettes/cross-validation.Rmd
+  inflate:
+    flat_file: dev/flat_cross_validation.Rmd
+    vignette_name: Cross-validation
+    open_vignette: false
+    check: false
+    document: true
+    overwrite: 'yes'
+    clean: ask
+    codecov: false
+flat_import_export.Rmd:
+  path: dev/flat_import_export.Rmd
+  state: active
+  R:
+  - R/export_list.R
+  - R/export_nest.R
+  - R/export_xlsx.R
+  - R/import_csv.R
+  - R/import_xlsx.R
+  tests:
+  - tests/testthat/test-import_xlsx.R
+  - tests/testthat/test-import_csv.R
+  - tests/testthat/test-export_xlsx.R
+  - tests/testthat/test-export_nest.R
+  - tests/testthat/test-export_list.R
+  vignettes: vignettes/import-and-export.Rmd
+  inflate:
+    flat_file: dev/flat_import_export.Rmd
+    vignette_name: Import and export
+    open_vignette: false
+    check: false
+    document: true
+    overwrite: 'yes'
+    clean: ask
+    codecov: false
+flat_internal.Rmd:
+  path: dev/flat_internal.Rmd
+  state: active
+  R: R/resolve_cols.R
+  tests: tests/testthat/test-resolve_cols.R
+  vignettes: []
+  inflate:
+    flat_file: dev/flat_internal.Rmd
+    vignette_name: .na.character
+    open_vignette: false
+    check: false
+    document: true
+    overwrite: 'yes'
+    clean: ask
+    codecov: false
+flat_reshape.Rmd:
+  path: dev/flat_reshape.Rmd
   state: active
   R:
   - R/w2l_split.R
   - R/w2l_nest.R
-  - R/resolve_cols.R
   - R/c2p_nest.R
-  - R/desc_stats.R
-  - R/export_list.R
-  - R/export_nest.R
-  - R/export_xlsx.R
-  - R/format_digits.R
-  - R/get_path_info.R
-  - R/import_csv.R
-  - R/import_xlsx.R
-  - R/mintyr_example.R
-  - R/mintyr_examples.R
-  - R/nest_cv.R
   - R/r2p_nest.R
-  - R/split_cv.R
-  - R/top_perc.R
   tests:
-  - tests/testthat/test-resolve_cols.R
   - tests/testthat/test-w2l_nest.R
   - tests/testthat/test-w2l_split.R
-  - tests/testthat/test-nest_cv.R
-  - tests/testthat/test-split_cv.R
   - tests/testthat/test-c2p_nest.R
   - tests/testthat/test-r2p_nest.R
-  - tests/testthat/test-export_nest.R
-  - tests/testthat/test-export_list.R
-  - tests/testthat/test-import_csv.R
-  - tests/testthat/test-import_xlsx.R
-  - tests/testthat/test-export_xlsx.R
-  - tests/testthat/test-top_perc.R
-  - tests/testthat/test-desc_stats.R
-  - tests/testthat/test-get_path_info.R
-  - tests/testthat/test-format_digits.R
-  vignettes: vignettes/get-started.Rmd
+  vignettes: vignettes/reshape-and-nest.Rmd
   inflate:
-    flat_file: dev/flat_teaching.Rmd
-    vignette_name: Get started
-    open_vignette: true
-    check: true
+    flat_file: dev/flat_reshape.Rmd
+    vignette_name: Reshape and nest
+    open_vignette: false
+    check: false
     document: true
     overwrite: 'yes'
-    clean: true
+    clean: ask
     codecov: false
+flat_summary.Rmd:
+  path: dev/flat_summary.Rmd
+  state: active
+  R:
+  - R/desc_stats.R
+  - R/format_digits.R
+  - R/top_perc.R
+  tests:
+  - tests/testthat/test-desc_stats.R
+  - tests/testthat/test-top_perc.R
+  - tests/testthat/test-format_digits.R
+  vignettes: vignettes/descriptive-statistics.Rmd
+  inflate:
+    flat_file: dev/flat_summary.Rmd
+    vignette_name: Descriptive statistics
+    open_vignette: false
+    check: false
+    document: true
+    overwrite: 'yes'
+    clean: ask
+    codecov: false
+flat_utils.Rmd:
+  path: dev/flat_utils.Rmd
+  state: active
+  R:
+  - R/get_path_info.R
+  - R/mintyr_example.R
+  - R/mintyr_examples.R
+  tests: tests/testthat/test-get_path_info.R
+  vignettes: vignettes/utilities.Rmd
+  inflate:
+    flat_file: dev/flat_utils.Rmd
+    vignette_name: Utilities
+    open_vignette: false
+    check: false
+    document: true
+    overwrite: 'yes'
+    clean: ask
+    codecov: false
+keep:
+  path: keep
+  state: active
+  R: R/zzz.R
+  tests: []
+  vignettes: vignettes/mintyr.Rmd

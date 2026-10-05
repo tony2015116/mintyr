@@ -1,0 +1,90 @@
+---
+title: "Get started with mintyr"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Get started with mintyr}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+```
+
+mintyr turns "many groups x many variables" data into analysis-ready pieces
+and back into files. A typical analysis follows one loop:
+
+```
+ files --> import --> reshape & nest --> cross-validate / summarise --> export --> files
+```
+
+Each step has its own article:
+
+| Step | Functions | Article |
+|---|---|---|
+| Import and export | `import_xlsx()`, `import_csv()`, `export_xlsx()`, `export_nest()`, `export_list()` | `vignette("import-and-export")` |
+| Reshape and nest | `w2l_nest()`, `w2l_split()`, `c2p_nest()`, `r2p_nest()` | `vignette("reshape-and-nest")` |
+| Cross-validation | `split_cv()`, `nest_cv()` | `vignette("cross-validation")` |
+| Descriptive statistics | `desc_stats()`, `top_perc()`, `format_digits()` | `vignette("descriptive-statistics")` |
+| Utilities | `get_path_info()`, `mintyr_example()` | `vignette("utilities")` |
+
+```{r setup}
+library(mintyr)
+library(data.table)
+```
+
+## The loop in five steps
+
+**1. Import.** Several workbooks become one table; `excel_name` and
+`sheet_name` record where every row came from.
+
+```{r}
+files <- mintyr_example(mintyr_examples("xlsx_test"))
+raw <- import_xlsx(files)
+head(raw)
+```
+
+**2. Describe.** A report table per group, with a total row.
+
+```{r}
+desc_stats(mtcars, cols = c("mpg", "hp", "wt"), by = "cyl",
+           fmt = "{mean} ± {sd}", total = TRUE, shape = "wide")
+```
+
+**3. Reshape and nest.** One row per trait and group, the data in a
+list-column.
+
+```{r}
+nested <- w2l_nest(mtcars, cols = c("mpg", "qsec"), by = "am")
+nested
+```
+
+**4. Cross-validate inside every piece.** Reproducible 4-fold CV; a model per
+fold, then the mean predictive ability per trait and group.
+
+```{r}
+cv <- nest_cv(nested, v = 4, seed = 2026)
+cv[, r := mapply(function(tr, va) {
+  fit <- lm(value ~ wt + hp, data = tr)
+  cor(predict(fit, va), va$value)
+}, train, validate)]
+cv[, .(mean_r = round(mean(r), 3)), by = .(name, am)]
+```
+
+**5. Export.** One file per trait and group, e.g. as input for HIBLUP or DMU.
+
+```{r}
+out <- file.path(tempdir(), "by_trait")
+files <- export_nest(nested, path = out)
+basename(dirname(files))
+unlink(out, recursive = TRUE)
+```
+
+## Design principles
+
+- **No side effects**: input objects are never modified by reference.
+- **No silent data loss**: file names are sanitised, and functions stop
+  instead of overwriting files or returning ambiguous results.
+- **Consistent arguments**: `data`, `cols`, `by`, `out_type`, `path` mean the
+  same thing in every function.
+- **Light dependencies**: `data.table`, `readxl`, `writexl` and base R.

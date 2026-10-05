@@ -1,19 +1,18 @@
 Package: mintyr
-Title: High-Performance Phenotypic Data Pipelines for Breeding
+Title: Grouped and Nested Data Pipelines Built on 'data.table'
 Version: 0.2.0
 Authors@R: c(
     person("Guo Meng", , , "tony2015116@163.com", role = c("aut", "cre")),
     person("Guo Meng", role = "cph")
   )
-Description: A streamlined toolkit specifically designed for genomic
-    selection and quantitative genetics in animal breeding. It provides
-    high-performance data manipulation backed by 'data.table', focusing on
-    multi-breed and multi-trait nested grouping operations. Features
-    include zero-copy data importing, automated cross-validation
-    splitting, and robust tools to generate and batch-export formatted
-    phenotypic files required by various breeding software (e.g.,
-    'ASReml-R', 'HIBLUP', 'DMU'), heavily optimizing iterative variance
-    component analysis and large-scale evaluation pipelines.
+Description: A toolkit for grouped and nested data pipelines built on
+    'data.table': import many Excel / CSV files (including multi-row
+    headers) into one table, reshape and nest data by trait and group, run
+    reproducible (stratified) k-fold cross-validation inside every group,
+    summarise groups with report-ready descriptive statistics, and write
+    each piece back to its own file or sheet. Developed for animal
+    breeding, where it prepares phenotypic files for 'ASReml-R', 'HIBLUP'
+    or 'DMU', but useful for any multi-group, multi-variable analysis.
 License: MIT + file LICENSE
 URL: https://tony2015116.github.io/mintyr/,
     https://github.com/tony2015116/mintyr
@@ -37,5 +36,4 @@ Config/fusen/version: 0.7.2
 Config/roxygen2/version: 8.1.0
 Config/testthat/edition: 3
 Encoding: UTF-8
-LazyData: true
 Roxygen: list(markdown = TRUE)

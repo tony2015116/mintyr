@@ -60,6 +60,7 @@ updated (calls with old names now fail with "unused argument").
 
 ## Bug fixes
 
+* Fixed a bug in `export_xlsx()`.
 * `w2l_nest()` / `w2l_split()` no longer turn the caller's data.frame into a
   data.table by reference.
 * `w2l_split(sep = )` works on every data.table version.
@@ -77,10 +78,6 @@ updated (calls with old names now fail with "unused argument").
 ## Other
 
 * Regression tests for all functions.
-
-# mintyr 0.1.4
-
-* Fixed bug in `export_xlsx()`.
 
 # mintyr 0.1.3
 

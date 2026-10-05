@@ -338,16 +338,16 @@ for command-line breeding software.</p>
 <span>  by <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"name"</span>, <span class="st">"Species"</span><span class="op">)</span>,         <span class="co"># Columns to create directory structure</span></span>
 <span>  path <span class="op">=</span> <span class="va">out_dir</span></span>
 <span><span class="op">)</span></span>
-<span><span class="co">#&gt; [ export_nest ] Export complete. 6 file(s) written to: /tmp/RtmpBFVmLH/mintyr_export_nest</span></span>
+<span><span class="co">#&gt; [ export_nest ] Export complete. 6 file(s) written to: /tmp/RtmpT48FXk/mintyr_export_nest</span></span>
 <span><span class="co"># Returns (invisibly) the paths of the written files</span></span>
 <span><span class="co"># Directory structure: out_dir/&lt;name&gt;/&lt;Species&gt;/data.txt</span></span>
 <span><span class="va">files</span></span>
-<span><span class="co">#&gt; [1] "/tmp/RtmpBFVmLH/mintyr_export_nest/Sepal.Length/setosa/data.txt"    </span></span>
-<span><span class="co">#&gt; [2] "/tmp/RtmpBFVmLH/mintyr_export_nest/Sepal.Length/versicolor/data.txt"</span></span>
-<span><span class="co">#&gt; [3] "/tmp/RtmpBFVmLH/mintyr_export_nest/Sepal.Length/virginica/data.txt" </span></span>
-<span><span class="co">#&gt; [4] "/tmp/RtmpBFVmLH/mintyr_export_nest/Sepal.Width/setosa/data.txt"     </span></span>
-<span><span class="co">#&gt; [5] "/tmp/RtmpBFVmLH/mintyr_export_nest/Sepal.Width/versicolor/data.txt" </span></span>
-<span><span class="co">#&gt; [6] "/tmp/RtmpBFVmLH/mintyr_export_nest/Sepal.Width/virginica/data.txt"</span></span>
+<span><span class="co">#&gt; [1] "/tmp/RtmpT48FXk/mintyr_export_nest/Sepal.Length/setosa/data.txt"    </span></span>
+<span><span class="co">#&gt; [2] "/tmp/RtmpT48FXk/mintyr_export_nest/Sepal.Length/versicolor/data.txt"</span></span>
+<span><span class="co">#&gt; [3] "/tmp/RtmpT48FXk/mintyr_export_nest/Sepal.Length/virginica/data.txt" </span></span>
+<span><span class="co">#&gt; [4] "/tmp/RtmpT48FXk/mintyr_export_nest/Sepal.Width/setosa/data.txt"     </span></span>
+<span><span class="co">#&gt; [5] "/tmp/RtmpT48FXk/mintyr_export_nest/Sepal.Width/versicolor/data.txt" </span></span>
+<span><span class="co">#&gt; [6] "/tmp/RtmpT48FXk/mintyr_export_nest/Sepal.Width/virginica/data.txt"</span></span>
 <span></span>
 <span><span class="co"># Clean up</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/unlink.html" class="external-link">unlink</a></span><span class="op">(</span><span class="va">out_dir</span>, recursive <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></code></pre></div>
@@ -371,21 +371,21 @@ for command-line breeding software.</p>
 <span>  data <span class="op">=</span> <span class="va">dt_split</span>,          <span class="co"># Input list of data.tables</span></span>
 <span>  path <span class="op">=</span> <span class="va">out_dir</span></span>
 <span><span class="op">)</span></span>
-<span><span class="co">#&gt; [ export_list ] Export complete. 6 / 6 file(s) written to: /tmp/RtmpBFVmLH/mintyr_export_list</span></span>
+<span><span class="co">#&gt; [ export_list ] Export complete. 6 / 6 file(s) written to: /tmp/RtmpT48FXk/mintyr_export_list</span></span>
 <span><span class="co"># Returns (invisibly) a named vector of the written file paths</span></span>
 <span><span class="va">files</span></span>
 <span><span class="co">#&gt;                                              Sepal.Length_setosa </span></span>
-<span><span class="co">#&gt;     "/tmp/RtmpBFVmLH/mintyr_export_list/Sepal.Length_setosa.txt" </span></span>
+<span><span class="co">#&gt;     "/tmp/RtmpT48FXk/mintyr_export_list/Sepal.Length_setosa.txt" </span></span>
 <span><span class="co">#&gt;                                          Sepal.Length_versicolor </span></span>
-<span><span class="co">#&gt; "/tmp/RtmpBFVmLH/mintyr_export_list/Sepal.Length_versicolor.txt" </span></span>
+<span><span class="co">#&gt; "/tmp/RtmpT48FXk/mintyr_export_list/Sepal.Length_versicolor.txt" </span></span>
 <span><span class="co">#&gt;                                           Sepal.Length_virginica </span></span>
-<span><span class="co">#&gt;  "/tmp/RtmpBFVmLH/mintyr_export_list/Sepal.Length_virginica.txt" </span></span>
+<span><span class="co">#&gt;  "/tmp/RtmpT48FXk/mintyr_export_list/Sepal.Length_virginica.txt" </span></span>
 <span><span class="co">#&gt;                                               Sepal.Width_setosa </span></span>
-<span><span class="co">#&gt;      "/tmp/RtmpBFVmLH/mintyr_export_list/Sepal.Width_setosa.txt" </span></span>
+<span><span class="co">#&gt;      "/tmp/RtmpT48FXk/mintyr_export_list/Sepal.Width_setosa.txt" </span></span>
 <span><span class="co">#&gt;                                           Sepal.Width_versicolor </span></span>
-<span><span class="co">#&gt;  "/tmp/RtmpBFVmLH/mintyr_export_list/Sepal.Width_versicolor.txt" </span></span>
+<span><span class="co">#&gt;  "/tmp/RtmpT48FXk/mintyr_export_list/Sepal.Width_versicolor.txt" </span></span>
 <span><span class="co">#&gt;                                            Sepal.Width_virginica </span></span>
-<span><span class="co">#&gt;   "/tmp/RtmpBFVmLH/mintyr_export_list/Sepal.Width_virginica.txt"</span></span>
+<span><span class="co">#&gt;   "/tmp/RtmpT48FXk/mintyr_export_list/Sepal.Width_virginica.txt"</span></span>
 <span></span>
 <span><span class="co"># Clean up</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/unlink.html" class="external-link">unlink</a></span><span class="op">(</span><span class="va">out_dir</span>, recursive <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></code></pre></div>

@@ -19,7 +19,7 @@ are data.table objects."><meta property="og:image" content="https://tony2015116.
       </button>
       <span class="navbar-brand">
         <a class="navbar-link" href="../index.html">mintyr</a>
-        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="">0.2.0</span>
+        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="">0.2.1</span>
       </span>
     </div>
 
@@ -166,7 +166,11 @@ intermediate copies.</p>
 
 <ul><li><p>All specified files must exist and be readable at call time.</p></li>
 <li><p><code>combine = TRUE</code> assumes compatible column structures across files;
-mismatched columns are automatically aligned via <code>fill = TRUE</code>.</p></li>
+mismatched columns are automatically aligned via <code>fill = TRUE</code>.
+A column that is empty in one file takes the type it has in the
+others; a column whose type differs between files (e.g. a date in one,
+text in another) is combined as text, with a warning naming it (see
+<code><a href="import_xlsx.html">import_xlsx</a></code>, Details).</p></li>
 <li><p>Logical parameters (<code>combine</code>, <code>full_path</code>, <code>keep_ext</code>) reject
 <code>NA</code> values explicitly.</p></li>
 <li><p>Only the extension of the file itself is stripped; dots in directory

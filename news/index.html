@@ -17,7 +17,7 @@
       </button>
       <span class="navbar-brand">
         <a class="navbar-link" href="../index.html">mintyr</a>
-        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="">0.2.0</span>
+        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="">0.2.1</span>
       </span>
     </div>
 
@@ -78,6 +78,21 @@
       <small>Source: <a href="https://github.com/tony2015116/mintyr/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="page-header" data-toc-text="0.2.1" id="mintyr-021">mintyr 0.2.1<a class="anchor" aria-label="anchor" href="#mintyr-021"></a></h2>
+<div class="section level3">
+<h3 id="bug-fixes-0-2-1">Bug fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-0-2-1"></a></h3>
+<ul><li>
+<code><a href="../reference/import_xlsx.html">import_xlsx()</a></code> / <code><a href="../reference/import_csv.html">import_csv()</a></code> with <code>combine = TRUE</code> no longer fail when a date column is empty in one sheet / file (read as logical <code>NA</code>) or holds text there: an empty column now takes the type it has elsewhere, and a column whose type genuinely differs between sources (date vs. text, number vs. text) is combined as text, with one warning naming the column and where each type occurs. Previously <code><a href="https://rdrr.io/pkg/data.table/man/rbindlist.html" class="external-link">rbindlist()</a></code> stopped with “Class attribute on column … does not match”, or turned numbers into text silently.</li>
+<li>
+<code><a href="../reference/import_xlsx.html">import_xlsx()</a></code> guesses column types from all rows instead of readxl’s first 1000, so a column that is empty in the first 1000 rows (e.g. notes) is no longer read as logical with its later values lost. An explicit <code>guess_max</code> in <code>...</code> is still respected. Cost: a few percent of read time, no extra memory.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="performance-0-2-1">Performance<a class="anchor" aria-label="anchor" href="#performance-0-2-1"></a></h3>
+<ul><li>
+<code>import_xlsx(workers &gt; 1)</code> hands sheets to whichever worker is free (<code>parLapplyLB()</code> on Windows; <code>mclapply(mc.preschedule = FALSE)</code> on Unix/macOS when there are few sheets), so one large sheet no longer holds up a worker while others sit idle.</li>
+</ul></div>
+</div>
     <div class="section level2">
 <h2 class="page-header" data-toc-text="0.2.0" id="mintyr-020">mintyr 0.2.0<a class="anchor" aria-label="anchor" href="#mintyr-020"></a></h2>
 <div class="section level3">

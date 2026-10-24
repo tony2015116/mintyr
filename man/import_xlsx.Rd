@@ -102,7 +102,12 @@ fails when nothing could be read.}
 dedicated parameters above. With \code{header_rows > 1},
 \code{col_names} and \code{range} are set internally and
 must not be passed either; \code{col_types} then refers
-to the data columns.}
+to the data columns. Unless \code{guess_max} is given,
+column types are guessed from \emph{all} rows (readxl's
+default looks at the first 1000 only, so a column that
+is empty there would be read as logical and its later
+values lost). This costs a few percent of read time and
+no extra memory.}
 }
 \value{
 \describe{
@@ -139,6 +144,22 @@ so parallel processes do not oversubscribe cores.
 }
 }
 \details{
+\strong{Combining sheets with different column types.} When
+\code{combine = TRUE}, columns are aligned before binding:
+\itemize{
+\item A column that is completely empty in one sheet (read as logical
+\code{NA}) takes the type it has in the other sheets, e.g. stays a
+date column.
+\item A column whose type genuinely differs between sheets (e.g. a date
+in one workbook, text such as \code{"2024.3.1"} in another; or numbers
+vs. text) is converted to text in all sheets, with one warning naming
+the column and where each type occurs. Dates are written as
+\code{"YYYY-MM-DD"} (with the time when it is not midnight). Integer /
+double / logical columns are combined as numbers, without a warning.
+}
+Without this step \code{data.table::rbindlist()} stops for any date column
+that is empty or text in another sheet.
+
 \strong{Multi-row headers.} Many hand-made workbooks have a title row and
 a header spread over several rows with merged cells, e.g.
 \preformatted{

@@ -49,6 +49,26 @@ test_that(".assign_folds balances fold sizes and strata", {
   expect_true(all(apply(tab, 2, function(x) max(x) - min(x)) <= 1))
 })
 
+test_that(".align_col_types fills empty columns and turns conflicts into text", {
+  d <- as.POSIXct("2024-03-01", tz = "UTC")
+  tabs <- list(data.table::data.table(a = d, b = 1L, c = "x"),
+               data.table::data.table(a = NA, b = 2.5, c = NA),
+               data.table::data.table(b = TRUE))
+  expect_silent(.align_col_types(tabs, c("s1", "s2", "s3")))   # by reference
+  expect_s3_class(tabs[[2]]$a, "POSIXct")
+  expect_identical(attr(tabs[[2]]$a, "tzone"), "UTC")
+  expect_type(tabs[[2]]$c, "character")
+  expect_type(tabs[[2]]$b, "double")                           # left to rbindlist
+  tabs <- list(data.table::data.table(a = d + c(0, 3600)), data.table::data.table(a = "2024.3.1"),
+               data.table::data.table(a = as.Date("2024-03-02")))
+  expect_warning(.align_col_types(tabs, c("s1", "s2", "s3")),
+                 "`a`: date-time in s1; text in s2; date in s3")
+  expect_identical(unlist(lapply(tabs, `[[`, "a")),
+                   c("2024-03-01", "2024-03-01 01:00:00", "2024.3.1", "2024-03-02"))
+  one <- list(data.table::data.table(a = 1))
+  expect_identical(.align_col_types(one, "s"), one)
+})
+
 test_that(".make_strata bins numerics and pools small strata", {
   s <- .make_strata(1:100, breaks = 4, pool = 0.1)
   expect_length(unique(s), 4)

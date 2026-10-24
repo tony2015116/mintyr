@@ -597,3 +597,81 @@
   if (!length(by)) out[, .k := NULL]
   out[]
 }
+
+#' Align column types across tables before `rbindlist()`
+#'
+#' Modifies the tables by reference (no copy of unaffected columns).
+#' A column that is all-`NA` logical in a table (readxl / fread read an empty
+#' column that way) takes the type it has in the other tables. A column whose
+#' filled values have different types across tables is converted to text
+#' everywhere, with one warning; integer / double / logical mixes are left to
+#' `rbindlist()`, which combines them as numbers.
+#'
+#' @param tables List of data.tables (valid self-reference).
+#' @param labels Character vector naming the source of each table, used in
+#'   the warning.
+#' @return `tables`, invisibly (modified in place).
+#' @noRd
+.align_col_types <- function(tables, labels) {
+  if (length(tables) < 2L) return(invisible(tables))
+  type_label <- function(x) {
+    if (inherits(x, "POSIXt")) "date-time"
+    else if (inherits(x, "Date")) "date"
+    else if (is.numeric(x)) "number"
+    else if (is.character(x)) "text"
+    else if (is.logical(x)) "logical"
+    else class(x)[1L]
+  }
+  as_text <- function(x) {
+    if (inherits(x, "POSIXt")) {
+      tz <- attr(x, "tzone")
+      out <- format(x, "%Y-%m-%d %H:%M:%S", tz = if (length(tz) && nzchar(tz[1L])) tz[1L] else "")
+      sub(" 00:00:00$", "", out)
+    } else if (inherits(x, "Date")) {
+      format(x, "%Y-%m-%d")
+    } else {
+      as.character(x)
+    }
+  }
+  plain <- c("logical", "integer", "numeric")
+  cols  <- unique(unlist(lapply(tables, names), use.names = FALSE))
+  report <- character(0L)
+
+  for (col in cols) {
+    has <- which(vapply(tables, function(d) col %in% names(d), logical(1L)))
+    if (length(has) < 2L) next
+    vals  <- lapply(tables[has], `[[`, col)
+    cls   <- vapply(vals, function(x) paste(class(x), collapse = "/"), character(1L))
+    if (length(unique(cls)) == 1L) next
+    empty  <- vapply(vals, function(x) is.logical(x) && all(is.na(x)), logical(1L))
+    filled <- unique(cls[!empty])
+    if (length(filled) == 0L || all(filled %in% plain)) next
+
+    if (length(filled) == 1L) {
+      # Only empty columns differ: give them the type of the filled ones.
+      ref <- vals[!empty][[1L]]
+      for (i in has[empty])
+        data.table::set(tables[[i]], j = col,
+                        value = ref[rep(NA_integer_, nrow(tables[[i]]))])
+      next
+    }
+
+    # A genuine conflict: text everywhere, and say where each type occurs.
+    for (k in seq_along(has))
+      if (!is.character(vals[[k]]))
+        data.table::set(tables[[has[k]]], j = col, value = as_text(vals[[k]]))
+    types <- vapply(vals[!empty], type_label, character(1L))
+    where <- split(labels[has][!empty], factor(types, levels = unique(types)))
+    report <- c(report, sprintf("  - `%s`: %s", col, paste(vapply(names(where), function(t) {
+      l <- where[[t]]
+      sprintf("%s in %s%s", t, paste(utils::head(l, 3L), collapse = ", "),
+              if (length(l) > 3L) sprintf(" and %d more", length(l) - 3L) else "")
+    }, character(1L)), collapse = "; ")))
+  }
+
+  if (length(report))
+    warning(sprintf("%d column(s) have different types in different sources and were ",
+                    length(report)),
+            "combined as text:\n", paste(report, collapse = "\n"), call. = FALSE)
+  invisible(tables)
+}

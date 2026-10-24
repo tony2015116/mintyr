@@ -37,7 +37,7 @@ importFrom(parallel,
   clusterEvalQ,
   makeCluster,
   mclapply,
-  parLapply,
+  parLapplyLB,
   stopCluster
 )
 importFrom(readxl,

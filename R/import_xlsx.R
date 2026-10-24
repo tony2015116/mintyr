@@ -93,9 +93,30 @@
 #'                   dedicated parameters above. With \code{header_rows > 1},
 #'                   \code{col_names} and \code{range} are set internally and
 #'                   must not be passed either; \code{col_types} then refers
-#'                   to the data columns.
+#'                   to the data columns. Unless \code{guess_max} is given,
+#'                   column types are guessed from \emph{all} rows (readxl's
+#'                   default looks at the first 1000 only, so a column that
+#'                   is empty there would be read as logical and its later
+#'                   values lost). This costs a few percent of read time and
+#'                   no extra memory.
 #'
 #' @details
+#' \strong{Combining sheets with different column types.} When
+#' \code{combine = TRUE}, columns are aligned before binding:
+#' \itemize{
+#'   \item A column that is completely empty in one sheet (read as logical
+#'     \code{NA}) takes the type it has in the other sheets, e.g. stays a
+#'     date column.
+#'   \item A column whose type genuinely differs between sheets (e.g. a date
+#'     in one workbook, text such as \code{"2024.3.1"} in another; or numbers
+#'     vs. text) is converted to text in all sheets, with one warning naming
+#'     the column and where each type occurs. Dates are written as
+#'     \code{"YYYY-MM-DD"} (with the time when it is not midnight). Integer /
+#'     double / logical columns are combined as numbers, without a warning.
+#' }
+#' Without this step \code{data.table::rbindlist()} stops for any date column
+#' that is empty or text in another sheet.
+#'
 #' \strong{Multi-row headers.} Many hand-made workbooks have a title row and
 #' a header spread over several rows with merged cells, e.g.
 #' \preformatted{
@@ -152,7 +173,7 @@
 #' @importFrom data.table setDT setcolorder setattr setalloccol getDTthreads
 #'   setDTthreads rbindlist `:=`
 #' @importFrom readxl read_excel excel_sheets cell_limits
-#' @importFrom parallel makeCluster stopCluster parLapply clusterEvalQ mclapply
+#' @importFrom parallel makeCluster stopCluster parLapplyLB clusterEvalQ mclapply
 #' @export
 #' @examples
 #' # Example: Excel file import demonstrations
@@ -273,6 +294,11 @@ import_xlsx <- function(file,
   if (length(reserved))
     stop(sprintf("Do not pass %s via `...`; use the dedicated parameter(s) instead.",
                  paste0("`", reserved, "`", collapse = ", ")), call. = FALSE)
+  # Guess types from all rows: readxl's default (first 1000 rows) turns a
+  # column that is empty there into logical and drops its later values.
+  # This is readxl's own upper limit, so it does not warn.
+  if (!"guess_max" %in% names(dots))
+    dots$guess_max <- .Machine$integer.max %/% 100L
 
   # -- 2. Restore the data.table thread pool on exit ---------------------------
   old_threads <- data.table::getDTthreads()
@@ -407,10 +433,16 @@ import_xlsx <- function(file,
       cl <- parallel::makeCluster(use_workers)
       on.exit(parallel::stopCluster(cl), add = TRUE)
       parallel::clusterEvalQ(cl, data.table::setDTthreads(1L))
-      sheet_tables <- parallel::parLapply(cl, tasks, read_one)
+      # Load-balanced: sheets go to whichever worker is free, so one large
+      # sheet does not hold up a worker that was assigned a fixed share.
+      sheet_tables <- parallel::parLapplyLB(cl, tasks, read_one)
     } else {
       data.table::setDTthreads(1L)          # forked children inherit this
-      sheet_tables <- parallel::mclapply(tasks, read_one, mc.cores = use_workers)
+      # Few tasks (typically large): one fork per task, handed out as workers
+      # become free. Many tasks (typically small): prescheduled chunks, which
+      # avoid forking once per sheet.
+      sheet_tables <- parallel::mclapply(tasks, read_one, mc.cores = use_workers,
+                                         mc.preschedule = n_tasks > 4L * use_workers)
       # A killed worker (e.g. out of memory) returns NULL or a try-error.
       sheet_tables <- lapply(sheet_tables, function(x) {
         if (is.data.frame(x) || inherits(x, "mintyr_read_error")) x
@@ -419,10 +451,12 @@ import_xlsx <- function(file,
                        class = "mintyr_read_error")
       })
     }
-    # Tables serialised back from workers lose their self-reference.
+    # Tables serialised back from workers lose their self-reference (needed
+    # for later `:=` and for aligning column types before binding).
     # setalloccol() returns the repaired table; it must be re-assigned because
-    # its argument here is not a plain symbol.
-    if (!combine) sheet_tables <- lapply(sheet_tables, data.table::setalloccol)
+    # its argument here is not a plain symbol. Error objects pass unchanged.
+    sheet_tables <- lapply(sheet_tables, function(x)
+      if (is.data.frame(x)) data.table::setalloccol(x) else x)
   } else {
     sheet_tables <- lapply(tasks, read_one)
   }
@@ -459,6 +493,9 @@ import_xlsx <- function(file,
   # -- 7. Assemble ------------------------------------------------------------
   if (combine) {
     data.table::setDTthreads(old_threads)
+    # Empty columns take the type used elsewhere; real conflicts become text.
+    .align_col_types(sheet_tables, vapply(tasks, function(tk)
+      sprintf("%s [%s]", basename(tk$path), tk$sheet), character(1L)))
     out <- data.table::rbindlist(sheet_tables, use.names = TRUE, fill = TRUE)
     front_cols <- c(if (need_excel) file_col, if (need_sheet) sheet_col,
                     if (need_path) path_col)

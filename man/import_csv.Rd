@@ -82,6 +82,10 @@ intermediate copies.
 \item All specified files must exist and be readable at call time.
 \item \code{combine = TRUE} assumes compatible column structures across files;
 mismatched columns are automatically aligned via \code{fill = TRUE}.
+A column that is empty in one file takes the type it has in the
+others; a column whose type differs between files (e.g. a date in one,
+text in another) is combined as text, with a warning naming it (see
+\code{\link{import_xlsx}}, Details).
 \item Logical parameters (\code{combine}, \code{full_path}, \code{keep_ext}) reject
 \code{NA} values explicitly.
 \item Only the extension of the file itself is stripped; dots in directory

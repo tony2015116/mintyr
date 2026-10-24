@@ -37,6 +37,59 @@ test_that("import_xlsx parallel results are safe to modify by reference", {
   expect_true("z" %in% names(res[[1]]))
 })
 
+test_that("import_xlsx keeps a date column that is empty in another sheet", {
+  f <- tempfile(fileext = ".xlsx"); on.exit(unlink(f))
+  d <- as.POSIXct(c("2024-03-01", "2024-03-02"), tz = "UTC")
+  writexl::write_xlsx(list(a = data.frame(id = 1:2, born = d),
+                           b = data.frame(id = 3, born = NA)), f)
+  expect_silent(res <- import_xlsx(f))
+  expect_s3_class(res$born, "POSIXct")
+  expect_identical(attr(res$born, "tzone"), "UTC")
+  expect_identical(format(res$born, "%Y-%m-%d"), c("2024-03-01", "2024-03-02", NA))
+})
+
+test_that("import_xlsx combines genuinely different types as text, with a warning", {
+  f <- tempfile(fileext = ".xlsx"); g <- tempfile(fileext = ".xlsx")
+  on.exit(unlink(c(f, g)))
+  writexl::write_xlsx(list(s = data.frame(
+    born = as.POSIXct("2024-03-01", tz = "UTC") + c(0, 8.5 * 3600), w = 1.5)), f)
+  writexl::write_xlsx(list(s = data.frame(born = "2024.3.1", w = "missing")), g)
+  expect_warning(res <- import_xlsx(c(f, g)), "`born`: date-time in .*text in")
+  expect_type(res$born, "character")
+  expect_identical(res$born, c("2024-03-01", "2024-03-01 08:30:00", "2024.3.1"))
+  expect_identical(res$w, c("1.5", "1.5", "missing"))
+  # each source and type is named once in one warning
+  w <- tryCatch(import_xlsx(c(f, g)), warning = conditionMessage)
+  expect_match(w, "2 column\\(s\\)")
+  expect_match(w, "`w`: number in .*xlsx \\[s\\]; text in")
+  # combine = FALSE leaves every sheet as it was read
+  lst <- import_xlsx(c(f, g), combine = FALSE)
+  expect_s3_class(lst[[1]]$born, "POSIXct")
+})
+
+test_that("import_xlsx aligns types after a parallel read", {
+  skip_on_cran()
+  f <- tempfile(fileext = ".xlsx"); on.exit(unlink(f))
+  writexl::write_xlsx(list(a = data.frame(id = 1, born = as.POSIXct("2024-03-01", tz = "UTC")),
+                           b = data.frame(id = 2, born = NA),
+                           c = data.frame(id = 3, born = "x")), f)
+  expect_warning(res <- import_xlsx(f, workers = 2), "`born`")
+  expect_identical(res$id, c(1, 2, 3))
+  expect_identical(res$born, c("2024-03-01", NA, "x"))
+})
+
+test_that("import_xlsx guesses types from all rows unless guess_max is given", {
+  f <- tempfile(fileext = ".xlsx"); on.exit(unlink(f))
+  n <- 1500
+  writexl::write_xlsx(data.frame(id = seq_len(n), note = c(rep(NA, n - 2), "late", "note")), f)
+  res <- import_xlsx(f, file_col = NULL, sheet_col = NULL)
+  expect_type(res$note, "character")
+  expect_identical(utils::tail(res$note, 2L), c("late", "note"))
+  # an explicit guess_max still wins (readxl's 1000-row guess loses the notes)
+  short <- suppressWarnings(import_xlsx(f, guess_max = 1000))
+  expect_type(short$note, "logical")
+})
+
 test_that("import_xlsx path_col keeps the full source path", {
   root <- file.path(tempdir(), "xl_paths")
   for (p in c("A/2024", "B/2025")) dir.create(file.path(root, p), recursive = TRUE,

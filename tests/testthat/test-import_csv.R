@@ -21,6 +21,19 @@ test_that("import_csv warns about duplicated labels and supports combine = FALSE
   expect_identical(names(res), c("x", "x_1"))
 })
 
+test_that("import_csv aligns column types across files", {
+  d <- file.path(tempdir(), "csv_types"); dir.create(d, showWarnings = FALSE)
+  on.exit(unlink(d, recursive = TRUE))
+  f <- file.path(d, c("a.csv", "b.csv", "c.csv"))
+  writeLines(c("id,born", "1,2024-03-01"), f[1])
+  writeLines(c("id,born", "2,"), f[2])                 # empty: read as logical NA
+  expect_silent(res <- import_csv(f[1:2]))
+  expect_s3_class(res$born, "Date")
+  writeLines(c("id,born", "3,2024.3.1"), f[3])         # text
+  expect_warning(res <- import_csv(f), "`born`: date in a; text in c")
+  expect_identical(res$born, c("2024-03-01", NA, "2024.3.1"))
+})
+
 test_that("import_csv path_col keeps the full source path", {
   root <- file.path(tempdir(), "csv_paths")
   dir.create(file.path(root, "A", "2024"), recursive = TRUE, showWarnings = FALSE)

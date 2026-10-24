@@ -1,3 +1,28 @@
+# mintyr 0.2.1
+
+## Bug fixes
+
+* `import_xlsx()` / `import_csv()` with `combine = TRUE` no longer fail when
+  a date column is empty in one sheet / file (read as logical `NA`) or holds
+  text there: an empty column now takes the type it has elsewhere, and a
+  column whose type genuinely differs between sources (date vs. text,
+  number vs. text) is combined as text, with one warning naming the column
+  and where each type occurs. Previously `rbindlist()` stopped with "Class
+  attribute on column ... does not match", or turned numbers into text
+  silently.
+* `import_xlsx()` guesses column types from all rows instead of readxl's
+  first 1000, so a column that is empty in the first 1000 rows (e.g. notes)
+  is no longer read as logical with its later values lost. An explicit
+  `guess_max` in `...` is still respected. Cost: a few percent of read time,
+  no extra memory.
+
+## Performance
+
+* `import_xlsx(workers > 1)` hands sheets to whichever worker is free
+  (`parLapplyLB()` on Windows; `mclapply(mc.preschedule = FALSE)` on
+  Unix/macOS when there are few sheets), so one large sheet no longer holds
+  up a worker while others sit idle.
+
 # mintyr 0.2.0
 
 ## New features

@@ -63,6 +63,10 @@
 #'   \item All specified files must exist and be readable at call time.
 #'   \item \code{combine = TRUE} assumes compatible column structures across files;
 #'     mismatched columns are automatically aligned via \code{fill = TRUE}.
+#'     A column that is empty in one file takes the type it has in the
+#'     others; a column whose type differs between files (e.g. a date in one,
+#'     text in another) is combined as text, with a warning naming it (see
+#'     \code{\link{import_xlsx}}, Details).
 #'   \item Logical parameters (\code{combine}, \code{full_path}, \code{keep_ext}) reject
 #'     \code{NA} values explicitly.
 #'   \item Only the extension of the file itself is stripped; dots in directory
@@ -152,6 +156,8 @@ import_csv <- function(file,
       data.table::set(file_list[[i]], j = path_col,
                       value = rep(full[[i]], nrow(file_list[[i]])))
   }
+  # Empty columns take the type used elsewhere; real conflicts become text.
+  .align_col_types(file_list, labels)
   out <- data.table::rbindlist(file_list, use.names = TRUE, fill = TRUE,
                                idcol = file_col)
   front <- intersect(c(file_col, path_col), names(out))

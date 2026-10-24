@@ -37,6 +37,26 @@ test_that("import_xlsx parallel results are safe to modify by reference", {
   expect_true("z" %in% names(res[[1]]))
 })
 
+test_that("import_xlsx path_col keeps the full source path", {
+  root <- file.path(tempdir(), "xl_paths")
+  for (p in c("A/2024", "B/2025")) dir.create(file.path(root, p), recursive = TRUE,
+                                              showWarnings = FALSE)
+  on.exit(unlink(root, recursive = TRUE))
+  f <- file.path(root, c("A/2024/a.xlsx", "B/2025/b.xlsx"))
+  writexl::write_xlsx(list(s1 = data.frame(w = 1:2)), f[1])
+  writexl::write_xlsx(list(s1 = data.frame(w = 3)), f[2])
+  res <- import_xlsx(f, path_col = "file_path")
+  expect_identical(names(res), c("excel_name", "sheet_name", "file_path", "w"))
+  expect_identical(res$file_path, normalizePath(f[c(1, 1, 2)], winslash = "/"))
+  expect_identical(get_path_info(res$file_path, n = -3), c("A", "A", "B"))
+  expect_identical(get_path_info(res$file_path, n = -2), c("2024", "2024", "2025"))
+  only <- import_xlsx(f, file_col = NULL, sheet_col = NULL, path_col = "p")
+  expect_identical(names(only), c("p", "w"))
+  expect_false("file_path" %in% names(unlist(lapply(import_xlsx(f, combine = FALSE,
+                                                    path_col = "file_path"), names))))
+  expect_error(import_xlsx(f, path_col = "sheet_name"), "different column names")
+})
+
 test_that(".combine_headers fills merged cells within their parent block", {
   h <- data.frame(a = c("ID", NA), b = c("Weight", "Start"), c = c(NA, "End"),
                   d = c("Backfat", "P2"), e = c(NA, "Loin"), f = c("Note\nfree", NA),

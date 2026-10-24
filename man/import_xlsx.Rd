@@ -14,6 +14,7 @@ import_xlsx(
   header_fill = "auto",
   file_col = "excel_name",
   sheet_col = "sheet_name",
+  path_col = NULL,
   workers = 1L,
   verbose = FALSE,
   on_error = "stop",
@@ -62,6 +63,14 @@ recording the source sheet when \code{combine = TRUE}.
 Default \code{"sheet_name"}; \code{NULL} omits it.
 The defaults match \code{export_xlsx()}, so the result
 can be written back to the original layout.}
+
+\item{path_col}{\code{NULL} (default) or \code{character(1)}. Name of an
+extra column holding the full path of the source file
+(absolute, \code{"/"} separators) when
+\code{combine = TRUE}. Useful when folder names carry
+information (farm, year, batch) that can then be
+extracted with \code{\link[=get_path_info]{get_path_info()}}. Remove it before
+\code{export_xlsx()} if it should not be written out.}
 
 \item{workers}{\code{integer(1)}. Number of parallel processes used to
 read the (file x sheet) tasks. Default \code{1L} (serial).
@@ -215,4 +224,20 @@ res <- suppressWarnings(
 )
 unique(res$excel_name)
 unlink(bad_file)
+
+# Example 5: Keep the full path and extract information from folder names
+# (e.g. <root>/<farm>/<year>/file.xlsx)
+root <- file.path(tempdir(), "farms")
+for (p in c("A/2024", "B/2025")) dir.create(file.path(root, p), recursive = TRUE)
+file.copy(mintyr_example("xlsx_test1.xlsx"), file.path(root, "A/2024/growth_a.xlsx"))
+file.copy(mintyr_example("xlsx_test2.xlsx"), file.path(root, "B/2025/growth_b.xlsx"))
+
+growth <- import_xlsx(
+  list.files(root, pattern = "\\\\.xlsx$", recursive = TRUE, full.names = TRUE),
+  path_col = "file_path"          # Full path of every row's source file
+)
+growth[, farm := get_path_info(file_path, n = -3)]   # third-last part: farm
+growth[, year := get_path_info(file_path, n = -2)]   # second-last part: year
+growth[, .(excel_name, farm, year)]
+unlink(root, recursive = TRUE)
 }

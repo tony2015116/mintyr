@@ -20,3 +20,16 @@ test_that("import_csv warns about duplicated labels and supports combine = FALSE
   expect_warning(res <- import_csv(f, combine = FALSE), "Duplicated")
   expect_identical(names(res), c("x", "x_1"))
 })
+
+test_that("import_csv path_col keeps the full source path", {
+  root <- file.path(tempdir(), "csv_paths")
+  dir.create(file.path(root, "A", "2024"), recursive = TRUE, showWarnings = FALSE)
+  on.exit(unlink(root, recursive = TRUE))
+  f <- file.path(root, "A", "2024", "x.csv")
+  data.table::fwrite(data.frame(v = 1:2), f)
+  res <- import_csv(f, path_col = "path")
+  expect_identical(names(res), c("_file", "path", "v"))
+  expect_identical(unique(res$path), normalizePath(f, winslash = "/"))
+  expect_identical(unique(get_path_info(res$path, n = -3)), "A")
+  expect_error(import_csv(f, file_col = "p", path_col = "p"), "different")
+})

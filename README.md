@@ -3,7 +3,7 @@
 <!-- badges: start -->
 [![CRAN status](https://www.r-pkg.org/badges/version/mintyr)](https://CRAN.R-project.org/package=mintyr)
 [![CRAN total downloads](https://cranlogs.r-pkg.org/badges/grand-total/mintyr)](https://CRAN.R-project.org/package=mintyr)
-[![Dev Version](https://img.shields.io/badge/devel%20version-0.2.0-purple.svg)](https://github.com/tony2015116/mintyr)
+[![Dev Version](https://img.shields.io/badge/devel%20version-0.2.1-purple.svg)](https://github.com/tony2015116/mintyr)
 [![Lifecycle: experimental](https://img.shields.io/badge/lifecycle-experimental-orange.svg)](https://lifecycle.r-lib.org/articles/stages.html#experimental)
 [![R-CMD-check](https://github.com/tony2015116/mintyr/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/tony2015116/mintyr/actions/workflows/R-CMD-check.yaml)
 [![GitHub last commit](https://img.shields.io/github/last-commit/tony2015116/mintyr)](#)

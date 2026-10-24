@@ -69,6 +69,22 @@ res <- suppressWarnings(
 )
 unique(res$excel_name)
 unlink(bad_file)
+
+# Example 5: Keep the full path and extract information from folder names
+# (e.g. <root>/<farm>/<year>/file.xlsx)
+root <- file.path(tempdir(), "farms")
+for (p in c("A/2024", "B/2025")) dir.create(file.path(root, p), recursive = TRUE)
+file.copy(mintyr_example("xlsx_test1.xlsx"), file.path(root, "A/2024/growth_a.xlsx"))
+file.copy(mintyr_example("xlsx_test2.xlsx"), file.path(root, "B/2025/growth_b.xlsx"))
+
+growth <- import_xlsx(
+  list.files(root, pattern = "\\.xlsx$", recursive = TRUE, full.names = TRUE),
+  path_col = "file_path"          # Full path of every row's source file
+)
+growth[, farm := get_path_info(file_path, n = -3)]   # third-last part: farm
+growth[, year := get_path_info(file_path, n = -2)]   # second-last part: year
+growth[, .(excel_name, farm, year)]
+unlink(root, recursive = TRUE)
 ```
 
 

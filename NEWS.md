@@ -13,6 +13,9 @@
   using the merged cells stored in .xlsx files (`header_fill`), accepts
   sheet names in `sheet`, and can skip unreadable files / sheets
   (`on_error = "warn"`).
+* `import_xlsx()` and `import_csv()` gain `path_col` to keep the full path of
+  every source file, so that information in folder names (farm, year,
+  batch) can be extracted with `get_path_info()`.
 
 ## Breaking changes
 

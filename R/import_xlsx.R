@@ -59,6 +59,13 @@
 #'                   Default \code{"sheet_name"}; \code{NULL} omits it.
 #'                   The defaults match \code{export_xlsx()}, so the result
 #'                   can be written back to the original layout.
+#' @param path_col   \code{NULL} (default) or \code{character(1)}. Name of an
+#'                   extra column holding the full path of the source file
+#'                   (absolute, \code{"/"} separators) when
+#'                   \code{combine = TRUE}. Useful when folder names carry
+#'                   information (farm, year, batch) that can then be
+#'                   extracted with [get_path_info()]. Remove it before
+#'                   \code{export_xlsx()} if it should not be written out.
 #' @param workers    \code{integer(1)}. Number of parallel processes used to
 #'                   read the (file x sheet) tasks. Default \code{1L} (serial).
 #'                   Values \code{> 1} open a fork pool on Unix/macOS or a
@@ -189,6 +196,22 @@
 #' )
 #' unique(res$excel_name)
 #' unlink(bad_file)
+#'
+#' # Example 5: Keep the full path and extract information from folder names
+#' # (e.g. <root>/<farm>/<year>/file.xlsx)
+#' root <- file.path(tempdir(), "farms")
+#' for (p in c("A/2024", "B/2025")) dir.create(file.path(root, p), recursive = TRUE)
+#' file.copy(mintyr_example("xlsx_test1.xlsx"), file.path(root, "A/2024/growth_a.xlsx"))
+#' file.copy(mintyr_example("xlsx_test2.xlsx"), file.path(root, "B/2025/growth_b.xlsx"))
+#'
+#' growth <- import_xlsx(
+#'   list.files(root, pattern = "\\.xlsx$", recursive = TRUE, full.names = TRUE),
+#'   path_col = "file_path"          # Full path of every row's source file
+#' )
+#' growth[, farm := get_path_info(file_path, n = -3)]   # third-last part: farm
+#' growth[, year := get_path_info(file_path, n = -2)]   # second-last part: year
+#' growth[, .(excel_name, farm, year)]
+#' unlink(root, recursive = TRUE)
 import_xlsx <- function(file,
                         combine   = TRUE,
                         sheet     = NULL,
@@ -198,20 +221,23 @@ import_xlsx <- function(file,
                         header_fill = "auto",
                         file_col  = "excel_name",
                         sheet_col = "sheet_name",
+                        path_col  = NULL,
                         workers   = 1L,
                         verbose   = FALSE,
                         on_error  = "stop",
                         ...) {
 
   # -- 0. Tracking-column arguments ------------------------------------------
-  for (nm in c("file_col", "sheet_col")) {
+  for (nm in c("file_col", "sheet_col", "path_col")) {
     val <- get(nm)
     if (!is.null(val) && (!is.character(val) || length(val) != 1L || is.na(val) ||
                           !nzchar(val)))
       stop(sprintf("`%s` must be a single non-empty string, or NULL.", nm), call. = FALSE)
   }
-  if (!is.null(file_col) && identical(file_col, sheet_col))
-    stop("`file_col` and `sheet_col` must differ.", call. = FALSE)
+  track <- c(file_col, sheet_col, path_col)
+  if (anyDuplicated(track))
+    stop("`file_col`, `sheet_col` and `path_col` must be different column names.",
+         call. = FALSE)
 
   # -- 1. Input validation ----------------------------------------------------
   if (!is.character(file) || length(file) == 0L || anyNA(file))
@@ -257,7 +283,8 @@ import_xlsx <- function(file,
   if (anyDuplicated(file_base) && (!is.null(file_col) || !combine)) {
     dup <- unique(file_base[duplicated(file_base)])
     warning("Several files share the same base name (", paste(dup, collapse = ", "),
-            "). Their rows cannot be told apart by `file_col`, and ",
+            "). Their rows cannot be told apart by `file_col` (use `path_col` to ",
+            "keep the full paths), and ",
             "export_xlsx() would merge them into one workbook. Labels were made ",
             "unique with make.unique().", call. = FALSE)
     file_base <- make.unique(file_base, sep = "_")
@@ -294,12 +321,15 @@ import_xlsx <- function(file,
   tasks <- unlist(lapply(ok_files, function(i) {
     avail <- sheets_cache[[i]]
     sel   <- if (is.null(sheet)) avail else if (is.character(sheet)) sheet else avail[sheet]
-    lapply(sel, function(sht) list(path = file[[i]], base = file_base[[i]], sheet = sht))
+    full  <- normalizePath(file[[i]], winslash = "/", mustWork = TRUE)
+    lapply(sel, function(sht) list(path = file[[i]], full = full, base = file_base[[i]],
+                                   sheet = sht))
   }), recursive = FALSE)
 
   # -- 6. Read every task (serial or parallel) ---------------------------------
   need_excel <- combine && !is.null(file_col)
   need_sheet <- combine && !is.null(sheet_col)
+  need_path  <- combine && !is.null(path_col)
 
   read_body <- function(tk) {
     if (header_rows == 1L) {
@@ -342,6 +372,7 @@ import_xlsx <- function(file,
     }
     if (need_excel) data.table::set(dt, j = file_col,  value = rep(tk$base,  nrow(dt)))
     if (need_sheet) data.table::set(dt, j = sheet_col, value = rep(tk$sheet, nrow(dt)))
+    if (need_path)  data.table::set(dt, j = path_col,  value = rep(tk$full,  nrow(dt)))
     dt
   }
   # Errors are returned as objects instead of thrown, so one bad sheet never
@@ -358,8 +389,8 @@ import_xlsx <- function(file,
   # serialise the few small objects it needs.
   shared <- list2env(
     list(skip = skip, dots = dots, header_rows = header_rows, header_sep = header_sep,
-         need_excel = need_excel, need_sheet = need_sheet,
-         file_col = file_col, sheet_col = sheet_col,
+         need_excel = need_excel, need_sheet = need_sheet, need_path = need_path,
+         file_col = file_col, sheet_col = sheet_col, path_col = path_col,
          header_fill = header_fill, combine_headers = combine_headers,
          xlsx_merges = xlsx_merges),
     parent = globalenv()
@@ -429,7 +460,8 @@ import_xlsx <- function(file,
   if (combine) {
     data.table::setDTthreads(old_threads)
     out <- data.table::rbindlist(sheet_tables, use.names = TRUE, fill = TRUE)
-    front_cols <- c(if (need_excel) file_col, if (need_sheet) sheet_col)
+    front_cols <- c(if (need_excel) file_col, if (need_sheet) sheet_col,
+                    if (need_path) path_col)
     front_cols <- intersect(front_cols, names(out))
     if (length(front_cols)) data.table::setcolorder(out, front_cols)
     return(out[])

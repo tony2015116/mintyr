@@ -16,6 +16,9 @@
 #'   }
 #' @param file_col A \code{character} scalar or \code{NULL} specifying the source-tracking
 #'   column name (default: \code{"_file"}). Set to \code{NULL} to suppress the source column.
+#' @param path_col \code{NULL} (default) or a \code{character} scalar: name of an extra
+#'   column holding the full path of the source file (absolute, \code{"/"} separators)
+#'   when \code{combine = TRUE}, e.g. to extract folder names with [get_path_info()].
 #'   Only applies when \code{combine = TRUE}.
 #' @param full_path A \code{logical} scalar controlling path representation in labels:
 #'   \itemize{
@@ -92,6 +95,7 @@
 import_csv <- function(file,
                        combine   = TRUE,
                        file_col  = "_file",
+                       path_col  = NULL,
                        full_path = FALSE,
                        keep_ext  = FALSE,
                        ...) {
@@ -111,6 +115,13 @@ import_csv <- function(file,
        is.na(file_col) || !nzchar(file_col)))
     stop("`file_col` must be a single non-empty character string, or NULL.",
          call. = FALSE)
+  if (!is.null(path_col) &&
+      (!is.character(path_col) || length(path_col) != 1L ||
+       is.na(path_col) || !nzchar(path_col)))
+    stop("`path_col` must be a single non-empty character string, or NULL.",
+         call. = FALSE)
+  if (!is.null(path_col) && identical(path_col, file_col))
+    stop("`file_col` and `path_col` must be different column names.", call. = FALSE)
 
   # -- 2. Labels --------------------------------------------------------------
   # .strip_ext() only touches the last path component, so dots in directory
@@ -123,7 +134,7 @@ import_csv <- function(file,
     warning("Duplicated source label(s): ", paste(dup, collapse = ", "),
             ". Files with the same name in different folders cannot be told apart; ",
             "labels were made unique with make.unique(). ",
-            "Consider `full_path = TRUE`.", call. = FALSE)
+            "Consider `path_col` (or `full_path = TRUE`).", call. = FALSE)
     labels <- make.unique(labels, sep = "_")
   }
 
@@ -133,6 +144,17 @@ import_csv <- function(file,
 
   if (!combine) return(file_list)
 
-  data.table::rbindlist(file_list, use.names = TRUE, fill = TRUE,
-                        idcol = file_col)
+  # Full, normalised path of every source file (absolute, "/" separators),
+  # e.g. to extract farm / year folders later with get_path_info().
+  if (!is.null(path_col)) {
+    full <- normalizePath(file, winslash = "/", mustWork = TRUE)
+    for (i in seq_along(file_list))
+      data.table::set(file_list[[i]], j = path_col,
+                      value = rep(full[[i]], nrow(file_list[[i]])))
+  }
+  out <- data.table::rbindlist(file_list, use.names = TRUE, fill = TRUE,
+                               idcol = file_col)
+  front <- intersect(c(file_col, path_col), names(out))
+  if (length(front)) data.table::setcolorder(out, front)
+  out[]
 }

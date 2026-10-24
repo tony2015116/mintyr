@@ -8,6 +8,7 @@ import_csv(
   file,
   combine = TRUE,
   file_col = "_file",
+  path_col = NULL,
   full_path = FALSE,
   keep_ext = FALSE,
   ...
@@ -24,7 +25,11 @@ All paths must point to existing, accessible files.}
 }}
 
 \item{file_col}{A \code{character} scalar or \code{NULL} specifying the source-tracking
-column name (default: \code{"_file"}). Set to \code{NULL} to suppress the source column.
+column name (default: \code{"_file"}). Set to \code{NULL} to suppress the source column.}
+
+\item{path_col}{\code{NULL} (default) or a \code{character} scalar: name of an extra
+column holding the full path of the source file (absolute, \code{"/"} separators)
+when \code{combine = TRUE}, e.g. to extract folder names with \code{\link[=get_path_info]{get_path_info()}}.
 Only applies when \code{combine = TRUE}.}
 
 \item{full_path}{A \code{logical} scalar controlling path representation in labels:

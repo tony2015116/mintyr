@@ -14,9 +14,14 @@ home:
 
 navbar:
   structure:
-    left:  [intro, reference, articles, news]
+    left:  [intro, reference, articles, cheatsheet, news]
     right: [search, github, discussions]
   components:
+    cheatsheet:
+      text: Cheatsheet
+      icon: fas fa-file-alt
+      href: cheatsheet.html
+      aria-label: Cheatsheet
     github:
       icon: fab fa-github fa-lg
       href: https://github.com/tony2015116/mintyr

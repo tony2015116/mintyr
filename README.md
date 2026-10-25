@@ -152,7 +152,8 @@ Version 0.2.0 unifies argument names (`cols2l`, `cols2bind`, `trait`, `nest_dt`,
 
 ## Cheat sheet
 
-<a href='https://raw.githubusercontent.com/tony2015116/mintyr/main/man/figures/cheatsheet.svg' target="_blank"><img src='https://raw.githubusercontent.com/tony2015116/mintyr/main/man/figures/cheatsheet.svg' alt="mintyr package quick reference guide and cheatsheet" width="800" align="center" /></a>
+A one-page quick reference for every function (printable as a landscape PDF):
+**[tony2015116.github.io/mintyr/cheatsheet.html](https://tony2015116.github.io/mintyr/cheatsheet.html)**
 
 ## Acknowledgments
 

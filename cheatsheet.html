@@ -1,0 +1,541 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>mintyr cheat sheet</title>
+<meta name="description" content="Quick reference for mintyr 0.2.1: import, reshape and nest, cross-validate, summarise and export grouped data with data.table.">
+<link rel="icon" href="favicon.ico">
+<style>
+:root {
+  --bg: #f4f7f4;
+  --paper: #ffffff;
+  --ink: #1d2621;
+  --muted: #5b6862;
+  --line: #dfe6e1;
+  --code-bg: #f3f6f4;
+  --mint: #2a6e3f;
+  --mint-soft: #e5f1e8;
+  --io: #1f6f8b;     --io-soft: #e3f0f5;
+  --rs: #2a6e3f;     --rs-soft: #e5f1e8;
+  --cv: #a8571a;     --cv-soft: #f8ebe0;
+  --st: #6a4c93;     --st-soft: #efe9f6;
+  --ut: #4f5d68;     --ut-soft: #e9edf0;
+  --c-com: #6f7d75;
+  --c-str: #8a4b12;
+  --c-fn:  #1f5f34;
+  --c-arg: #1f5d7a;
+  --c-num: #8f2f5a;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #121714; --paper: #1a211d; --ink: #e3ebe5; --muted: #9db0a5;
+    --line: #2c3731; --code-bg: #141a16; --mint: #6fc28a; --mint-soft: #1f3326;
+    --io: #6cb8d4; --io-soft: #17303a; --rs: #6fc28a; --rs-soft: #1f3326;
+    --cv: #e39a5f; --cv-soft: #3a2717; --st: #b79ae0; --st-soft: #2c2340;
+    --ut: #a8b7c2; --ut-soft: #252d33;
+    --c-com: #7f9187; --c-str: #e3b27a; --c-fn: #8ad6a2; --c-arg: #8cc6e0; --c-num: #e597bb;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #121714; --paper: #1a211d; --ink: #e3ebe5; --muted: #9db0a5;
+  --line: #2c3731; --code-bg: #141a16; --mint: #6fc28a; --mint-soft: #1f3326;
+  --io: #6cb8d4; --io-soft: #17303a; --rs: #6fc28a; --rs-soft: #1f3326;
+  --cv: #e39a5f; --cv-soft: #3a2717; --st: #b79ae0; --st-soft: #2c2340;
+  --ut: #a8b7c2; --ut-soft: #252d33;
+  --c-com: #7f9187; --c-str: #e3b27a; --c-fn: #8ad6a2; --c-arg: #8cc6e0; --c-num: #e597bb;
+}
+
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0; background: var(--bg); color: var(--ink);
+  font: 14px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", "PingFang SC", "Microsoft YaHei", sans-serif;
+}
+a { color: var(--mint); }
+code, pre, .sig { font-family: ui-monospace, "SFMono-Regular", "JetBrains Mono", Menlo, Consolas, "Liberation Mono", monospace; }
+.wrap { max-width: 1320px; margin: 0 auto; padding: 24px 24px 48px; }
+
+/* ---------- header ---------- */
+.top {
+  display: grid; grid-template-columns: auto 1fr auto; gap: 20px; align-items: center;
+  background: var(--paper); border: 1px solid var(--line); border-radius: 14px;
+  padding: 18px 22px; border-top: 6px solid var(--mint);
+}
+.top img { width: 74px; height: auto; display: block; }
+.top h1 { margin: 0; font-size: 28px; letter-spacing: -0.01em; line-height: 1.15; }
+.top h1 .ver {
+  display: inline-block; vertical-align: middle; margin-left: 8px; font-size: 13px; font-weight: 600;
+  background: var(--mint); color: var(--paper); border-radius: 999px; padding: 2px 10px; letter-spacing: 0;
+}
+.top p { margin: 4px 0 0; color: var(--muted); max-width: 70ch; }
+.links { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
+.links a, .links button {
+  font: inherit; font-size: 13px; text-decoration: none; color: var(--ink); background: var(--mint-soft);
+  border: 1px solid var(--line); border-radius: 8px; padding: 6px 11px; cursor: pointer;
+}
+.links a:hover, .links button:hover { border-color: var(--mint); }
+
+/* ---------- pipeline strip ---------- */
+.flow {
+  margin: 16px 0; display: grid; grid-template-columns: repeat(6, 1fr); gap: 0;
+  background: var(--paper); border: 1px solid var(--line); border-radius: 14px; overflow: hidden;
+}
+.flow > div { padding: 12px 14px; position: relative; border-right: 1px solid var(--line); }
+.flow > div:last-child { border-right: 0; }
+.flow > div:not(:last-child)::after {
+  content: ""; position: absolute; right: -7px; top: 50%; width: 12px; height: 12px; z-index: 1;
+  background: var(--paper); border-top: 1px solid var(--line); border-right: 1px solid var(--line);
+  transform: translateY(-50%) rotate(45deg);
+}
+.flow .step { font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+.flow .fns { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12.5px; margin-top: 3px; }
+.flow .io .step { color: var(--io); } .flow .rs .step { color: var(--rs); }
+.flow .cv .step { color: var(--cv); } .flow .st .step { color: var(--st); }
+.flow .files .step { color: var(--muted); }
+
+/* ---------- grid of panels ---------- */
+.grid { columns: 3 380px; column-gap: 16px; }
+.panel {
+  break-inside: avoid; display: inline-block; width: 100%; margin: 0 0 16px;
+  background: var(--paper); border: 1px solid var(--line); border-radius: 14px; overflow: hidden;
+}
+.panel > h2 {
+  margin: 0; padding: 10px 16px; font-size: 15px; letter-spacing: .02em; color: var(--accent);
+  background: var(--soft); border-bottom: 1px solid var(--line);
+  display: flex; align-items: baseline; justify-content: space-between; gap: 8px;
+}
+.panel > h2 small { font-weight: 500; font-size: 12px; color: var(--muted); }
+.panel > h2 a { color: inherit; text-decoration: none; }
+.panel > h2 a:hover { text-decoration: underline; }
+.io { --accent: var(--io); --soft: var(--io-soft); }
+.rs { --accent: var(--rs); --soft: var(--rs-soft); }
+.cv { --accent: var(--cv); --soft: var(--cv-soft); }
+.st { --accent: var(--st); --soft: var(--st-soft); }
+.ut { --accent: var(--ut); --soft: var(--ut-soft); }
+.mt { --accent: var(--mint); --soft: var(--mint-soft); }
+
+.fn { padding: 12px 16px; border-bottom: 1px solid var(--line); }
+.fn:last-child { border-bottom: 0; }
+.sig { font-size: 12.5px; line-height: 1.45; color: var(--muted); word-break: break-word; }
+.sig b { color: var(--accent); font-size: 13.5px; }
+.sig b a { color: inherit; text-decoration: none; }
+.sig b a:hover { text-decoration: underline; }
+.fn p { margin: 5px 0 0; }
+.fn ul { margin: 6px 0 0; padding-left: 18px; }
+.fn li { margin: 2px 0; }
+.fn li code, .fn p code, td code, .note code { font-size: 12.5px; background: var(--code-bg); border-radius: 4px; padding: 0 3px; }
+.tag {
+  display: inline-block; font-size: 10.5px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase;
+  color: var(--accent); border: 1px solid currentColor; border-radius: 4px; padding: 0 5px; margin-left: 4px; vertical-align: 1px;
+}
+
+pre {
+  margin: 8px 0 0; padding: 10px 12px; background: var(--code-bg); border: 1px solid var(--line);
+  border-radius: 8px; font-size: 12.3px; line-height: 1.5; overflow-x: auto; white-space: pre;
+}
+pre .com { color: var(--c-com); font-style: italic; }
+pre .str { color: var(--c-str); }
+pre .fnm { color: var(--c-fn); font-weight: 700; }
+pre .arg { color: var(--c-arg); }
+pre .num { color: var(--c-num); }
+
+table { border-collapse: collapse; width: 100%; font-size: 12.8px; margin-top: 6px; }
+th, td { text-align: left; vertical-align: top; padding: 4px 6px; border-bottom: 1px solid var(--line); }
+th { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 700; }
+tr:last-child td { border-bottom: 0; }
+
+.note {
+  margin-top: 8px; padding: 7px 10px; border-left: 3px solid var(--accent); background: var(--soft);
+  border-radius: 0 6px 6px 0; font-size: 13px;
+}
+
+/* ---------- mini data diagrams ---------- */
+.dia { display: flex; align-items: center; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+.dia .arrow { color: var(--muted); font-size: 16px; }
+.mini { display: inline-grid; gap: 2px; font: 10px/1 ui-monospace, Menlo, Consolas, monospace; }
+.mini span {
+  min-width: 22px; height: 17px; padding: 0 3px; display: flex; align-items: center; justify-content: center;
+  border-radius: 3px; background: var(--code-bg); border: 1px solid var(--line); color: var(--muted); white-space: nowrap;
+}
+.mini .h { font-weight: 700; color: var(--ink); }
+.mini .a { background: #cfe9d7; border-color: #a9d6b7; color: #1d4a2a; }
+.mini .b { background: #d6e7f5; border-color: #aecde6; color: #1c3f5c; }
+.mini .c { background: #f5e1cf; border-color: #e6c3a3; color: #5a3312; }
+.mini .n { background: var(--soft); border-color: var(--accent); color: var(--accent); font-weight: 700; }
+.c2 { grid-template-columns: repeat(2, auto); } .c3 { grid-template-columns: repeat(3, auto); }
+.c4 { grid-template-columns: repeat(4, auto); }
+.listbox { display: inline-flex; flex-direction: column; gap: 3px; font: 10px/1 ui-monospace, Menlo, Consolas, monospace; }
+.listbox span { padding: 3px 6px; border-radius: 3px; border: 1px dashed var(--accent); color: var(--accent); }
+
+footer { margin-top: 8px; color: var(--muted); font-size: 12.5px; display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; }
+
+/* ---------- responsive ---------- */
+@media (max-width: 900px) {
+  .flow { grid-template-columns: repeat(3, 1fr); }
+  .flow > div:nth-child(3) { border-right: 0; }
+  .flow > div:nth-child(-n+3) { border-bottom: 1px solid var(--line); }
+  .flow > div:nth-child(3)::after { display: none; }
+}
+@media (max-width: 640px) {
+  .wrap { padding: 16px 16px 32px; }
+  .top { grid-template-columns: auto 1fr; }
+  .top img { width: 56px; }
+  .top h1 { font-size: 22px; }
+  .links { grid-column: 1 / -1; justify-content: flex-start; }
+  .flow { grid-template-columns: 1fr 1fr; }
+  .flow > div { border-right: 0 !important; border-bottom: 1px solid var(--line); }
+  .flow > div::after { display: none; }
+  .grid { columns: 1; }
+}
+
+/* ---------- print: landscape, compact ---------- */
+@page { size: A4 landscape; margin: 9mm; }
+@media print {
+  :root { --bg: #fff; }
+  body { font-size: 10.5px; background: #fff; }
+  .wrap { max-width: none; padding: 0; }
+  .links { display: none; }
+  .top { padding: 8px 12px; border-radius: 8px; }
+  .top img { width: 48px; }
+  .top h1 { font-size: 20px; }
+  .flow { margin: 8px 0; border-radius: 8px; }
+  .flow > div { padding: 6px 10px; }
+  .grid { columns: 4; column-gap: 8px; }
+  .panel { margin-bottom: 8px; border-radius: 8px; }
+  .panel > h2 { padding: 5px 10px; font-size: 12px; }
+  .fn { padding: 6px 10px; }
+  pre { font-size: 9.3px; padding: 5px 7px; }
+  .sig { font-size: 9.6px; } .sig b { font-size: 10.5px; }
+  table { font-size: 9.6px; }
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="top">
+  <img src="reference/figures/logo.svg" alt="mintyr logo" onerror="this.style.display='none'">
+  <div>
+    <h1>mintyr cheat sheet <span class="ver">v0.2.1</span></h1>
+    <p>Grouped and nested data pipelines built on <code>data.table</code>: import many files into one table, reshape and nest by trait &times; group, cross-validate and summarise every group, and write every piece back to its own file.</p>
+  </div>
+  <nav class="links">
+    <a href="index.html">Home</a>
+    <a href="reference/index.html">Reference</a>
+    <a href="articles/mintyr.html">Get started</a>
+    <a href="https://github.com/tony2015116/mintyr">GitHub</a>
+    <button type="button" onclick="window.print()">Print / PDF</button>
+  </nav>
+</header>
+
+<section class="flow" aria-label="mintyr workflow">
+  <div class="files"><div class="step">Files</div><div class="fns">.xlsx · .csv · .txt</div></div>
+  <div class="io"><div class="step">1 · Import</div><div class="fns">import_xlsx()<br>import_csv()</div></div>
+  <div class="rs"><div class="step">2 · Reshape &amp; nest</div><div class="fns">w2l_nest() w2l_split()<br>c2p_nest() r2p_nest()</div></div>
+  <div class="cv"><div class="step">3 · Cross-validate</div><div class="fns">nest_cv()<br>split_cv()</div></div>
+  <div class="st"><div class="step">3 · Summarise</div><div class="fns">desc_stats() top_perc()<br>format_digits()</div></div>
+  <div class="io"><div class="step">4 · Export</div><div class="fns">export_xlsx() export_nest()<br>export_list()</div></div>
+</section>
+
+<main class="grid">
+
+<!-- ================= CONVENTIONS ================= -->
+<section class="panel mt">
+  <h2>Shared conventions <small>every function</small></h2>
+  <div class="fn">
+    <table>
+      <tr><th>Argument</th><th>Meaning</th></tr>
+      <tr><td><code>data</code></td><td>the input table / list. <b>Never modified</b> by reference.</td></tr>
+      <tr><td><code>cols</code></td><td>columns to work on, as names <i>or</i> indices (<code>c("mpg","wt")</code>, <code>1:3</code>)</td></tr>
+      <tr><td><code>by</code></td><td>grouping column(s), names or indices</td></tr>
+      <tr><td><code>out_type</code></td><td><code>"dt"</code> data.table (default) or <code>"df"</code> data.frame</td></tr>
+      <tr><td><code>path</code></td><td>where files go; missing folders are created</td></tr>
+      <tr><td><code>seed</code></td><td>reproducible folds; your RNG stream is restored</td></tr>
+    </table>
+    <pre><code>install.packages("mintyr")       # CRAN
+pak::pak("tony2015116/mintyr")   # dev
+library(mintyr)
+library(data.table)</code></pre>
+    <div class="note">No silent data loss: if two outputs would land on the same file, mintyr stops instead of overwriting.</div>
+  </div>
+</section>
+
+<!-- ================= IMPORT ================= -->
+<section class="panel io">
+  <h2><a href="articles/import-and-export.html">Import</a> <small>many files &rarr; one table</small></h2>
+  <div class="fn">
+    <div class="sig"><b><a href="reference/import_xlsx.html">import_xlsx</a></b>(file, combine = TRUE, sheet = NULL, skip = 0, header_rows = 1, header_sep = "_", header_fill = "auto", file_col = "excel_name", sheet_col = "sheet_name", path_col = NULL, workers = 1, verbose = FALSE, on_error = "stop", ...)</div>
+    <p>Read every sheet of every workbook into one <code>data.table</code>, with source columns <code>excel_name</code> / <code>sheet_name</code>.</p>
+    <ul>
+      <li><code>sheet</code> &mdash; indices <i>or</i> sheet names</li>
+      <li><code>skip = 1, header_rows = 2</code> &mdash; multi-row headers joined with <code>header_sep</code>; merged cells resolved via <code>header_fill</code> (<code>"auto"</code> / <code>"right"</code> / <code>"none"</code>)</li>
+      <li><code>combine = FALSE</code> &rarr; named list <code>"&lt;file&gt;_&lt;sheet&gt;"</code></li>
+      <li><code>workers = 4</code> &mdash; parallel reading for large / many files</li>
+      <li><code>on_error = "warn"</code> &mdash; skip unreadable files, one warning</li>
+      <li><code>...</code> &rarr; <code>readxl::read_excel()</code> (<code>col_types</code>, <code>na</code>)</li>
+    </ul>
+  </div>
+  <div class="fn">
+    <div class="sig"><b><a href="reference/import_csv.html">import_csv</a></b>(file, combine = TRUE, file_col = "_file", path_col = NULL, full_path = FALSE, keep_ext = FALSE, ...)</div>
+    <p>Read many CSV / TXT files with <code>fread()</code>; <code>...</code> goes to <code>fread()</code> (<code>select</code>, <code>na.strings</code>, <code>nThread</code>).</p>
+  </div>
+  <div class="fn">
+    <pre><code>files &lt;- list.files("raw", "\\.xlsx$",
+                    full.names = TRUE,
+                    recursive = TRUE)
+dt &lt;- import_xlsx(files, skip = 1,
+                  header_rows = 2,
+                  path_col = "file_path")
+# raw/&lt;farm&gt;/&lt;year&gt;/file.xlsx  -&gt;  columns
+dt[, farm := get_path_info(file_path, n = -3)]
+dt[, year := get_path_info(file_path, n = -2)]</code></pre>
+    <div class="note"><b>New in 0.2.1:</b> a column empty in one sheet takes its type from the others; genuinely mixed types are combined as text with one warning. Types are guessed from <i>all</i> rows.</div>
+  </div>
+</section>
+
+<!-- ================= RESHAPE ================= -->
+<section class="panel rs">
+  <h2><a href="articles/reshape-and-nest.html">Reshape &amp; nest</a> <small>wide &rarr; pieces</small></h2>
+  <div class="fn">
+    <div class="sig"><b><a href="reference/w2l_nest.html">w2l_nest</a></b>(data, cols = NULL, by = NULL, out_type = "dt")</div>
+    <p>Wide &rarr; long, then nest by trait (<code>name</code>) and <code>by</code> into a <code>data</code> list-column. <code>cols = NULL</code> + <code>by</code>: nest without melting.</p>
+    <div class="dia" aria-hidden="true">
+      <div class="mini c3"><span class="h">am</span><span class="h a">mpg</span><span class="h b">qsec</span><span>0</span><span class="a">21</span><span class="b">16</span><span>1</span><span class="a">23</span><span class="b">19</span></div>
+      <span class="arrow">&rarr;</span>
+      <div class="mini c3"><span class="h">name</span><span class="h">am</span><span class="h">data</span><span class="a">mpg</span><span>0</span><span class="n">&lt;dt&gt;</span><span class="a">mpg</span><span>1</span><span class="n">&lt;dt&gt;</span><span class="b">qsec</span><span>0</span><span class="n">&lt;dt&gt;</span><span class="b">qsec</span><span>1</span><span class="n">&lt;dt&gt;</span></div>
+    </div>
+    <pre><code>nested &lt;- w2l_nest(mtcars,
+                   cols = c("mpg", "qsec"),
+                   by = "am")</code></pre>
+  </div>
+  <div class="fn">
+    <div class="sig"><b><a href="reference/w2l_split.html">w2l_split</a></b>(data, cols = NULL, by = NULL, out_type = "dt", sep = "_")</div>
+    <p>Same reshaping, but returns a <b>named list</b> (<code>"mpg_0"</code>, <code>"mpg_1"</code>, &hellip;) &mdash; the input for <code>split_cv()</code> and <code>export_list()</code>.</p>
+    <div class="dia" aria-hidden="true">
+      <div class="listbox"><span>$mpg_0</span><span>$mpg_1</span><span>$qsec_0</span><span>$qsec_1</span></div>
+    </div>
+  </div>
+  <div class="fn">
+    <div class="sig"><b><a href="reference/c2p_nest.html">c2p_nest</a></b>(data, cols, by = NULL, pairs_n = 2, sep = "-", out_type = "dt")</div>
+    <p>Every pair (or triple: <code>pairs_n = 3</code>) of variables, renamed <code>value1</code>, <code>value2</code>, &hellip; so one function fits all pairs.</p>
+    <div class="dia" aria-hidden="true">
+      <div class="mini c3"><span class="h a">mpg</span><span class="h b">hp</span><span class="h c">wt</span><span class="a">21</span><span class="b">110</span><span class="c">2.6</span></div>
+      <span class="arrow">&rarr;</span>
+      <div class="mini c2"><span class="h">pairs</span><span class="h">data</span><span>mpg-hp</span><span class="n">value1,2</span><span>mpg-wt</span><span class="n">value1,2</span><span>hp-wt</span><span class="n">value1,2</span></div>
+    </div>
+    <pre><code>pairs &lt;- c2p_nest(mtcars,
+                  cols = c("mpg", "hp", "wt"),
+                  by = "am")
+pairs[, r := sapply(data, function(d)
+  cor(d$value1, d$value2))]</code></pre>
+  </div>
+  <div class="fn">
+    <div class="sig"><b><a href="reference/r2p_nest.html">r2p_nest</a></b>(data, names_from, cols, out_type = "dt", id = NULL)</div>
+    <p>Same trait across the levels of <code>names_from</code>, side by side and aligned by <code>id</code> (e.g. G&times;E correlations). Stops if <code>id</code> + <code>names_from</code> are not unique.</p>
+    <div class="dia" aria-hidden="true">
+      <div class="mini c3"><span class="h">animal</span><span class="h">farm</span><span class="h a">adg</span><span>A01</span><span>f1</span><span class="a">912</span><span>A01</span><span>f2</span><span class="a">880</span></div>
+      <span class="arrow">&rarr;</span>
+      <div class="mini c3"><span class="h">animal</span><span class="h">f1</span><span class="h">f2</span><span>A01</span><span class="a">912</span><span class="a">880</span></div>
+    </div>
+    <pre><code>r2p_nest(growth, names_from = "farm",
+         cols = c("adg", "bf"), id = "animal")</code></pre>
+  </div>
+</section>
+
+<!-- ================= CV ================= -->
+<section class="panel cv">
+  <h2><a href="articles/cross-validation.html">Cross-validation</a> <small>k-fold inside every group</small></h2>
+  <div class="fn">
+    <div class="sig"><b><a href="reference/nest_cv.html">nest_cv</a></b>(data, v = 10, repeats = 1, strata = NULL, breaks = 4, pool = 0.1, seed = NULL, materialize = TRUE, out_type = "dt")</div>
+    <p>For a <b>nested table</b> (e.g. from <code>w2l_nest()</code>): one row per group &times; fold.</p>
+  </div>
+  <div class="fn">
+    <div class="sig"><b><a href="reference/split_cv.html">split_cv</a></b>(data, v = 10, repeats = 1, strata = NULL, breaks = 4, pool = 0.1, seed = NULL, materialize = TRUE, out_type = "dt")</div>
+    <p>For a <b>list of tables</b> (e.g. from <code>w2l_split()</code>); wrap a single table in <code>list()</code>.</p>
+  </div>
+  <div class="fn">
+    <table>
+      <tr><th>Argument</th><th>Effect</th></tr>
+      <tr><td><code>v</code>, <code>repeats</code></td><td>folds; repeated CV adds <code>id2</code></td></tr>
+      <tr><td><code>strata</code></td><td>column balanced across folds; numeric &rarr; <code>breaks</code> quantile bins; strata &lt; <code>pool</code> merged</td></tr>
+      <tr><td><code>materialize = FALSE</code></td><td>indices only &mdash; far less memory</td></tr>
+      <tr><td><code>out_type = "df"</code></td><td>subsets as data.frame (ASReml-R)</td></tr>
+    </table>
+    <p><b>Returns</b> <code>id</code> (<code>Fold1</code>&hellip; or <code>Repeat1</code>&hellip;), <code>id2</code>, <code>train_idx</code>, <code>validate_idx</code>, and <code>train</code> / <code>validate</code> subsets.</p>
+    <pre><code>cv &lt;- nest_cv(nested, v = 4, seed = 2026)
+cv[, r := mapply(function(tr, va) {
+  fit &lt;- lm(value ~ wt + hp, data = tr)
+  cor(predict(fit, va), va$value)
+}, train, validate)]
+cv[, .(mean_r = mean(r)), by = .(name, am)]</code></pre>
+  </div>
+</section>
+
+<!-- ================= STATS ================= -->
+<section class="panel st">
+  <h2><a href="articles/descriptive-statistics.html">Descriptive statistics</a> <small>report-ready</small></h2>
+  <div class="fn">
+    <div class="sig"><b><a href="reference/desc_stats.html">desc_stats</a></b>(data, cols = NULL, by = NULL, type = "common", stats = NULL, total = FALSE, total_label = "Total", min_n = 1, probs = c(0, .25, .5, .75, 1), conf_level = 0.95, na_rm = TRUE, digits = NULL, fmt = NULL, labels = NULL, shape = "long", sep = "_", out_type = "dt")</div>
+    <p>Statistics per group &times; variable, fast on millions of rows.</p>
+    <table>
+      <tr><th><code>type</code></th><th>Statistics</th></tr>
+      <tr><td><code>"common"</code></td><td>n min max median iqr mean sd se ci</td></tr>
+      <tr><td><code>"full"</code></td><td>+ q1 q3 mad cv skew kurt</td></tr>
+      <tr><td><code>"mean_sd"</code> / <code>"mean_se"</code> / <code>"mean_ci"</code></td><td>n, mean and sd / se / ci_low, ci_high</td></tr>
+      <tr><td><code>"median_iqr"</code> / <code>"median_mad"</code></td><td>n, median and iqr / mad</td></tr>
+      <tr><td><code>"robust"</code> / <code>"five_number"</code></td><td>n median iqr / n min q1 median q3 max</td></tr>
+      <tr><td><code>"quantile"</code></td><td>n and <code>probs</code> &rarr; <code>q5</code>, <code>q2.5</code>, &hellip;</td></tr>
+    </table>
+    <ul>
+      <li><code>stats = c("n", "mean", "cv")</code> &mdash; pick any, in order (adds <code>n_miss</code>, <code>ci_low</code>, &hellip;)</li>
+      <li><code>total = TRUE</code> &mdash; total row from <i>all</i> records; counts add up</li>
+      <li><code>min_n = 3</code> &mdash; smaller groups keep <code>n</code>, other stats <code>NA</code></li>
+      <li><code>digits = c(2, adg = 0)</code> &mdash; per-variable rounding</li>
+      <li><code>labels = c(adg = "ADG (g)")</code> &middot; <code>shape = "wide"</code> for report tables</li>
+    </ul>
+    <p><b><code>fmt</code> templates:</b> <code>{mean}</code> <code>{sd:1}</code> (1 decimal) <code>{cv:1%}</code> (percent) <code>{q2.5}</code> (percentile).</p>
+    <pre><code>desc_stats(mtcars, cols = c("mpg", "wt"),
+           by = "cyl", fmt = "{mean} ± {sd}",
+           total = TRUE, shape = "wide")
+# count table with row + column totals
+desc_stats(iris, by = "Species", stats = "n",
+           total = TRUE, shape = "wide")</code></pre>
+  </div>
+  <div class="fn">
+    <div class="sig"><b><a href="reference/top_perc.html">top_perc</a></b>(data, perc, cols, by = NULL, keep_data = FALSE, stats = c("n", "min", "max", "mean", "median", "sd", "se", "cv"))</div>
+    <p>Statistics of the top (<code>perc = 0.1</code>) or bottom (<code>-0.1</code>) X% per variable &amp; group; several <code>perc</code> at once. <code>keep_data = TRUE</code> also returns the rows (<code>$stat</code>, <code>$data</code>).</p>
+    <pre><code>top_perc(iris, perc = c(0.1, -0.1),
+         cols = "Petal.Width", by = "Species")</code></pre>
+  </div>
+  <div class="fn">
+    <div class="sig"><b><a href="reference/format_digits.html">format_digits</a></b>(data, cols = NULL, digits = 2, percentage = FALSE, nan_as_na = FALSE)</div>
+    <p>Numeric &rarr; fixed-decimal text for tables; <code>percentage = TRUE</code> gives <code>"12.50%"</code>.</p>
+  </div>
+</section>
+
+<!-- ================= EXPORT ================= -->
+<section class="panel io">
+  <h2><a href="articles/import-and-export.html">Export</a> <small>pieces &rarr; files</small></h2>
+  <div class="fn">
+    <div class="sig"><b><a href="reference/export_xlsx.html">export_xlsx</a></b>(data, path, file_col = "excel_name", sheet_col = "sheet_name", sheet_name = "Sheet1", drop_cols = TRUE, overwrite = TRUE, verbose = FALSE)</div>
+    <ul>
+      <li><b>Table</b> with <code>excel_name</code> / <code>sheet_name</code> &rarr; the original files &amp; sheets (lossless round trip with <code>import_xlsx()</code>)</li>
+      <li><b>List</b> + <code>path = "out.xlsx"</code> &rarr; one workbook, names = sheets</li>
+      <li><b>List</b> + <code>path = "dir"</code> &rarr; one workbook per element</li>
+      <li><code>overwrite = FALSE</code> checks all targets <i>before</i> writing</li>
+    </ul>
+    <pre><code>dt &lt;- import_xlsx(files)
+dt &lt;- dt[!is.na(weight)]
+# same file names, same sheet names
+export_xlsx(dt, path = "cleaned")</code></pre>
+  </div>
+  <div class="fn">
+    <div class="sig"><b><a href="reference/export_nest.html">export_nest</a></b>(data, by = NULL, cols = NULL, path = tempdir(), file_type = "txt", na = "NA", quote = FALSE, ...)</div>
+    <p>Each nested table to <code>path/&lt;by1&gt;/&lt;by2&gt;/&lt;col&gt;.txt</code>; model-object columns are skipped. Stops if <code>by</code> is not unique.</p>
+  </div>
+  <div class="fn">
+    <div class="sig"><b><a href="reference/export_list.html">export_list</a></b>(data, path = tempdir(), file_type = "txt", na = "NA", quote = FALSE, ...)</div>
+    <p>Each list element to its own file; names containing <code>/</code> become sub-folders.</p>
+    <pre><code># HIBLUP: header, NA
+export_nest(nested, path = "hiblup_runs")
+# DMU: numeric missing code, no header
+export_nest(nested, path = "dmu_runs",
+            na = "-9999",
+            col.names = FALSE)  # to fwrite()</code></pre>
+    <div class="note">All three return the written file paths invisibly.</div>
+  </div>
+</section>
+
+<!-- ================= UTILITIES ================= -->
+<section class="panel ut">
+  <h2><a href="articles/utilities.html">Utilities</a> <small>paths &amp; examples</small></h2>
+  <div class="fn">
+    <div class="sig"><b><a href="reference/get_path_info.html">get_path_info</a></b>(path, n = NULL, rm_extension = TRUE, rm_path = TRUE)</div>
+    <table>
+      <tr><td colspan="2" style="color:var(--muted)"><code>p &lt;- "D:/data/farmA/2025/pigs.xlsx"</code></td></tr>
+      <tr><th>Call</th><th>Result</th></tr>
+      <tr><td><code>get_path_info(p)</code></td><td><code>"pigs"</code></td></tr>
+      <tr><td><code>get_path_info(p, rm_extension = FALSE)</code></td><td><code>"pigs.xlsx"</code></td></tr>
+      <tr><td><code>get_path_info(p, n = 1)</code></td><td><code>"data"</code> (drive letter is not a segment)</td></tr>
+      <tr><td><code>get_path_info(p, n = -3)</code></td><td><code>"farmA"</code></td></tr>
+      <tr><td><code>get_path_info(p, n = c(-3, -2))</code></td><td><code>"farmA/2025"</code></td></tr>
+    </table>
+    <p>Mixed <code>/</code> and <code>\</code> separators are fine; out-of-range segments give <code>NA</code>.</p>
+  </div>
+  <div class="fn">
+    <div class="sig"><b><a href="reference/mintyr_examples.html">mintyr_examples</a></b>(pattern = NULL) &nbsp;&middot;&nbsp; <b><a href="reference/mintyr_example.html">mintyr_example</a></b>(path = NULL)</div>
+    <p>List / locate the example files shipped with the package.</p>
+    <pre><code>mintyr_examples("xlsx")
+import_xlsx(mintyr_example("xlsx_test1.xlsx"))</code></pre>
+  </div>
+</section>
+
+<!-- ================= UPGRADING ================= -->
+<section class="panel mt">
+  <h2><a href="news/index.html">Upgrading from 0.1.x</a> <small>old names removed</small></h2>
+  <div class="fn">
+    <table>
+      <tr><th>Function</th><th>Old</th><th>New</th></tr>
+      <tr><td>CV, export</td><td><code>nest_dt</code>, <code>split_dt</code></td><td><code>data</code></td></tr>
+      <tr><td><code>w2l_*()</code></td><td><code>cols2l</code></td><td><code>cols</code></td></tr>
+      <tr><td><code>c2p_nest()</code></td><td><code>cols2bind</code></td><td><code>cols</code></td></tr>
+      <tr><td><code>r2p_nest()</code></td><td><code>rows2bind</code>, <code>by</code></td><td><code>names_from</code>, <code>cols</code></td></tr>
+      <tr><td><code>export_nest()</code></td><td><code>nest_cols</code>, <code>group_cols</code></td><td><code>cols</code>, <code>by</code></td></tr>
+      <tr><td><code>*_cv()</code></td><td><code>splits</code> (rsample)</td><td><code>train_idx</code> / <code>validate_idx</code></td></tr>
+      <tr><td><code>top_perc()</code></td><td>Mean, SD, &hellip;</td><td><code>mean</code>, <code>sd</code>, &hellip; (lower case)</td></tr>
+    </table>
+    <div class="note">Old argument names now fail with <i>unused argument</i>. Full list in <a href="news/index.html">NEWS</a>.</div>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  <span>mintyr 0.2.1 &middot; MIT license &middot; Guo Meng</span>
+  <span><a href="https://tony2015116.github.io/mintyr/">tony2015116.github.io/mintyr</a> &middot; <a href="https://github.com/tony2015116/mintyr/issues">Report an issue</a></span>
+</footer>
+</div>
+
+<script>
+/* Light R syntax highlighting for the code blocks (no external libraries). */
+(function () {
+  var fns = ["import_xlsx","import_csv","export_xlsx","export_nest","export_list","w2l_nest","w2l_split",
+    "c2p_nest","r2p_nest","split_cv","nest_cv","desc_stats","top_perc","format_digits","get_path_info",
+    "mintyr_example","mintyr_examples"];
+  var fnRe = new RegExp("^(" + fns.join("|") + ")\\b");
+  function esc(s) { return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
+  function hl(src) {
+    var out = "", i = 0, m;
+    while (i < src.length) {
+      var rest = src.slice(i), ch = src[i];
+      if (ch === "#") {
+        var end = src.indexOf("\n", i); if (end < 0) end = src.length;
+        out += '<span class="com">' + esc(src.slice(i, end)) + "</span>"; i = end; continue;
+      }
+      if (ch === '"') {
+        var j = i + 1;
+        while (j < src.length && src[j] !== '"') { if (src[j] === "\\") j++; j++; }
+        out += '<span class="str">' + esc(src.slice(i, j + 1)) + "</span>"; i = j + 1; continue;
+      }
+      if ((m = rest.match(fnRe)) && !/[\w.]/.test(src[i - 1] || "")) {
+        out += '<span class="fnm">' + m[0] + "</span>"; i += m[0].length; continue;
+      }
+      if ((m = rest.match(/^([A-Za-z_.][\w.]*)(\s*=)(?!=)/)) && !/[\w.$]/.test(src[i - 1] || "")) {
+        out += '<span class="arg">' + m[1] + "</span>" + m[2]; i += m[0].length; continue;
+      }
+      if ((m = rest.match(/^\d+(\.\d+)?/)) && !/[\w.]/.test(src[i - 1] || "")) {
+        out += '<span class="num">' + m[0] + "</span>"; i += m[0].length; continue;
+      }
+      if ((m = rest.match(/^[A-Za-z_.][\w.]*/))) { out += esc(m[0]); i += m[0].length; continue; }
+      out += esc(ch); i++;
+    }
+    return out;
+  }
+  var blocks = document.querySelectorAll("pre code");
+  for (var k = 0; k < blocks.length; k++) blocks[k].innerHTML = hl(blocks[k].textContent);
+})();
+</script>
+</body>
+</html>

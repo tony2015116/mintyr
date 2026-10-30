@@ -1,0 +1,108 @@
+---
+title: "Use mintyr with AI agents"
+description: >
+  Install the mintyr agent skill (English or Chinese) so Claude and other agents can run
+  mintyr workflows for you.
+---
+
+[中文版](agent-skill-zh.html)
+
+`mintyr-pipelines` is an [Agent Skill](https://platform.claude.com/docs/en/build-with-claude/skills-guide):
+a `SKILL.md` file that teaches an AI agent how to use mintyr. With it installed,
+you can ask in plain language, for example:
+
+- "Combine these Excel files and give me mean ± SD of ADG and backfat by breed, with a total row."
+- "Nest the data by trait and farm, run 5-fold cross-validation, and report the mean accuracy per group."
+- "Write one phenotype file per trait for DMU, with -9999 for missing values and no header."
+
+The agent then installs mintyr if needed, writes an R script, runs it, checks
+the result and hands you the files (and the script, so you can rerun it).
+
+## Download
+
+| Language | ZIP (Claude, other agents) | Instructions (Claude Code, reading) |
+|---|---|---|
+| English | [mintyr-pipelines.zip](https://tony2015116.github.io/mintyr/mintyr-pipelines.zip) | [SKILL.md](https://github.com/tony2015116/mintyr/blob/main/.claude/skills/mintyr-pipelines/SKILL.md) |
+| Chinese | [mintyr-pipelines-zh.zip](https://tony2015116.github.io/mintyr/mintyr-pipelines-zh.zip) | [SKILL.md](https://github.com/tony2015116/mintyr/blob/main/.claude/skills/mintyr-pipelines-zh/SKILL.md) |
+
+Both versions do the same thing; the language only affects the instructions the
+agent reads, not the language it answers in. Install **one** of them: with both
+installed, the agent has two overlapping skills to choose from.
+
+Skills run code on your behalf, so read `SKILL.md` before installing it.
+
+## Requirements
+
+The agent must be able to run commands and reach an R installation. The skill
+installs mintyr itself, in this order:
+
+1. from CRAN (`install.packages("mintyr")`), if CRAN is reachable;
+2. otherwise R and the dependencies from `apt` (Ubuntu / Debian) and mintyr
+   from GitHub source.
+
+So the agent's network must allow **CRAN** (`cloud.r-project.org`) or
+**GitHub** (`github.com`). If mintyr is already installed, no network is needed.
+
+## Install in Claude (web and desktop app)
+
+Custom skills are available on the Pro, Max, Team and Enterprise plans.
+
+1. Download [mintyr-pipelines.zip](https://tony2015116.github.io/mintyr/mintyr-pipelines.zip)
+   (or the Chinese [mintyr-pipelines-zh.zip](https://tony2015116.github.io/mintyr/mintyr-pipelines-zh.zip)).
+   Do not unzip it.
+2. In Claude, open **Settings › Capabilities** and turn on code execution
+   and file creation (skills need it).
+3. In the **Skills** section, click **Upload skill** and select the ZIP file.
+   Make sure the skill is switched on.
+4. Allow the network access the skill needs: in the allowed domains on the same
+   page, add `github.com` (and `cloud.r-project.org` if you can). On Team and
+   Enterprise plans an admin sets this under **Organization settings ›
+   Capabilities**, and on Enterprise an owner must first enable skills.
+
+Then start a new chat, attach your data files and describe the task.
+
+## Install in Claude Code
+
+Personal skill, available in all your projects (macOS / Linux):
+
+```bash
+mkdir -p ~/.claude/skills/mintyr-pipelines
+curl -fsSL https://raw.githubusercontent.com/tony2015116/mintyr/main/.claude/skills/mintyr-pipelines/SKILL.md \
+  -o ~/.claude/skills/mintyr-pipelines/SKILL.md
+```
+
+Windows (PowerShell):
+
+```powershell
+New-Item -ItemType Directory -Force "$HOME\.claude\skills\mintyr-pipelines" | Out-Null
+Invoke-WebRequest "https://raw.githubusercontent.com/tony2015116/mintyr/main/.claude/skills/mintyr-pipelines/SKILL.md" `
+  -OutFile "$HOME\.claude\skills\mintyr-pipelines\SKILL.md"
+```
+
+For the Chinese version, replace `mintyr-pipelines` with `mintyr-pipelines-zh`
+in the folder names and the URL.
+
+For a single project, put the file at
+`<project>/.claude/skills/mintyr-pipelines/SKILL.md` instead and commit it, so
+everyone on the project gets it. A clone of the mintyr repository already
+contains both versions.
+
+Claude Code uses the R installed on your computer, so installing mintyr there
+first (`install.packages("mintyr")`) saves time.
+
+## Other agents and the Claude API
+
+`SKILL.md` follows the open Agent Skills format. For other agents that support
+it, unzip `mintyr-pipelines.zip` (or `mintyr-pipelines-zh.zip`) into the folder where that agent reads skills
+(see its documentation). With the Claude API, upload the folder as a custom
+skill as described in the
+[skills guide](https://platform.claude.com/docs/en/build-with-claude/skills-guide).
+
+Agent platforms that do not support skills can still use the content: paste
+`SKILL.md` into the agent's instructions, as long as the agent can run R code.
+
+## Updating
+
+The skill is updated together with mintyr. To update, download the ZIP or
+`SKILL.md` again and replace the old copy (in Claude: delete the old skill,
+then upload the new ZIP).

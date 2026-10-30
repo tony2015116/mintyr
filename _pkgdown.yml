@@ -46,6 +46,11 @@ articles:
   - cross-validation
   - descriptive-statistics
   - utilities
+- title: AI agents
+  navbar: AI agents
+  contents:
+  - articles/agent-skill
+  - articles/agent-skill-zh
 
 reference:
 - title: Import and export

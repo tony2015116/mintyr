@@ -6,6 +6,7 @@
 ^docs$
 ^pkgdown$
 ^\.github$
+^\.claude$
 ^vignettes/articles$
 ^data-raw$
 ^cran-comments\.md$

@@ -1,0 +1,77 @@
+---
+title: "在 AI 智能体中使用 mintyr"
+description: >
+  安装 mintyr-pipelines 技能（skill），让 Claude 等智能体替你完成 mintyr 数据流程。
+---
+
+[English](agent-skill.html)
+
+`mintyr-pipelines` 是一个 [Agent Skill（智能体技能）](https://platform.claude.com/docs/en/build-with-claude/skills-guide)：
+一个教 AI 智能体如何使用 mintyr 的 `SKILL.md` 文件。安装后可以直接用自然语言提需求，例如：
+
+- “把这些 Excel 合并，按品种给出日增重和背膘的均值 ± 标准差，并加合计行。”
+- “按性状和场嵌套数据，做 5 折交叉验证，报告每组的平均准确性。”
+- “为 DMU 每个性状写一个表型文件，缺失值用 -9999，不要表头。”
+
+智能体会在需要时安装 mintyr，编写并运行 R 脚本，检查结果，然后把文件交给你（同时附上脚本，方便复现）。
+
+## 下载
+
+| 文件 | 用途 |
+|---|---|
+| [mintyr-pipelines.zip](https://tony2015116.github.io/mintyr/mintyr-pipelines.zip) | 上传到 Claude（网页版 / 桌面版），或解压到其他智能体的 skills 文件夹 |
+| [SKILL.md](https://github.com/tony2015116/mintyr/blob/main/.claude/skills/mintyr-pipelines/SKILL.md) | 查看技能内容，或复制到 Claude Code |
+
+技能会替你执行代码，安装前请先阅读 `SKILL.md`。
+
+## 运行要求
+
+智能体必须能执行命令并使用 R。技能会按以下顺序自动安装 mintyr：
+
+1. 能访问 CRAN 时，从 CRAN 安装（`install.packages("mintyr")`）；
+2. 否则用 `apt`（Ubuntu / Debian）安装 R 和依赖包，再从 GitHub 源码安装 mintyr。
+
+因此智能体的网络需要能访问 **CRAN**（`cloud.r-project.org`）或 **GitHub**（`github.com`）。如果环境里已经装好 mintyr，则不需要联网。
+
+## 在 Claude 中安装（网页版和桌面版）
+
+自定义技能适用于 Pro、Max、Team 和 Enterprise 套餐。
+
+1. 下载 [mintyr-pipelines.zip](https://tony2015116.github.io/mintyr/mintyr-pipelines.zip)，**不要解压**。
+2. 在 Claude 中打开 **设置 › 功能（Settings › Capabilities）**，开启代码执行和文件创建（技能依赖此功能）。
+3. 在 **Skills** 部分点击 **Upload skill**，选择该 ZIP 文件，并确认技能处于开启状态。
+4. 放行技能需要的网络访问：在同一页面的允许域名中添加 `github.com`（能加的话也加上 `cloud.r-project.org`）。Team 和 Enterprise 套餐由管理员在 **组织设置 › 功能（Organization settings › Capabilities）** 中设置；Enterprise 套餐还需要所有者先启用技能功能。
+
+之后新建对话，上传数据文件并描述任务即可。
+
+## 在 Claude Code 中安装
+
+个人技能，对所有项目生效（macOS / Linux）：
+
+```bash
+mkdir -p ~/.claude/skills/mintyr-pipelines
+curl -fsSL https://raw.githubusercontent.com/tony2015116/mintyr/main/.claude/skills/mintyr-pipelines/SKILL.md \
+  -o ~/.claude/skills/mintyr-pipelines/SKILL.md
+```
+
+Windows（PowerShell）：
+
+```powershell
+New-Item -ItemType Directory -Force "$HOME\.claude\skills\mintyr-pipelines" | Out-Null
+Invoke-WebRequest "https://raw.githubusercontent.com/tony2015116/mintyr/main/.claude/skills/mintyr-pipelines/SKILL.md" `
+  -OutFile "$HOME\.claude\skills\mintyr-pipelines\SKILL.md"
+```
+
+只想在某个项目中使用时，把文件放到 `<项目>/.claude/skills/mintyr-pipelines/SKILL.md` 并提交，项目成员就都能用。克隆 mintyr 仓库本身就已包含这个技能。
+
+Claude Code 使用你电脑上的 R，提前安装好 mintyr（`install.packages("mintyr")`）可以省去安装时间。
+
+## 其他智能体和 Claude API
+
+`SKILL.md` 采用开放的 Agent Skills 格式。对支持该格式的其他智能体，把 `mintyr-pipelines.zip` 解压到该智能体读取技能的文件夹即可（具体位置见其文档）。使用 Claude API 时，按 [技能指南](https://platform.claude.com/docs/en/build-with-claude/skills-guide) 把该文件夹上传为自定义技能。
+
+不支持技能的智能体平台也可以使用这些内容：只要智能体能运行 R 代码，把 `SKILL.md` 的内容粘贴到智能体的指令（系统提示词）中即可。
+
+## 更新
+
+技能随 mintyr 一起更新。更新时重新下载 ZIP 或 `SKILL.md` 并替换旧文件即可（在 Claude 中：先删除旧技能，再上传新 ZIP）。

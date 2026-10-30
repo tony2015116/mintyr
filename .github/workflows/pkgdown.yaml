@@ -45,6 +45,7 @@ jobs:
         run: |
           cd .claude/skills
           zip -r "$GITHUB_WORKSPACE/docs/mintyr-pipelines.zip" mintyr-pipelines
+          zip -r "$GITHUB_WORKSPACE/docs/mintyr-pipelines-zh.zip" mintyr-pipelines-zh
 
       - name: Deploy to GitHub pages 🚀
         if: github.event_name != 'pull_request'

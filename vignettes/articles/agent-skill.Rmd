@@ -1,7 +1,7 @@
 ---
 title: "Use mintyr with AI agents"
 description: >
-  Install the mintyr-pipelines agent skill so Claude and other agents can run
+  Install the mintyr agent skill (English or Chinese) so Claude and other agents can run
   mintyr workflows for you.
 ---
 
@@ -20,14 +20,16 @@ the result and hands you the files (and the script, so you can rerun it).
 
 ## Download
 
-| File | Use it for |
-|---|---|
-| [mintyr-pipelines.zip](https://tony2015116.github.io/mintyr/mintyr-pipelines.zip) | Uploading to Claude (web / desktop) or unzipping into another agent's skills folder |
-| [SKILL.md](https://github.com/tony2015116/mintyr/blob/main/.claude/skills/mintyr-pipelines/SKILL.md) | Reading the instructions, or copying into Claude Code |
+| Language | ZIP (Claude, other agents) | Instructions (Claude Code, reading) |
+|---|---|---|
+| English | [mintyr-pipelines.zip](https://tony2015116.github.io/mintyr/mintyr-pipelines.zip) | [SKILL.md](https://github.com/tony2015116/mintyr/blob/main/.claude/skills/mintyr-pipelines/SKILL.md) |
+| Chinese | [mintyr-pipelines-zh.zip](https://tony2015116.github.io/mintyr/mintyr-pipelines-zh.zip) | [SKILL.md](https://github.com/tony2015116/mintyr/blob/main/.claude/skills/mintyr-pipelines-zh/SKILL.md) |
 
-Skills run code on your behalf, so read `SKILL.md` before installing it. The
-instructions are written in Chinese with English code; agents follow them in
-any language you use.
+Both versions do the same thing; the language only affects the instructions the
+agent reads, not the language it answers in. Install **one** of them: with both
+installed, the agent has two overlapping skills to choose from.
+
+Skills run code on your behalf, so read `SKILL.md` before installing it.
 
 ## Requirements
 
@@ -45,7 +47,8 @@ So the agent's network must allow **CRAN** (`cloud.r-project.org`) or
 
 Custom skills are available on the Pro, Max, Team and Enterprise plans.
 
-1. Download [mintyr-pipelines.zip](https://tony2015116.github.io/mintyr/mintyr-pipelines.zip).
+1. Download [mintyr-pipelines.zip](https://tony2015116.github.io/mintyr/mintyr-pipelines.zip)
+   (or the Chinese [mintyr-pipelines-zh.zip](https://tony2015116.github.io/mintyr/mintyr-pipelines-zh.zip)).
    Do not unzip it.
 2. In Claude, open **Settings › Capabilities** and turn on code execution
    and file creation (skills need it).
@@ -76,10 +79,13 @@ Invoke-WebRequest "https://raw.githubusercontent.com/tony2015116/mintyr/main/.cl
   -OutFile "$HOME\.claude\skills\mintyr-pipelines\SKILL.md"
 ```
 
+For the Chinese version, replace `mintyr-pipelines` with `mintyr-pipelines-zh`
+in the folder names and the URL.
+
 For a single project, put the file at
 `<project>/.claude/skills/mintyr-pipelines/SKILL.md` instead and commit it, so
 everyone on the project gets it. A clone of the mintyr repository already
-contains it.
+contains both versions.
 
 Claude Code uses the R installed on your computer, so installing mintyr there
 first (`install.packages("mintyr")`) saves time.
@@ -87,7 +93,7 @@ first (`install.packages("mintyr")`) saves time.
 ## Other agents and the Claude API
 
 `SKILL.md` follows the open Agent Skills format. For other agents that support
-it, unzip `mintyr-pipelines.zip` into the folder where that agent reads skills
+it, unzip `mintyr-pipelines.zip` (or `mintyr-pipelines-zh.zip`) into the folder where that agent reads skills
 (see its documentation). With the Claude API, upload the folder as a custom
 skill as described in the
 [skills guide](https://platform.claude.com/docs/en/build-with-claude/skills-guide).

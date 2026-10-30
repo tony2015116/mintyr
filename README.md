@@ -157,7 +157,7 @@ A one-page quick reference for every function (printable as a landscape PDF):
 
 ## Use with AI agents
 
-mintyr ships an [Agent Skill](https://tony2015116.github.io/mintyr/articles/agent-skill.html), `mintyr-pipelines`, that lets Claude and other agents run mintyr workflows from a plain-language request ("combine these Excel files and give me mean ± SD by breed"). Upload [mintyr-pipelines.zip](https://tony2015116.github.io/mintyr/mintyr-pipelines.zip) in Claude under **Settings › Capabilities › Skills**, or copy [`SKILL.md`](.claude/skills/mintyr-pipelines/SKILL.md) to `~/.claude/skills/mintyr-pipelines/` for Claude Code. Full instructions: [English](https://tony2015116.github.io/mintyr/articles/agent-skill.html) · [中文](https://tony2015116.github.io/mintyr/articles/agent-skill-zh.html).
+mintyr ships an [Agent Skill](https://tony2015116.github.io/mintyr/articles/agent-skill.html), `mintyr-pipelines`, that lets Claude and other agents run mintyr workflows from a plain-language request ("combine these Excel files and give me mean ± SD by breed"). Upload [mintyr-pipelines.zip](https://tony2015116.github.io/mintyr/mintyr-pipelines.zip) (Chinese: [mintyr-pipelines-zh.zip](https://tony2015116.github.io/mintyr/mintyr-pipelines-zh.zip)) in Claude under **Settings › Capabilities › Skills**, or copy [`SKILL.md`](.claude/skills/mintyr-pipelines/SKILL.md) to `~/.claude/skills/mintyr-pipelines/` for Claude Code. Full instructions: [English](https://tony2015116.github.io/mintyr/articles/agent-skill.html) · [中文](https://tony2015116.github.io/mintyr/articles/agent-skill-zh.html).
 
 ## Acknowledgments
 

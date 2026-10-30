@@ -69,6 +69,14 @@ so parallel processes do not oversubscribe cores.
     <li>
       <a href="../articles/utilities.html">Utilities</a>
     </li>
+    <li class="divider"></li>
+    <li class="dropdown-header">AI agents</li>
+    <li>
+      <a href="../articles/agent-skill.html">Use mintyr with AI agents</a>
+    </li>
+    <li>
+      <a href="../articles/agent-skill-zh.html">在 AI 智能体中使用 mintyr</a>
+    </li>
   </ul></li>
 <li class="dropdown">
   <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
@@ -459,21 +467,21 @@ unique, so a later <code><a href="export_xlsx.html">export_xlsx()</a></code> rou
 <span class="r-in"><span><span class="va">growth</span><span class="op">[</span>, <span class="va">farm</span> <span class="op">:=</span> <span class="fu"><a href="get_path_info.html">get_path_info</a></span><span class="op">(</span><span class="va">file_path</span>, n <span class="op">=</span> <span class="op">-</span><span class="fl">3</span><span class="op">)</span><span class="op">]</span>   <span class="co"># third-last part: farm</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>     excel_name sheet_name                                  file_path  col1</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>         &lt;char&gt;     &lt;char&gt;                                     &lt;char&gt; &lt;num&gt;</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  1:   growth_a     Sheet1 /tmp/RtmprHaH6q/farms/A/2024/growth_a.xlsx     4</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  2:   growth_a     Sheet1 /tmp/RtmprHaH6q/farms/A/2024/growth_a.xlsx     5</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  3:   growth_a     Sheet1 /tmp/RtmprHaH6q/farms/A/2024/growth_a.xlsx     6</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  4:   growth_a     Sheet2 /tmp/RtmprHaH6q/farms/A/2024/growth_a.xlsx     1</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  5:   growth_a     Sheet2 /tmp/RtmprHaH6q/farms/A/2024/growth_a.xlsx     2</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  6:   growth_a     Sheet2 /tmp/RtmprHaH6q/farms/A/2024/growth_a.xlsx     3</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  7:   growth_b     Sheet1 /tmp/RtmprHaH6q/farms/B/2025/growth_b.xlsx    15</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  8:   growth_b     Sheet1 /tmp/RtmprHaH6q/farms/B/2025/growth_b.xlsx    16</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  9:   growth_b     Sheet1 /tmp/RtmprHaH6q/farms/B/2025/growth_b.xlsx    17</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 10:   growth_b          a /tmp/RtmprHaH6q/farms/B/2025/growth_b.xlsx     7</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 11:   growth_b          a /tmp/RtmprHaH6q/farms/B/2025/growth_b.xlsx     9</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 12:   growth_b          a /tmp/RtmprHaH6q/farms/B/2025/growth_b.xlsx     8</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 13:   growth_b          b /tmp/RtmprHaH6q/farms/B/2025/growth_b.xlsx    10</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 14:   growth_b          b /tmp/RtmprHaH6q/farms/B/2025/growth_b.xlsx    11</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 15:   growth_b          b /tmp/RtmprHaH6q/farms/B/2025/growth_b.xlsx    12</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  1:   growth_a     Sheet1 /tmp/RtmpBFC2vg/farms/A/2024/growth_a.xlsx     4</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  2:   growth_a     Sheet1 /tmp/RtmpBFC2vg/farms/A/2024/growth_a.xlsx     5</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  3:   growth_a     Sheet1 /tmp/RtmpBFC2vg/farms/A/2024/growth_a.xlsx     6</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  4:   growth_a     Sheet2 /tmp/RtmpBFC2vg/farms/A/2024/growth_a.xlsx     1</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  5:   growth_a     Sheet2 /tmp/RtmpBFC2vg/farms/A/2024/growth_a.xlsx     2</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  6:   growth_a     Sheet2 /tmp/RtmpBFC2vg/farms/A/2024/growth_a.xlsx     3</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  7:   growth_b     Sheet1 /tmp/RtmpBFC2vg/farms/B/2025/growth_b.xlsx    15</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  8:   growth_b     Sheet1 /tmp/RtmpBFC2vg/farms/B/2025/growth_b.xlsx    16</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  9:   growth_b     Sheet1 /tmp/RtmpBFC2vg/farms/B/2025/growth_b.xlsx    17</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 10:   growth_b          a /tmp/RtmpBFC2vg/farms/B/2025/growth_b.xlsx     7</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 11:   growth_b          a /tmp/RtmpBFC2vg/farms/B/2025/growth_b.xlsx     9</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 12:   growth_b          a /tmp/RtmpBFC2vg/farms/B/2025/growth_b.xlsx     8</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 13:   growth_b          b /tmp/RtmpBFC2vg/farms/B/2025/growth_b.xlsx    10</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 14:   growth_b          b /tmp/RtmpBFC2vg/farms/B/2025/growth_b.xlsx    11</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 15:   growth_b          b /tmp/RtmpBFC2vg/farms/B/2025/growth_b.xlsx    12</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>       col2   col3   farm</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>     &lt;char&gt; &lt;lgcl&gt; &lt;char&gt;</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>  1:      d  FALSE      A</span>
@@ -494,21 +502,21 @@ unique, so a later <code><a href="export_xlsx.html">export_xlsx()</a></code> rou
 <span class="r-in"><span><span class="va">growth</span><span class="op">[</span>, <span class="va">year</span> <span class="op">:=</span> <span class="fu"><a href="get_path_info.html">get_path_info</a></span><span class="op">(</span><span class="va">file_path</span>, n <span class="op">=</span> <span class="op">-</span><span class="fl">2</span><span class="op">)</span><span class="op">]</span>   <span class="co"># second-last part: year</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>     excel_name sheet_name                                  file_path  col1</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>         &lt;char&gt;     &lt;char&gt;                                     &lt;char&gt; &lt;num&gt;</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  1:   growth_a     Sheet1 /tmp/RtmprHaH6q/farms/A/2024/growth_a.xlsx     4</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  2:   growth_a     Sheet1 /tmp/RtmprHaH6q/farms/A/2024/growth_a.xlsx     5</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  3:   growth_a     Sheet1 /tmp/RtmprHaH6q/farms/A/2024/growth_a.xlsx     6</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  4:   growth_a     Sheet2 /tmp/RtmprHaH6q/farms/A/2024/growth_a.xlsx     1</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  5:   growth_a     Sheet2 /tmp/RtmprHaH6q/farms/A/2024/growth_a.xlsx     2</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  6:   growth_a     Sheet2 /tmp/RtmprHaH6q/farms/A/2024/growth_a.xlsx     3</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  7:   growth_b     Sheet1 /tmp/RtmprHaH6q/farms/B/2025/growth_b.xlsx    15</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  8:   growth_b     Sheet1 /tmp/RtmprHaH6q/farms/B/2025/growth_b.xlsx    16</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  9:   growth_b     Sheet1 /tmp/RtmprHaH6q/farms/B/2025/growth_b.xlsx    17</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 10:   growth_b          a /tmp/RtmprHaH6q/farms/B/2025/growth_b.xlsx     7</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 11:   growth_b          a /tmp/RtmprHaH6q/farms/B/2025/growth_b.xlsx     9</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 12:   growth_b          a /tmp/RtmprHaH6q/farms/B/2025/growth_b.xlsx     8</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 13:   growth_b          b /tmp/RtmprHaH6q/farms/B/2025/growth_b.xlsx    10</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 14:   growth_b          b /tmp/RtmprHaH6q/farms/B/2025/growth_b.xlsx    11</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 15:   growth_b          b /tmp/RtmprHaH6q/farms/B/2025/growth_b.xlsx    12</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  1:   growth_a     Sheet1 /tmp/RtmpBFC2vg/farms/A/2024/growth_a.xlsx     4</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  2:   growth_a     Sheet1 /tmp/RtmpBFC2vg/farms/A/2024/growth_a.xlsx     5</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  3:   growth_a     Sheet1 /tmp/RtmpBFC2vg/farms/A/2024/growth_a.xlsx     6</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  4:   growth_a     Sheet2 /tmp/RtmpBFC2vg/farms/A/2024/growth_a.xlsx     1</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  5:   growth_a     Sheet2 /tmp/RtmpBFC2vg/farms/A/2024/growth_a.xlsx     2</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  6:   growth_a     Sheet2 /tmp/RtmpBFC2vg/farms/A/2024/growth_a.xlsx     3</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  7:   growth_b     Sheet1 /tmp/RtmpBFC2vg/farms/B/2025/growth_b.xlsx    15</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  8:   growth_b     Sheet1 /tmp/RtmpBFC2vg/farms/B/2025/growth_b.xlsx    16</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  9:   growth_b     Sheet1 /tmp/RtmpBFC2vg/farms/B/2025/growth_b.xlsx    17</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 10:   growth_b          a /tmp/RtmpBFC2vg/farms/B/2025/growth_b.xlsx     7</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 11:   growth_b          a /tmp/RtmpBFC2vg/farms/B/2025/growth_b.xlsx     9</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 12:   growth_b          a /tmp/RtmpBFC2vg/farms/B/2025/growth_b.xlsx     8</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 13:   growth_b          b /tmp/RtmpBFC2vg/farms/B/2025/growth_b.xlsx    10</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 14:   growth_b          b /tmp/RtmpBFC2vg/farms/B/2025/growth_b.xlsx    11</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 15:   growth_b          b /tmp/RtmpBFC2vg/farms/B/2025/growth_b.xlsx    12</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>       col2   col3   farm   year</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>     &lt;char&gt; &lt;lgcl&gt; &lt;char&gt; &lt;char&gt;</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>  1:      d  FALSE      A   2024</span>

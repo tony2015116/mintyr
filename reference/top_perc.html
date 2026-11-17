@@ -19,7 +19,7 @@ percentages extract the smallest values."><meta property="og:image" content="htt
       </button>
       <span class="navbar-brand">
         <a class="navbar-link" href="../index.html">mintyr</a>
-        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="">0.2.1</span>
+        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="">0.2.2</span>
       </span>
     </div>
 
@@ -100,7 +100,7 @@ percentages extract the smallest values."><meta property="og:image" content="htt
   <div class="col-md-9 contents">
     <div class="page-header">
     <h1>Select Top or Bottom Percentage of Data</h1>
-    <small class="dont-index">Source: <a href="https://github.com/tony2015116/mintyr/blob/v0.2.1/R/top_perc.R" class="external-link"><code>R/top_perc.R</code></a></small>
+    <small class="dont-index">Source: <a href="https://github.com/tony2015116/mintyr/blob/main/R/top_perc.R" class="external-link"><code>R/top_perc.R</code></a></small>
     <div class="hidden name"><code>top_perc.Rd</code></div>
     </div>
 
@@ -170,7 +170,9 @@ value) where each element is a list with <code>$stat</code> and <code>$data</cod
 </ul></div>
     <div id="details">
     <h2>Details</h2>
-    <p>Ranking uses <code>ties.method = "min"</code>, so tied values at the cut-off are
+    <p>The number of records selected in a group of \(N\) non-missing records
+is <code>floor(N * abs(perc))</code> (e.g. 29 of 100 for <code>perc = 0.29</code>).
+Ranking uses <code>ties.method = "min"</code>, so tied values at the cut-off are
 all selected and slightly more than the requested share can be returned.
 Missing values are removed before ranking. Groups with fewer than
 <code>1 / abs(perc)</code> non-missing records cannot contribute a single

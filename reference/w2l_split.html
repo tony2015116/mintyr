@@ -21,7 +21,7 @@ combinations produced by split(), guaranteeing name-to-content alignment."><meta
       </button>
       <span class="navbar-brand">
         <a class="navbar-link" href="../index.html">mintyr</a>
-        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="">0.2.1</span>
+        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="">0.2.2</span>
       </span>
     </div>
 
@@ -102,7 +102,7 @@ combinations produced by split(), guaranteeing name-to-content alignment."><meta
   <div class="col-md-9 contents">
     <div class="page-header">
     <h1>Reshape Wide Data to Long Format and Split into a Named List</h1>
-    <small class="dont-index">Source: <a href="https://github.com/tony2015116/mintyr/blob/v0.2.1/R/w2l_split.R" class="external-link"><code>R/w2l_split.R</code></a></small>
+    <small class="dont-index">Source: <a href="https://github.com/tony2015116/mintyr/blob/main/R/w2l_split.R" class="external-link"><code>R/w2l_split.R</code></a></small>
     <div class="hidden name"><code>w2l_split.Rd</code></div>
     </div>
 
@@ -163,7 +163,9 @@ level combinations.</p></li>
     <p><strong>Name safety:</strong> list names are built from each element's own key values
 (joined by <code>sep</code>), so names always match contents. This also makes <code>sep</code>
 work on every data.table version (<code>split(sep = )</code> is only honoured from
-data.table 1.16.0 on).</p>
+data.table 1.16.0 on). If two groups would get the same name (key values
+that themselves contain <code>sep</code>, e.g. <code>"a_b" + "c"</code> and <code>"a" + "b_c"</code>), an
+error is raised; choose a <code>sep</code> that does not occur in the key values.</p>
 <p><strong>Column resolution:</strong> both <code>cols</code> and <code>by</code> accept integer column
 positions or character column names. Out-of-bounds indices and unknown names
 are caught early with informative error messages.</p>

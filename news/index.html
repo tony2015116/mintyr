@@ -17,7 +17,7 @@
       </button>
       <span class="navbar-brand">
         <a class="navbar-link" href="../index.html">mintyr</a>
-        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="">0.2.1</span>
+        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="">0.2.2</span>
       </span>
     </div>
 
@@ -98,9 +98,37 @@
   <div class="col-md-9 contents">
     <div class="page-header">
       <h1 data-toc-skip>Changelog <small></small></h1>
-      <small>Source: <a href="https://github.com/tony2015116/mintyr/blob/v0.2.1/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
+      <small>Source: <a href="https://github.com/tony2015116/mintyr/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="page-header" data-toc-text="0.2.2" id="mintyr-022">mintyr 0.2.2<a class="anchor" aria-label="anchor" href="#mintyr-022"></a></h2>
+<div class="section level3">
+<h3 id="bug-fixes-0-2-2">Bug fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-0-2-2"></a></h3>
+<ul><li>
+<code><a href="../reference/top_perc.html">top_perc()</a></code> no longer selects one record too few when <code>N * perc</code> is a whole number that floating-point arithmetic puts just below it (e.g. top 29% of 100 records returned 28 instead of 29; also 57%, 58%, …). The number selected is now documented as <code>floor(N * abs(perc))</code>.</li>
+<li>
+<code><a href="../reference/nest_cv.html">nest_cv()</a></code> stops with a clear error when a non-nested column is called <code>id</code>, <code>id2</code>, <code>train_idx</code>, <code>validate_idx</code>, <code>train</code> or <code>validate</code>, instead of returning a table with two columns of the same name.</li>
+<li>
+<code><a href="../reference/w2l_split.html">w2l_split()</a></code> stops when two groups would get the same list name because the key values contain <code>sep</code> (e.g. <code>"a_b" + "c"</code> and <code>"a" + "b_c"</code>); previously the duplicated names made a later <code><a href="../reference/export_list.html">export_list()</a></code> fail.</li>
+<li>
+<code><a href="../reference/import_csv.html">import_csv()</a></code> / <code><a href="../reference/import_xlsx.html">import_xlsx()</a></code> with <code>combine = TRUE</code> stop with a clear message when a file / sheet already has a column named like <code>file_col</code>, <code>sheet_col</code> or <code>path_col</code>. <code><a href="../reference/import_csv.html">import_csv()</a></code> used to fail with an obscure <code><a href="https://rdrr.io/pkg/data.table/man/setcolorder.html" class="external-link">setcolorder()</a></code> error and <code><a href="../reference/import_xlsx.html">import_xlsx()</a></code> overwrote the column silently.</li>
+<li>
+<code><a href="../reference/desc_stats.html">desc_stats()</a></code> stops with a clear message when a <code>by</code> column is named like a statistic (<code>n</code>, <code>mean</code>, <code>q25</code>, …) instead of failing inside <code><a href="https://rdrr.io/pkg/data.table/man/setcolorder.html" class="external-link">setcolorder()</a></code>.</li>
+<li>
+<code><a href="../reference/top_perc.html">top_perc()</a></code> stops when a <code>by</code> column (or, with <code>keep_data = TRUE</code>, any kept column) is named <code>variable</code> / <code>value</code>, or a <code>by</code> column is named like a statistic; previously the column was renamed silently or the call failed.</li>
+<li>
+<code><a href="../reference/format_digits.html">format_digits()</a></code> and <code>desc_stats(fmt = )</code> show small negative values that round to zero as <code>"0.00"</code> instead of <code>"-0.00"</code>.</li>
+<li>
+<code><a href="../reference/r2p_nest.html">r2p_nest()</a></code> warns when <code>names_from</code> contains <code>NA</code> (those rows become a column named <code>NA</code>).</li>
+</ul></div>
+<div class="section level3">
+<h3 id="internal-0-2-2">Internal<a class="anchor" aria-label="anchor" href="#internal-0-2-2"></a></h3>
+<ul><li>
+<code>DESCRIPTION</code>: the author is listed once (roles <code>aut</code>, <code>cre</code>, <code>cph</code>).</li>
+<li>The fusen flat files (<code>dev/flat_*.Rmd</code>), the sources of <code>R/</code> and <code>tests/</code>, are now in the repository; <code>dev/.gitignore</code> no longer ignores them.</li>
+</ul></div>
+</div>
     <div class="section level2">
 <h2 class="page-header" data-toc-text="0.2.1" id="mintyr-021">mintyr 0.2.1<a class="anchor" aria-label="anchor" href="#mintyr-021"></a></h2>
 <div class="section level3">

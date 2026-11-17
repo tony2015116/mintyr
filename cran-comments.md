@@ -1,3 +1,10 @@
+## Resubmission
+
+This is a resubmission. In this version I have:
+
+* Replaced a relative link in README.md to a file not included in the
+  package (.claude/skills/mintyr-pipelines/SKILL.md) with an absolute URL.
+
 ## Update
 
 This is a patch release (0.2.0 -> 0.2.1) that fixes bugs in

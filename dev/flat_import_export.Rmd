@@ -1,0 +1,1945 @@
+---
+title: "flat_import_export.Rmd for working package"
+output: html_document
+editor_options:
+  chunk_output_type: console
+---
+
+```{r development, include=FALSE}
+library(testthat)
+```
+
+mintyr reads many files into one `data.table` and writes the pieces back out. `import_xlsx()` / `import_csv()` add source columns (`excel_name`, `sheet_name`, ...) so that `export_xlsx()` can rebuild the original file / sheet layout; `export_nest()` and `export_list()` write one text file per group, e.g. as input for command-line breeding software.
+
+# Read many Excel workbooks: `import_xlsx()`
+    
+```{r function-import_xlsx}
+#' Import Data from XLSX Files
+#'
+#' @description
+#' A high-performance function for importing data from one or multiple Excel
+#' files into \code{data.table} format, with fine-grained control over source
+#' tracking columns, sheet selection, row skipping, multi-row headers, and
+#' optional parallel reading across (file, sheet) pairs.
+#'
+#' Performance characteristics:
+#' \itemize{
+#'   \item \code{excel_sheets()} called exactly once per file (cached).
+#'   \item The real cost of an Excel import is \code{read_excel()} parsing,
+#'         which is single-threaded C++ and \emph{not} affected by the
+#'         \code{data.table} thread pool. The flat (file x sheet) task list is
+#'         therefore read in parallel \strong{across processes} when
+#'         \code{workers > 1}: a fork pool on Unix/macOS, a PSOCK cluster on
+#'         Windows. The cluster / fork pool is always torn down on exit.
+#'   \item \code{setDT()} converts tibbles in-place — zero vector copies.
+#'   \item Tracking columns injected via \code{:=} on small per-sheet tables
+#'         \emph{before} the single final \code{rbindlist}.
+#'   \item The final \code{rbindlist} uses the ambient \code{data.table} thread
+#'         pool; tune it globally with \code{\link[data.table]{setDTthreads}} if
+#'         needed. Workers are pinned to a single thread during the read phase
+#'         so parallel processes do not oversubscribe cores.
+#' }
+#'
+#' @param file       Non-empty \code{character} vector of paths to existing
+#'                   \code{.xlsx} / \code{.xls} files.
+#' @param combine    \code{logical(1)}. \code{TRUE} (default) binds all sheets
+#'                   into a single \code{data.table}. \code{FALSE} returns a
+#'                   flat named list keyed as \code{"<filename>_<sheetname>"}.
+#' @param sheet      Positive \code{integer} vector, \code{character} vector of
+#'                   sheet names, or \code{NULL} (default, every sheet).
+#'                   Indices / names must exist in all supplied files.
+#' @param skip       Non-negative \code{integer(1)}. Number of rows to skip
+#'                   before the header (e.g. a title row). Default \code{0L}.
+#' @param header_rows Positive \code{integer(1)}. Number of header rows below
+#'                   the skipped rows. Default \code{1L} (ordinary sheets).
+#'                   Values \code{> 1} combine the rows into one name per
+#'                   column (see Details); data start on the next row.
+#' @param header_sep \code{character(1)}. Separator used to join the levels of
+#'                   a multi-row header. Default \code{"_"}.
+#' @param header_fill How merged header cells are resolved when
+#'                   \code{header_rows > 1}: \code{"auto"} (default) reads the
+#'                   merged ranges stored in \code{.xlsx}/\code{.xlsm} files and
+#'                   falls back to \code{"right"} for \code{.xls};
+#'                   \code{"right"} fills upper levels to the right (heuristic,
+#'                   no merge information needed); \code{"none"} uses the
+#'                   cells as they are.
+#' @param file_col   \code{character(1)} or \code{NULL}. Name of the column
+#'                   recording the source file (extension stripped) when
+#'                   \code{combine = TRUE}. Default \code{"excel_name"};
+#'                   \code{NULL} omits the column. Ignored when
+#'                   \code{combine = FALSE} (provenance is in the list names).
+#' @param sheet_col  \code{character(1)} or \code{NULL}. Name of the column
+#'                   recording the source sheet when \code{combine = TRUE}.
+#'                   Default \code{"sheet_name"}; \code{NULL} omits it.
+#'                   The defaults match \code{export_xlsx()}, so the result
+#'                   can be written back to the original layout.
+#' @param path_col   \code{NULL} (default) or \code{character(1)}. Name of an
+#'                   extra column holding the full path of the source file
+#'                   (absolute, \code{"/"} separators) when
+#'                   \code{combine = TRUE}. Useful when folder names carry
+#'                   information (farm, year, batch) that can then be
+#'                   extracted with [get_path_info()]. Remove it before
+#'                   \code{export_xlsx()} if it should not be written out.
+#' @param workers    \code{integer(1)}. Number of parallel processes used to
+#'                   read the (file x sheet) tasks. Default \code{1L} (serial).
+#'                   Values \code{> 1} open a fork pool on Unix/macOS or a
+#'                   PSOCK cluster on Windows; the pool is capped at the number
+#'                   of tasks and always shut down on exit. Parallel reading
+#'                   pays off when files are large or numerous; for many tiny
+#'                   sheets the process / serialization overhead can dominate,
+#'                   so leave this at \code{1L} unless the import is heavy.
+#' @param verbose    \code{logical(1)}. When \code{TRUE}, print one
+#'                   \code{message()} per sheet (source file, sheet name, and
+#'                   row x col dimensions, with empty sheets flagged) followed
+#'                   by a summary line. Default \code{FALSE}. Output is emitted
+#'                   from the master process, so it surfaces identically in
+#'                   serial and parallel modes.
+#' @param on_error   \code{"stop"} (default) or \code{"warn"}. With
+#'                   \code{"stop"}, any file or sheet that cannot be read
+#'                   aborts the import with one error listing \emph{all}
+#'                   failures. With \code{"warn"}, failed files/sheets are
+#'                   skipped and listed in a single warning; the import only
+#'                   fails when nothing could be read.
+#' @param ...        Additional arguments forwarded to
+#'                   \code{\link[readxl]{read_excel}} (e.g. \code{col_types},
+#'                   \code{na}, \code{trim_ws}). \strong{Do not} pass
+#'                   \code{path}, \code{sheet}, or \code{skip} here; use the
+#'                   dedicated parameters above. With \code{header_rows > 1},
+#'                   \code{col_names} and \code{range} are set internally and
+#'                   must not be passed either; \code{col_types} then refers
+#'                   to the data columns. Unless \code{guess_max} is given,
+#'                   column types are guessed from \emph{all} rows (readxl's
+#'                   default looks at the first 1000 only, so a column that
+#'                   is empty there would be read as logical and its later
+#'                   values lost). This costs a few percent of read time and
+#'                   no extra memory.
+#'
+#' @details
+#' \strong{Combining sheets with different column types.} When
+#' \code{combine = TRUE}, columns are aligned before binding:
+#' \itemize{
+#'   \item A column that is completely empty in one sheet (read as logical
+#'     \code{NA}) takes the type it has in the other sheets, e.g. stays a
+#'     date column.
+#'   \item A column whose type genuinely differs between sheets (e.g. a date
+#'     in one workbook, text such as \code{"2024.3.1"} in another; or numbers
+#'     vs. text) is converted to text in all sheets, with one warning naming
+#'     the column and where each type occurs. Dates are written as
+#'     \code{"YYYY-MM-DD"} (with the time when it is not midnight). Integer /
+#'     double / logical columns are combined as numbers, without a warning.
+#' }
+#' Without this step \code{data.table::rbindlist()} stops for any date column
+#' that is empty or text in another sheet.
+#'
+#' \strong{Multi-row headers.} Many hand-made workbooks have a title row and
+#' a header spread over several rows with merged cells, e.g.
+#' \preformatted{
+#' row 1  Growth test records
+#' row 2  ID | Breed | Weight (kg)   | Backfat (mm)
+#' row 3     |       | Start | End   | P2 | Loin
+#' row 4  A001 | Duroc | 28.5 | 102.3 | 11.2 | 56.1
+#' }
+#' \code{import_xlsx(f, skip = 1, header_rows = 2)} returns the columns
+#' \code{ID}, \code{Breed}, \code{Weight (kg)_Start}, \code{Weight (kg)_End},
+#' \code{Backfat (mm)_P2}, \code{Backfat (mm)_Loin}. The rules are:
+#' \itemize{
+#'   \item Merged cells only store their value in their top-left cell. With
+#'     \code{header_fill = "auto"} the merged ranges are read from the
+#'     workbook itself (\code{<mergeCell>} entries of the sheet XML), and each
+#'     range is filled with its value, horizontally and vertically. Header
+#'     cells that are genuinely empty stay empty, so a column whose upper
+#'     cell is blank gets only its lower label.
+#'   \item Without merge information (\code{.xls} files, or
+#'     \code{header_fill = "right"}), every level except the last is filled to
+#'     the right, restarting wherever a higher level starts a new label.
+#'   \item Per column, empty parts and repeated parts (vertically merged
+#'     cells) are dropped and the remaining parts joined with
+#'     \code{header_sep}; line breaks inside a cell become spaces.
+#'   \item Columns without any header become \code{col_<j>}; duplicates are
+#'     made unique.
+#'   \item The header block is read as text, but the data block is read
+#'     separately, so numbers and dates keep their types (reading the whole
+#'     sheet as text would turn dates into serial numbers such as
+#'     \code{"45296"}).
+#'   \item Completely empty data rows (spacer or trailing rows) are dropped.
+#' }
+#' Labels that are only \emph{visually} spread over several columns with
+#' "Center Across Selection" (instead of real merging) are not merges; use
+#' \code{header_fill = "right"} for such sheets. Reading the merge
+#' information re-scans the sheet XML once, which costs a fraction of the
+#' import time and only happens when \code{header_rows > 1}.
+#'
+#' @return
+#' \describe{
+#'   \item{\code{combine = TRUE}}{A \code{data.table}. Tracking columns
+#'     \code{excel_name} and/or \code{sheet_name} are prepended when their
+#'     respective \code{file_col} / \code{sheet_col} are not \code{NULL}.}
+#'   \item{\code{combine = FALSE}}{A named \code{list} of \code{data.table}s,
+#'     each element named \code{"<filename>_<sheetname>"}. The list carries a
+#'     \code{"source_files"} attribute with the original file paths.}
+#' }
+#'
+#' @note
+#' Files that share the same base name in different folders cannot be told
+#' apart by \code{file_col}; a warning is issued and the labels are made
+#' unique, so a later \code{export_xlsx()} round trip does not merge them.
+#'
+#' @importFrom data.table setDT setcolorder setattr setalloccol getDTthreads
+#'   setDTthreads rbindlist `:=`
+#' @importFrom readxl read_excel excel_sheets cell_limits
+#' @importFrom parallel makeCluster stopCluster parLapplyLB clusterEvalQ mclapply
+#' @export
+import_xlsx <- function(file,
+                        combine   = TRUE,
+                        sheet     = NULL,
+                        skip      = 0L,
+                        header_rows = 1L,
+                        header_sep  = "_",
+                        header_fill = "auto",
+                        file_col  = "excel_name",
+                        sheet_col = "sheet_name",
+                        path_col  = NULL,
+                        workers   = 1L,
+                        verbose   = FALSE,
+                        on_error  = "stop",
+                        ...) {
+
+  # -- 0. Tracking-column arguments ------------------------------------------
+  for (nm in c("file_col", "sheet_col", "path_col")) {
+    val <- get(nm)
+    if (!is.null(val) && (!is.character(val) || length(val) != 1L || is.na(val) ||
+                          !nzchar(val)))
+      stop(sprintf("`%s` must be a single non-empty string, or NULL.", nm), call. = FALSE)
+  }
+  track <- c(file_col, sheet_col, path_col)
+  if (anyDuplicated(track))
+    stop("`file_col`, `sheet_col` and `path_col` must be different column names.",
+         call. = FALSE)
+
+  # -- 1. Input validation ----------------------------------------------------
+  if (!is.character(file) || length(file) == 0L || anyNA(file))
+    stop("`file` must be a non-empty character vector without NA.", call. = FALSE)
+  bad <- file[!file.exists(file)]
+  if (length(bad))
+    stop("File(s) not found:\n  ", paste(bad, collapse = "\n  "), call. = FALSE)
+  .check_flag(combine, "combine")
+  if (!is.null(sheet)) {
+    if (is.character(sheet)) {
+      if (length(sheet) == 0L || anyNA(sheet) || any(!nzchar(sheet)))
+        stop("`sheet` names must be non-empty strings.", call. = FALSE)
+    } else if (!is.numeric(sheet) || length(sheet) == 0L || anyNA(sheet) ||
+               any(sheet < 1) || any(sheet != floor(sheet))) {
+      stop("`sheet` must be a positive integer vector, a character vector of ",
+           "sheet names, or NULL.", call. = FALSE)
+    } else {
+      sheet <- as.integer(sheet)
+    }
+  }
+  skip        <- .check_count(skip, "skip", 0L)
+  header_rows <- .check_count(header_rows, "header_rows", 1L)
+  if (!is.character(header_sep) || length(header_sep) != 1L || is.na(header_sep))
+    stop("`header_sep` must be a single character string.", call. = FALSE)
+  .check_choice(header_fill, c("auto", "right", "none"), "header_fill")
+  .check_choice(on_error, c("stop", "warn"), "on_error")
+  .check_flag(verbose, "verbose")
+  workers <- .check_count(workers, "workers", 1L)
+
+  dots     <- list(...)
+  reserved <- intersect(names(dots), c("path", "sheet", "skip",
+                                       if (header_rows > 1L) c("col_names", "range")))
+  if (length(reserved))
+    stop(sprintf("Do not pass %s via `...`; use the dedicated parameter(s) instead.",
+                 paste0("`", reserved, "`", collapse = ", ")), call. = FALSE)
+  # Guess types from all rows: readxl's default (first 1000 rows) turns a
+  # column that is empty there into logical and drops its later values.
+  # This is readxl's own upper limit, so it does not warn.
+  if (!"guess_max" %in% names(dots))
+    dots$guess_max <- .Machine$integer.max %/% 100L
+
+  # -- 2. Restore the data.table thread pool on exit ---------------------------
+  old_threads <- data.table::getDTthreads()
+  on.exit(data.table::setDTthreads(old_threads), add = TRUE)
+
+  # -- 3. Source labels -------------------------------------------------------
+  file_base <- .strip_ext(basename(file))
+  if (anyDuplicated(file_base) && (!is.null(file_col) || !combine)) {
+    dup <- unique(file_base[duplicated(file_base)])
+    warning("Several files share the same base name (", paste(dup, collapse = ", "),
+            "). Their rows cannot be told apart by `file_col` (use `path_col` to ",
+            "keep the full paths), and ",
+            "export_xlsx() would merge them into one workbook. Labels were made ",
+            "unique with make.unique().", call. = FALSE)
+    file_base <- make.unique(file_base, sep = "_")
+  }
+
+  # -- 4. Sheet directories: one open per file --------------------------------
+  # Files that cannot be opened at all are handled like failed sheets.
+  sheets_cache <- lapply(file, function(f) tryCatch(readxl::excel_sheets(f),
+    error = function(e) structure(list(message = conditionMessage(e)),
+                                  class = "mintyr_read_error")))
+  open_failed <- vapply(sheets_cache, inherits, logical(1L), what = "mintyr_read_error")
+  file_errors <- vapply(which(open_failed), function(i)
+    sprintf("  - %s: %s", file[[i]], sheets_cache[[i]]$message), character(1L))
+  if (any(open_failed) && (on_error == "stop" || all(open_failed)))
+    stop(sprintf("Failed to open %d of %d file(s):\n", sum(open_failed), length(file)),
+         paste(file_errors, collapse = "\n"), call. = FALSE)
+  ok_files <- which(!open_failed)
+
+  if (is.numeric(sheet)) {
+    min_n <- min(lengths(sheets_cache[ok_files]))
+    if (max(sheet) > min_n)
+      stop(sprintf("Sheet index %d exceeds the minimum sheet count (%d) across files.",
+                   max(sheet), min_n), call. = FALSE)
+  } else if (is.character(sheet)) {
+    absent <- unlist(lapply(ok_files, function(i) {
+      miss <- setdiff(sheet, sheets_cache[[i]])
+      if (length(miss)) sprintf("%s: %s", basename(file[[i]]), paste(miss, collapse = ", "))
+    }))
+    if (length(absent))
+      stop("Sheet(s) not found:\n  ", paste(absent, collapse = "\n  "), call. = FALSE)
+  }
+
+  # -- 5. Flat (file, sheet) task list ----------------------------------------
+  tasks <- unlist(lapply(ok_files, function(i) {
+    avail <- sheets_cache[[i]]
+    sel   <- if (is.null(sheet)) avail else if (is.character(sheet)) sheet else avail[sheet]
+    full  <- normalizePath(file[[i]], winslash = "/", mustWork = TRUE)
+    lapply(sel, function(sht) list(path = file[[i]], full = full, base = file_base[[i]],
+                                   sheet = sht))
+  }), recursive = FALSE)
+
+  # -- 6. Read every task (serial or parallel) ---------------------------------
+  need_excel <- combine && !is.null(file_col)
+  need_sheet <- combine && !is.null(sheet_col)
+  need_path  <- combine && !is.null(path_col)
+
+  read_body <- function(tk) {
+    if (header_rows == 1L) {
+      raw <- do.call(readxl::read_excel,
+                     c(list(path = tk$path, sheet = tk$sheet, skip = skip), dots))
+      dt  <- data.table::setDT(raw)
+    } else {
+      # Multi-row header: the header block is read as text, the data block
+      # separately so that readxl still guesses numeric / date types. Both
+      # ranges start at column A, which keeps them aligned.
+      hdr <- readxl::read_excel(
+        tk$path, sheet = tk$sheet, col_names = FALSE, col_types = "text",
+        range = readxl::cell_limits(c(skip + 1L, 1L), c(skip + header_rows, NA)),
+        .name_repair = "minimal")
+      raw <- do.call(readxl::read_excel, c(list(
+        path = tk$path, sheet = tk$sheet, col_names = FALSE,
+        range = readxl::cell_limits(c(skip + header_rows + 1L, 1L), c(NA, NA)),
+        .name_repair = "minimal"), dots))
+      # Merged ranges are taken from the workbook itself when possible
+      # (.xlsx / .xlsm); .xls files, or a workbook whose XML cannot be
+      # parsed, fall back to the right-fill heuristic.
+      merges <- NULL
+      if (header_fill == "auto" && grepl("\\.xls[xm]$", tk$path, ignore.case = TRUE))
+        merges <- tryCatch(xlsx_merges(tk$path, tk$sheet), error = function(e) NULL)
+      fill <- if (header_fill == "none") "none" else "right"
+      nm <- combine_headers(hdr, header_sep, fill = fill, merges = merges,
+                            first_row = skip + 1L)
+      dt <- data.table::setDT(raw)
+      n  <- ncol(dt)
+      if (n == 0L) {
+        dt <- data.table::setDT(stats::setNames(rep(list(logical(0L)), length(nm)), nm))
+      } else {
+        if (length(nm) < n) nm <- make.unique(c(nm, paste0("col_", seq.int(length(nm) + 1L, n))),
+                                              sep = header_sep)
+        data.table::setnames(dt, nm[seq_len(n)])
+        # Rows that are completely empty (spacer rows, trailing blanks) are dropped.
+        keep <- Reduce(`|`, lapply(dt, function(x) !is.na(x)))
+        if (!all(keep)) dt <- dt[keep]
+      }
+    }
+    # Tracking columns must not silently overwrite columns of the sheet.
+    track <- c(if (need_excel) file_col, if (need_sheet) sheet_col, if (need_path) path_col)
+    clash <- intersect(track, names(dt))
+    if (length(clash))
+      stop("column(s) ", paste0("'", clash, "'", collapse = ", "), " already exist in ",
+           "the sheet; choose other names via `file_col` / `sheet_col` / `path_col` ",
+           "(or set them to NULL)")
+    if (need_excel) data.table::set(dt, j = file_col,  value = rep(tk$base,  nrow(dt)))
+    if (need_sheet) data.table::set(dt, j = sheet_col, value = rep(tk$sheet, nrow(dt)))
+    if (need_path)  data.table::set(dt, j = path_col,  value = rep(tk$full,  nrow(dt)))
+    dt
+  }
+  # Errors are returned as objects instead of thrown, so one bad sheet never
+  # aborts a (parallel) batch; they are reported together afterwards.
+  read_one <- function(tk) {
+    tryCatch(read_body(tk), error = function(e)
+      structure(list(message = conditionMessage(e)), class = "mintyr_read_error"))
+  }
+  # Pure base R helpers, safe to ship to PSOCK workers.
+  combine_headers <- .combine_headers
+  xlsx_merges     <- .xlsx_merges
+  environment(combine_headers) <- environment(xlsx_merges) <- baseenv()
+  # Detach read_one from the (large) call frame so PSOCK workers only
+  # serialise the few small objects it needs.
+  shared <- list2env(
+    list(skip = skip, dots = dots, header_rows = header_rows, header_sep = header_sep,
+         need_excel = need_excel, need_sheet = need_sheet, need_path = need_path,
+         file_col = file_col, sheet_col = sheet_col, path_col = path_col,
+         header_fill = header_fill, combine_headers = combine_headers,
+         xlsx_merges = xlsx_merges),
+    parent = globalenv()
+  )
+  environment(read_body) <- shared
+  assign("read_body", read_body, envir = shared)
+  environment(read_one) <- shared
+
+  n_tasks     <- length(tasks)
+  use_workers <- min(workers, n_tasks)
+
+  if (use_workers > 1L) {
+    if (.Platform$OS.type == "windows") {
+      cl <- parallel::makeCluster(use_workers)
+      on.exit(parallel::stopCluster(cl), add = TRUE)
+      parallel::clusterEvalQ(cl, data.table::setDTthreads(1L))
+      # Load-balanced: sheets go to whichever worker is free, so one large
+      # sheet does not hold up a worker that was assigned a fixed share.
+      sheet_tables <- parallel::parLapplyLB(cl, tasks, read_one)
+    } else {
+      data.table::setDTthreads(1L)          # forked children inherit this
+      # Few tasks (typically large): one fork per task, handed out as workers
+      # become free. Many tasks (typically small): prescheduled chunks, which
+      # avoid forking once per sheet.
+      sheet_tables <- parallel::mclapply(tasks, read_one, mc.cores = use_workers,
+                                         mc.preschedule = n_tasks > 4L * use_workers)
+      # A killed worker (e.g. out of memory) returns NULL or a try-error.
+      sheet_tables <- lapply(sheet_tables, function(x) {
+        if (is.data.frame(x) || inherits(x, "mintyr_read_error")) x
+        else structure(list(message = if (inherits(x, "try-error")) as.character(x)
+                            else "worker returned no result (possibly killed, e.g. out of memory)"),
+                       class = "mintyr_read_error")
+      })
+    }
+    # Tables serialised back from workers lose their self-reference (needed
+    # for later `:=` and for aligning column types before binding).
+    # setalloccol() returns the repaired table; it must be re-assigned because
+    # its argument here is not a plain symbol. Error objects pass unchanged.
+    sheet_tables <- lapply(sheet_tables, function(x)
+      if (is.data.frame(x)) data.table::setalloccol(x) else x)
+  } else {
+    sheet_tables <- lapply(tasks, read_one)
+  }
+
+  # -- 6b. Failures -------------------------------------------------------------
+  failed <- vapply(sheet_tables, inherits, logical(1L), what = "mintyr_read_error")
+  if (any(failed) || length(file_errors)) {
+    info <- c(file_errors, vapply(which(failed), function(i)
+      sprintf("  - %s [sheet '%s']: %s", tasks[[i]]$path, tasks[[i]]$sheet,
+              sheet_tables[[i]]$message), character(1L)))
+    head_msg <- sprintf("Failed to read %d file(s) / %d of %d sheet(s):\n",
+                        length(file_errors), sum(failed), length(failed))
+    if (on_error == "stop" || all(failed))
+      stop(head_msg, paste(info, collapse = "\n"),
+           if (on_error == "warn") "\nNothing could be read.", call. = FALSE)
+    warning(head_msg, paste(info, collapse = "\n"), "\nThese were skipped.",
+            call. = FALSE)
+    sheet_tables <- sheet_tables[!failed]
+    tasks        <- tasks[!failed]
+  }
+  n_tasks <- length(tasks)
+
+  if (verbose) {
+    dims <- vapply(sheet_tables, function(d) c(nrow(d), ncol(d)), integer(2L))
+    for (i in seq_along(sheet_tables))
+      message(sprintf("[%d/%d] '%s' / sheet '%s': %d rows x %d cols%s",
+                      i, n_tasks, basename(tasks[[i]]$path), tasks[[i]]$sheet,
+                      dims[1L, i], dims[2L, i],
+                      if (dims[1L, i] == 0L) "  (empty)" else ""))
+    message(sprintf("Imported %d sheet(s) from %d file(s); %d total rows.",
+                    n_tasks, length(file), sum(dims[1L, ])))
+  }
+
+  # -- 7. Assemble ------------------------------------------------------------
+  if (combine) {
+    data.table::setDTthreads(old_threads)
+    # Empty columns take the type used elsewhere; real conflicts become text.
+    .align_col_types(sheet_tables, vapply(tasks, function(tk)
+      sprintf("%s [%s]", basename(tk$path), tk$sheet), character(1L)))
+    out <- data.table::rbindlist(sheet_tables, use.names = TRUE, fill = TRUE)
+    front_cols <- c(if (need_excel) file_col, if (need_sheet) sheet_col,
+                    if (need_path) path_col)
+    front_cols <- intersect(front_cols, names(out))
+    if (length(front_cols)) data.table::setcolorder(out, front_cols)
+    return(out[])
+  }
+
+  nms <- vapply(tasks, function(tk) paste(tk$base, tk$sheet, sep = "_"), character(1L))
+  out <- stats::setNames(sheet_tables, make.unique(nms, sep = "_"))
+  data.table::setattr(out, "source_files", file)
+  out
+}
+```
+  
+```{r example-import_xlsx}
+# Example: Excel file import demonstrations
+
+# Setup test files
+xlsx_files <- mintyr_example(
+  mintyr_examples("xlsx_test")    # Get example Excel files
+)
+
+# Example 1: Import and combine all sheets from all files
+import_xlsx(
+  xlsx_files,                     # Input Excel file paths
+  combine = TRUE                  # Combine all sheets into one data.table
+)
+
+# Example 2: Import specific sheets separately
+import_xlsx(
+  xlsx_files,                     # Input Excel file paths
+  combine = FALSE,                 # Keep sheets as separate data.tables
+  sheet = 2                       # Only import the second sheet
+)
+
+# Example 3: Multi-row header with merged cells and a title row
+# (row 1 = title, rows 2-3 = header, data from row 4)
+mh_file <- mintyr_example("multiheader_test.xlsx")
+import_xlsx(
+  mh_file,
+  skip = 1,                       # Skip the title row
+  header_rows = 2                 # Combine two header rows into one name
+)
+# The last column has an empty, unmerged upper cell: it is named "Note".
+# The heuristic fill would wrongly call it "Backfat (mm)_Note":
+names(import_xlsx(mh_file, sheet = 1, skip = 1, header_rows = 2,
+                  header_fill = "right"))
+
+# Example 4: Batch import that skips unreadable files instead of stopping
+bad_file <- tempfile(fileext = ".xlsx")
+writeLines("not a workbook", bad_file)
+res <- suppressWarnings(
+  import_xlsx(c(mh_file, bad_file), skip = 1, header_rows = 2, on_error = "warn")
+)
+unique(res$excel_name)
+unlink(bad_file)
+
+# Example 5: Keep the full path and extract information from folder names
+# (e.g. <root>/<farm>/<year>/file.xlsx)
+root <- file.path(tempdir(), "farms")
+for (p in c("A/2024", "B/2025")) dir.create(file.path(root, p), recursive = TRUE)
+file.copy(mintyr_example("xlsx_test1.xlsx"), file.path(root, "A/2024/growth_a.xlsx"))
+file.copy(mintyr_example("xlsx_test2.xlsx"), file.path(root, "B/2025/growth_b.xlsx"))
+
+growth <- import_xlsx(
+  list.files(root, pattern = "\\.xlsx$", recursive = TRUE, full.names = TRUE),
+  path_col = "file_path"          # Full path of every row's source file
+)
+growth[, farm := get_path_info(file_path, n = -3)]   # third-last part: farm
+growth[, year := get_path_info(file_path, n = -2)]   # second-last part: year
+growth[, .(excel_name, farm, year)]
+unlink(root, recursive = TRUE)
+```
+
+```{r tests-import_xlsx}
+make_xlsx <- function() {
+  d1 <- file.path(tempdir(), "xl_a"); d2 <- file.path(tempdir(), "xl_b")
+  dir.create(d1, showWarnings = FALSE); dir.create(d2, showWarnings = FALSE)
+  f <- c(file.path(d1, "2024.xlsx"), file.path(d2, "2024.xlsx"))
+  writexl::write_xlsx(list(s1 = data.frame(v = 1:2), s2 = data.frame(v = 3)), f[1])
+  writexl::write_xlsx(list(s1 = data.frame(v = 9)), f[2])
+  f
+}
+
+test_that("import_xlsx adds tracking columns and separates equal base names", {
+  f <- make_xlsx(); on.exit(unlink(dirname(f), recursive = TRUE))
+  expect_warning(res <- import_xlsx(f), "same base name")
+  expect_identical(names(res), c("excel_name", "sheet_name", "v"))
+  expect_identical(unique(res$excel_name), c("2024", "2024_1"))
+})
+
+test_that("import_xlsx supports custom / omitted tracking columns", {
+  f <- make_xlsx()[1]; on.exit(unlink(dirname(f), recursive = TRUE))
+  res <- import_xlsx(f, file_col = NULL, sheet_col = "tab")
+  expect_identical(names(res), c("tab", "v"))
+})
+
+test_that("import_xlsx reads empty sheets", {
+  f <- tempfile(fileext = ".xlsx"); on.exit(unlink(f))
+  writexl::write_xlsx(list(e = data.frame()), f)
+  expect_equal(nrow(import_xlsx(f)), 0L)
+})
+
+test_that("import_xlsx parallel results are safe to modify by reference", {
+  skip_on_cran()
+  f <- make_xlsx(); on.exit(unlink(dirname(f), recursive = TRUE))
+  res <- suppressWarnings(import_xlsx(f, combine = FALSE, workers = 2))
+  expect_identical(names(res), c("2024_s1", "2024_s2", "2024_1_s1"))
+  expect_silent(res[[1]][, z := 1])
+  expect_true("z" %in% names(res[[1]]))
+})
+
+test_that("import_xlsx keeps a date column that is empty in another sheet", {
+  f <- tempfile(fileext = ".xlsx"); on.exit(unlink(f))
+  d <- as.POSIXct(c("2024-03-01", "2024-03-02"), tz = "UTC")
+  writexl::write_xlsx(list(a = data.frame(id = 1:2, born = d),
+                           b = data.frame(id = 3, born = NA)), f)
+  expect_silent(res <- import_xlsx(f))
+  expect_s3_class(res$born, "POSIXct")
+  expect_identical(attr(res$born, "tzone"), "UTC")
+  expect_identical(format(res$born, "%Y-%m-%d"), c("2024-03-01", "2024-03-02", NA))
+})
+
+test_that("import_xlsx combines genuinely different types as text, with a warning", {
+  f <- tempfile(fileext = ".xlsx"); g <- tempfile(fileext = ".xlsx")
+  on.exit(unlink(c(f, g)))
+  writexl::write_xlsx(list(s = data.frame(
+    born = as.POSIXct("2024-03-01", tz = "UTC") + c(0, 8.5 * 3600), w = 1.5)), f)
+  writexl::write_xlsx(list(s = data.frame(born = "2024.3.1", w = "missing")), g)
+  expect_warning(res <- import_xlsx(c(f, g)), "`born`: date-time in .*text in")
+  expect_type(res$born, "character")
+  expect_identical(res$born, c("2024-03-01", "2024-03-01 08:30:00", "2024.3.1"))
+  expect_identical(res$w, c("1.5", "1.5", "missing"))
+  # each source and type is named once in one warning
+  w <- tryCatch(import_xlsx(c(f, g)), warning = conditionMessage)
+  expect_match(w, "2 column\\(s\\)")
+  expect_match(w, "`w`: number in .*xlsx \\[s\\]; text in")
+  # combine = FALSE leaves every sheet as it was read
+  lst <- import_xlsx(c(f, g), combine = FALSE)
+  expect_s3_class(lst[[1]]$born, "POSIXct")
+})
+
+test_that("import_xlsx aligns types after a parallel read", {
+  skip_on_cran()
+  f <- tempfile(fileext = ".xlsx"); on.exit(unlink(f))
+  writexl::write_xlsx(list(a = data.frame(id = 1, born = as.POSIXct("2024-03-01", tz = "UTC")),
+                           b = data.frame(id = 2, born = NA),
+                           c = data.frame(id = 3, born = "x")), f)
+  expect_warning(res <- import_xlsx(f, workers = 2), "`born`")
+  expect_identical(res$id, c(1, 2, 3))
+  expect_identical(res$born, c("2024-03-01", NA, "x"))
+})
+
+test_that("import_xlsx guesses types from all rows unless guess_max is given", {
+  f <- tempfile(fileext = ".xlsx"); on.exit(unlink(f))
+  n <- 1500
+  writexl::write_xlsx(data.frame(id = seq_len(n), note = c(rep(NA, n - 2), "late", "note")), f)
+  res <- import_xlsx(f, file_col = NULL, sheet_col = NULL)
+  expect_type(res$note, "character")
+  expect_identical(utils::tail(res$note, 2L), c("late", "note"))
+  # an explicit guess_max still wins (readxl's 1000-row guess loses the notes)
+  short <- suppressWarnings(import_xlsx(f, guess_max = 1000))
+  expect_type(short$note, "logical")
+})
+
+test_that("import_xlsx path_col keeps the full source path", {
+  root <- file.path(tempdir(), "xl_paths")
+  for (p in c("A/2024", "B/2025")) dir.create(file.path(root, p), recursive = TRUE,
+                                              showWarnings = FALSE)
+  on.exit(unlink(root, recursive = TRUE))
+  f <- file.path(root, c("A/2024/a.xlsx", "B/2025/b.xlsx"))
+  writexl::write_xlsx(list(s1 = data.frame(w = 1:2)), f[1])
+  writexl::write_xlsx(list(s1 = data.frame(w = 3)), f[2])
+  res <- import_xlsx(f, path_col = "file_path")
+  expect_identical(names(res), c("excel_name", "sheet_name", "file_path", "w"))
+  expect_identical(res$file_path, normalizePath(f[c(1, 1, 2)], winslash = "/"))
+  expect_identical(get_path_info(res$file_path, n = -3), c("A", "A", "B"))
+  expect_identical(get_path_info(res$file_path, n = -2), c("2024", "2024", "2025"))
+  only <- import_xlsx(f, file_col = NULL, sheet_col = NULL, path_col = "p")
+  expect_identical(names(only), c("p", "w"))
+  expect_false("file_path" %in% names(unlist(lapply(import_xlsx(f, combine = FALSE,
+                                                    path_col = "file_path"), names))))
+  expect_error(import_xlsx(f, path_col = "sheet_name"), "different column names")
+})
+
+test_that(".combine_headers fills merged cells within their parent block", {
+  h <- data.frame(a = c("ID", NA), b = c("Weight", "Start"), c = c(NA, "End"),
+                  d = c("Backfat", "P2"), e = c(NA, "Loin"), f = c("Note\nfree", NA),
+                  stringsAsFactors = FALSE)
+  expect_identical(.combine_headers(h),
+                   c("ID", "Weight_Start", "Weight_End", "Backfat_P2", "Backfat_Loin",
+                     "Note free"))
+  h3 <- data.frame(a = c("W", "D0", "kg"), b = c(NA, NA, "lb"), c = c(NA, "D21", "kg"),
+                   stringsAsFactors = FALSE)
+  expect_identical(.combine_headers(h3, sep = "."), c("W.D0.kg", "W.D0.lb", "W.D21.kg"))
+  expect_identical(.combine_headers(data.frame(a = c(NA, NA), b = c("x", "x"))),
+                   c("col_1", "x"))
+})
+
+test_that("import_xlsx reads multi-row headers and keeps column types", {
+  f <- mintyr_example("multiheader_test.xlsx")
+  res <- import_xlsx(f, skip = 1, header_rows = 2)
+  expect_identical(names(res),
+                   c("excel_name", "sheet_name", "ID", "Breed", "Birth date",
+                     "Weight (kg)_Start", "Weight (kg)_End",
+                     "Backfat (mm)_P2", "Backfat (mm)_Loin", "Note"))
+  expect_equal(nrow(res), 7L)                          # blank spacer rows dropped
+  expect_false(anyNA(res$ID))
+  expect_type(res[["Weight (kg)_End"]], "double")
+  expect_s3_class(res[["Birth date"]], "POSIXct")      # not "45296"
+  one <- import_xlsx(f, sheet = "farm_B", skip = 1, header_rows = 2,
+                     header_sep = ".", file_col = NULL, sheet_col = NULL)
+  expect_identical(names(one)[4], "Weight (kg).Start")
+  expect_equal(nrow(one), 3L)
+})
+
+test_that(".xlsx_merges reads merged ranges from the workbook", {
+  f <- mintyr_example("multiheader_test.xlsx")
+  m <- .xlsx_merges(f, "farm_B")
+  expect_identical(colnames(m), c("r1", "c1", "r2", "c2"))
+  expect_true(all(c("2-4-2-5", "2-1-3-1") %in% apply(m, 1, paste, collapse = "-")))
+  g <- tempfile(fileext = ".xlsx"); on.exit(unlink(g))
+  writexl::write_xlsx(iris[1:2, ], g)
+  expect_equal(nrow(.xlsx_merges(g, "Sheet1")), 0L)
+  expect_error(.xlsx_merges(f, "nope"), "not found")
+})
+
+test_that("merge information keeps genuinely empty header cells empty", {
+  h <- data.frame(a = c("W", NA), b = c(NA, "End"), c = c(NA, "Note"))
+  m <- cbind(r1 = 5L, c1 = 1L, r2 = 5L, c2 = 2L)        # only A5:B5 is merged
+  expect_identical(.combine_headers(h, merges = m, first_row = 5L), c("W", "W_End", "Note"))
+  expect_identical(.combine_headers(h), c("W", "W_End", "W_Note"))   # heuristic
+  expect_identical(.combine_headers(h, fill = "none"), c("W", "End", "Note"))
+  v <- data.frame(a = c("ID", NA, NA), b = c("x", "y", "z"))   # vertical merge A1:A3
+  expect_identical(.combine_headers(v, merges = cbind(r1 = 1L, c1 = 1L, r2 = 3L, c2 = 1L)),
+                   c("ID", "x_y_z"))
+})
+
+test_that("import_xlsx header_fill controls merged-cell handling", {
+  f <- mintyr_example("multiheader_test.xlsx")
+  last <- function(hf) utils::tail(names(import_xlsx(f, sheet = 1, skip = 1, header_rows = 2,
+                                                    header_fill = hf)), 1L)
+  expect_identical(last("auto"), "Note")
+  expect_identical(last("right"), "Backfat (mm)_Note")
+  expect_identical(last("none"), "Note")
+  expect_error(import_xlsx(f, header_rows = 2, header_fill = "x"), "header_fill")
+})
+
+test_that("import_xlsx validates multi-row header arguments", {
+  f <- mintyr_example("multiheader_test.xlsx")
+  expect_error(import_xlsx(f, header_rows = 0), "header_rows")
+  expect_error(import_xlsx(f, header_rows = 2, col_names = FALSE), "col_names")
+  expect_error(import_xlsx(f, sheet = "nope"), "not found")
+})
+
+test_that("import_xlsx on_error controls failing files and sheets", {
+  f <- mintyr_example("multiheader_test.xlsx")
+  bad <- tempfile(fileext = ".xlsx"); on.exit(unlink(bad))
+  writeLines("not a workbook", bad)
+  expect_error(import_xlsx(c(f, bad)), "Failed to open 1 of 2")
+  expect_warning(res <- import_xlsx(c(f, bad), skip = 1, header_rows = 2,
+                                    on_error = "warn"), "skipped")
+  expect_identical(unique(res$excel_name), "multiheader_test")
+  expect_error(suppressWarnings(import_xlsx(bad, on_error = "warn")), "Failed to open")
+  # sheet-level failure: col_types only fits one of two sheet layouts
+  g <- tempfile(fileext = ".xlsx"); on.exit(unlink(g), add = TRUE)
+  writexl::write_xlsx(list(ok = data.frame(a = 1, b = 2), bad = data.frame(a = 1)), g)
+  expect_warning(res <- import_xlsx(g, on_error = "warn", col_types = c("numeric", "numeric")),
+                 "sheet 'bad'")
+  expect_identical(unique(res$sheet_name), "ok")
+  expect_error(import_xlsx(g, col_types = c("numeric", "numeric")), "1 of 2 sheet")
+})
+
+test_that("import_xlsx does not overwrite an existing tracking column", {
+  f <- tempfile(fileext = ".xlsx"); on.exit(unlink(f))
+  writexl::write_xlsx(list(s1 = data.frame(sheet_name = "orig", v = 1)), f)
+  expect_error(import_xlsx(f), "already exist")
+  expect_identical(import_xlsx(f, sheet_col = "src_sheet")$sheet_name, "orig")
+})
+```
+
+# Read many CSV files: `import_csv()`
+
+```{r function-import_csv}
+#' Flexible CSV/TXT File Import via data.table
+#'
+#' @description
+#' Reads one or more CSV/TXT files using \code{\link[data.table]{fread}} as the backend.
+#' Supports flexible combination strategies and source-file tracking. All return values
+#' are \code{data.table} objects.
+#'
+#' @param file A non-empty \code{character} vector of file paths to CSV/TXT files.
+#'   All paths must point to existing, accessible files.
+#' @param combine A \code{logical} scalar controlling the combination strategy:
+#'   \itemize{
+#'     \item \code{TRUE} (default): Combine all files into a single \code{data.table}.
+#'     \item \code{FALSE}: Return a named \code{list} of individual \code{data.table} objects.
+#'   }
+#' @param file_col A \code{character} scalar or \code{NULL} specifying the source-tracking
+#'   column name (default: \code{"_file"}). Set to \code{NULL} to suppress the source column.
+#' @param path_col \code{NULL} (default) or a \code{character} scalar: name of an extra
+#'   column holding the full path of the source file (absolute, \code{"/"} separators)
+#'   when \code{combine = TRUE}, e.g. to extract folder names with [get_path_info()].
+#'   Only applies when \code{combine = TRUE}.
+#' @param full_path A \code{logical} scalar controlling path representation in labels:
+#'   \itemize{
+#'     \item \code{FALSE} (default): Use only the filename (via \code{basename()}).
+#'     \item \code{TRUE}: Use the full file path.
+#'   }
+#' @param keep_ext A \code{logical} scalar controlling whether the file extension is
+#'   retained in labels:
+#'   \itemize{
+#'     \item \code{FALSE} (default): Strip the file extension (e.g., \code{"data"}).
+#'     \item \code{TRUE}: Retain the file extension (e.g., \code{"data.csv"}).
+#'   }
+#' @param ... Additional arguments passed directly to \code{\link[data.table]{fread}}
+#'   (e.g., \code{select}, \code{drop}, \code{na.strings}, \code{skip}, \code{nThread}).
+#'
+#' @details
+#' Label generation is controlled by the combination of \code{full_path} and \code{keep_ext}:
+#' \tabular{ll}{
+#'   \code{full_path = FALSE, keep_ext = FALSE} \tab Filename without extension: \code{"data"} \cr
+#'   \code{full_path = FALSE, keep_ext = TRUE}  \tab Filename with extension: \code{"data.csv"} \cr
+#'   \code{full_path = TRUE,  keep_ext = FALSE} \tab Full path without extension: \code{"/path/to/data"} \cr
+#'   \code{full_path = TRUE,  keep_ext = TRUE}  \tab Full path with extension: \code{"/path/to/data.csv"} \cr
+#' }
+#'
+#' When \code{combine = TRUE} and \code{file_col} is not \code{NULL},
+#' \code{\link[data.table]{rbindlist}} is called with \code{idcol = file_col},
+#' which generates the source column directly during the merge step without any
+#' intermediate copies.
+#'
+#' @return
+#' \itemize{
+#'   \item \code{combine = TRUE}: A single \code{data.table} containing all imported rows.
+#'     If \code{file_col} is not \code{NULL}, the first column contains the source
+#'     file label for each row.
+#'   \item \code{combine = FALSE}: A named \code{list} of \code{data.table} objects.
+#'     List names are derived from file paths according to \code{full_path} and
+#'     \code{keep_ext} settings.
+#' }
+#'
+#' @note
+#' \itemize{
+#'   \item All specified files must exist and be readable at call time.
+#'   \item \code{combine = TRUE} assumes compatible column structures across files;
+#'     mismatched columns are automatically aligned via \code{fill = TRUE}.
+#'     A column that is empty in one file takes the type it has in the
+#'     others; a column whose type differs between files (e.g. a date in one,
+#'     text in another) is combined as text, with a warning naming it (see
+#'     \code{\link{import_xlsx}}, Details).
+#'   \item Logical parameters (\code{combine}, \code{full_path}, \code{keep_ext}) reject
+#'     \code{NA} values explicitly.
+#'   \item Only the extension of the file itself is stripped; dots in directory
+#'     names (e.g. \code{"v1.2/file"}) are left intact.
+#'   \item Duplicated labels (same file name in different folders) trigger a
+#'     warning and are made unique with \code{make.unique()}.
+#' }
+#'
+#' @seealso
+#' \code{\link[data.table]{fread}}, \code{\link[data.table]{rbindlist}}
+#'
+#' @import data.table
+#' @export
+import_csv <- function(file,
+                       combine   = TRUE,
+                       file_col  = "_file",
+                       path_col  = NULL,
+                       full_path = FALSE,
+                       keep_ext  = FALSE,
+                       ...) {
+
+  # -- 1. Input validation ----------------------------------------------------
+  if (!is.character(file) || length(file) == 0L || anyNA(file))
+    stop("`file` must be a non-empty character vector without NA.", call. = FALSE)
+  missing_files <- file[!file.exists(file)]
+  if (length(missing_files) > 0L)
+    stop("The following files do not exist or cannot be accessed:\n",
+         paste0("  - ", missing_files, collapse = "\n"), call. = FALSE)
+  .check_flag(combine, "combine")
+  .check_flag(full_path, "full_path")
+  .check_flag(keep_ext, "keep_ext")
+  if (!is.null(file_col) &&
+      (!is.character(file_col) || length(file_col) != 1L ||
+       is.na(file_col) || !nzchar(file_col)))
+    stop("`file_col` must be a single non-empty character string, or NULL.",
+         call. = FALSE)
+  if (!is.null(path_col) &&
+      (!is.character(path_col) || length(path_col) != 1L ||
+       is.na(path_col) || !nzchar(path_col)))
+    stop("`path_col` must be a single non-empty character string, or NULL.",
+         call. = FALSE)
+  if (!is.null(path_col) && identical(path_col, file_col))
+    stop("`file_col` and `path_col` must be different column names.", call. = FALSE)
+
+  # -- 2. Labels --------------------------------------------------------------
+  # .strip_ext() only touches the last path component, so dots in directory
+  # names (e.g. "v1.2/file") are never mistaken for an extension.
+  labels <- if (full_path) file else basename(file)
+  if (!keep_ext) labels <- .strip_ext(labels)
+
+  if (anyDuplicated(labels)) {
+    dup <- unique(labels[duplicated(labels)])
+    warning("Duplicated source label(s): ", paste(dup, collapse = ", "),
+            ". Files with the same name in different folders cannot be told apart; ",
+            "labels were made unique with make.unique(). ",
+            "Consider `path_col` (or `full_path = TRUE`).", call. = FALSE)
+    labels <- make.unique(labels, sep = "_")
+  }
+
+  # -- 3. Read ----------------------------------------------------------------
+  file_list        <- lapply(file, data.table::fread, ...)
+  names(file_list) <- labels
+
+  if (!combine) return(file_list)
+
+  # The tracking columns must not overwrite / duplicate columns of the files.
+  track <- c(file_col, path_col)
+  hit <- vapply(file_list, function(d) any(track %in% names(d)), logical(1L))
+  if (any(hit))
+    stop(sprintf(paste0("Column(s) %s already exist in file(s): %s. ",
+                        "Choose other names via `file_col` / `path_col` (or set them to NULL)."),
+                 paste0("'", intersect(track, unique(unlist(lapply(file_list[hit], names)))),
+                        "'", collapse = ", "),
+                 paste(utils::head(labels[hit], 5L), collapse = ", ")), call. = FALSE)
+
+  # Full, normalised path of every source file (absolute, "/" separators),
+  # e.g. to extract farm / year folders later with get_path_info().
+  if (!is.null(path_col)) {
+    full <- normalizePath(file, winslash = "/", mustWork = TRUE)
+    for (i in seq_along(file_list))
+      data.table::set(file_list[[i]], j = path_col,
+                      value = rep(full[[i]], nrow(file_list[[i]])))
+  }
+  # Empty columns take the type used elsewhere; real conflicts become text.
+  .align_col_types(file_list, labels)
+  out <- data.table::rbindlist(file_list, use.names = TRUE, fill = TRUE,
+                               idcol = file_col)
+  front <- intersect(c(file_col, path_col), names(out))
+  if (length(front)) data.table::setcolorder(out, front)
+  out[]
+}
+```
+
+```{r examples-import_csv}
+# Example: CSV file import demonstrations
+
+# Setup test files
+csv_files <- mintyr_example(
+  mintyr_examples("csv_test")     # Get example CSV files
+)
+
+# Example 1: Import and combine CSV files using data.table
+import_csv(
+  csv_files,                      # Input CSV file paths
+  combine = TRUE,                 # Combine all files into one data.table
+  file_col = "_file",             # Column name for file source
+  keep_ext = TRUE,                # Include .csv extension in _file column
+  full_path = TRUE                # Show complete file paths in _file column
+)
+```
+
+```{r tests-import_csv}
+test_that("import_csv keeps dots in directory names", {
+  d <- file.path(tempdir(), "v1.2")
+  dir.create(d, showWarnings = FALSE)
+  on.exit(unlink(d, recursive = TRUE))
+  f <- file.path(d, c("noext", "data.csv"))
+  data.table::fwrite(data.frame(a = 1), f[1])
+  data.table::fwrite(data.frame(a = 2), f[2])
+  res <- import_csv(f, full_path = TRUE)
+  expect_identical(unique(res[["_file"]]), c(f[1], file.path(d, "data")))
+})
+
+test_that("import_csv warns about duplicated labels and supports combine = FALSE", {
+  d1 <- file.path(tempdir(), "csv_a"); d2 <- file.path(tempdir(), "csv_b")
+  dir.create(d1, showWarnings = FALSE); dir.create(d2, showWarnings = FALSE)
+  on.exit(unlink(c(d1, d2), recursive = TRUE))
+  f <- c(file.path(d1, "x.csv"), file.path(d2, "x.csv"))
+  for (p in f) data.table::fwrite(data.frame(a = 1), p)
+  expect_warning(res <- import_csv(f, combine = FALSE), "Duplicated")
+  expect_identical(names(res), c("x", "x_1"))
+})
+
+test_that("import_csv aligns column types across files", {
+  d <- file.path(tempdir(), "csv_types"); dir.create(d, showWarnings = FALSE)
+  on.exit(unlink(d, recursive = TRUE))
+  f <- file.path(d, c("a.csv", "b.csv", "c.csv"))
+  writeLines(c("id,born", "1,2024-03-01"), f[1])
+  writeLines(c("id,born", "2,"), f[2])                 # empty: read as logical NA
+  expect_silent(res <- import_csv(f[1:2]))
+  expect_s3_class(res$born, "Date")
+  writeLines(c("id,born", "3,2024.3.1"), f[3])         # text
+  expect_warning(res <- import_csv(f), "`born`: date in a; text in c")
+  expect_identical(res$born, c("2024-03-01", NA, "2024.3.1"))
+})
+
+test_that("import_csv path_col keeps the full source path", {
+  root <- file.path(tempdir(), "csv_paths")
+  dir.create(file.path(root, "A", "2024"), recursive = TRUE, showWarnings = FALSE)
+  on.exit(unlink(root, recursive = TRUE))
+  f <- file.path(root, "A", "2024", "x.csv")
+  data.table::fwrite(data.frame(v = 1:2), f)
+  res <- import_csv(f, path_col = "path")
+  expect_identical(names(res), c("_file", "path", "v"))
+  expect_identical(unique(res$path), normalizePath(f, winslash = "/"))
+  expect_identical(unique(get_path_info(res$path, n = -3)), "A")
+  expect_error(import_csv(f, file_col = "p", path_col = "p"), "different")
+})
+
+test_that("import_csv stops when file_col already exists in a file", {
+  f <- tempfile(fileext = ".csv"); on.exit(unlink(f))
+  data.table::fwrite(data.frame(`_file` = "orig", v = 1, check.names = FALSE), f)
+  expect_error(import_csv(f), "already exist")
+  expect_identical(import_csv(f, file_col = "src")$`_file`, "orig")
+})
+```
+
+# Write tables back to Excel: `export_xlsx()`
+
+```{r function-export_xlsx}
+#' Export Data to XLSX Files
+#'
+#' @description
+#' The natural complement to \code{import_xlsx()}.  Accepts either a combined
+#' \code{data.frame} (as produced by \code{import_xlsx()} with
+#' \code{combine = TRUE}) **or a list of data.frames**, and writes the result
+#' to disk.
+#'
+#' The output \strong{destination} is controlled by a single \code{path}
+#' argument -- there are no separate modes to choose:
+#'
+#' \itemize{
+#'   \item \strong{\code{path} ends in \code{.xlsx}} -- write
+#'         \emph{everything into a single workbook}: one sheet per list
+#'         element, or (for \code{data.frame} input) one sheet per
+#'         \code{file_col} / \code{sheet_col} value.
+#'   \item \strong{\code{path} is anything else} -- treat it as a
+#'         \emph{directory} and write \emph{one \code{.xlsx} file per list
+#'         element} or per \code{file_col} value.  For \code{data.frame}
+#'         input that also has a \code{sheet_col} column, each file contains
+#'         one sheet per \code{sheet_col} value, which reproduces the
+#'         original file/sheet layout read by \code{import_xlsx()}.
+#' }
+#'
+#' \subsection{List input}{
+#'   \preformatted{res <- list(res1 = data1, res2 = data2, res3 = data3)
+#'
+#'   # Directory mode -- writes res1.xlsx, res2.xlsx, res3.xlsx
+#'   export_xlsx(res, path = "output/")
+#'
+#'   # Single-file mode -- one workbook with sheets res1, res2, res3
+#'   export_xlsx(res, path = "output/all.xlsx")}
+#'
+#'   Each element must be a \code{data.frame}, \code{data.table}, or
+#'   \code{tibble}; types may be mixed and column sets may differ.  Missing
+#'   names are filled in as \code{Sheet1}, \code{Sheet2}, ...; supplied names
+#'   must be unique.
+#' }
+#'
+#' @param data       A \code{data.frame} / \code{data.table} / \code{tibble},
+#'                   \strong{or} a list of such objects.  For list input,
+#'                   names become file names (directory mode) or sheet names
+#'                   (single-file mode).
+#' @param path       \code{character(1)}.  Output destination.  A path ending
+#'                   in \code{.xlsx} (case-insensitive) is a
+#'                   \strong{single workbook}; anything else is an
+#'                   \strong{output directory}.  Missing directories are
+#'                   created recursively.
+#' @param file_col   \code{character(1)}.  Column identifying the source file
+#'                   (\code{data.frame} input only).  Default
+#'                   \code{"excel_name"}.
+#' @param sheet_col  \code{character(1)}.  Column identifying the source sheet
+#'                   (\code{data.frame} input only).  Default
+#'                   \code{"sheet_name"}.
+#' @param sheet_name \code{character(1)}.  Sheet name used when a
+#'                   \code{data.frame} has neither tracking column.
+#'                   Default \code{"Sheet1"}.
+#' @param drop_cols  \code{logical(1)}.  If \code{TRUE} (default), the
+#'                   tracking columns are removed from the exported sheets
+#'                   (\code{data.frame} input only).
+#' @param overwrite  \code{logical(1)}.  Allow overwriting existing files.
+#'                   When \code{FALSE}, all targets are checked
+#'                   \emph{before} anything is written, so a failure never
+#'                   leaves a partial export behind.  Default \code{TRUE}.
+#' @param verbose    \code{logical(1)}.  Print a message for every file and
+#'                   sheet written.  Default \code{FALSE}.
+#'
+#' @details
+#' \subsection{Why \pkg{writexl}?}{
+#'   \pkg{writexl} writes \code{.xlsx} via a minimal C library with no Java or
+#'   Perl dependency.  It is fast and produces small files, at the cost of no
+#'   cell formatting, formulas, or styles.  For those, use \pkg{openxlsx2}.
+#' }
+#' \subsection{Name sanitisation}{
+#'   Sheet names are limited to 31 characters, may not contain
+#'   \code{[ ] * ? / \\ :}, and may not start or end with an apostrophe.
+#'   File names have characters that are invalid on Windows replaced by
+#'   \code{_}.  If sanitising or truncating makes two names collide
+#'   (Excel compares sheet names case-insensitively), suffixes such as
+#'   \code{_2}, \code{_3} are appended.
+#' }
+#' \subsection{Missing group values}{
+#'   Rows with \code{NA} in \code{file_col} or \code{sheet_col} are not
+#'   dropped: they are exported under the label \code{"NA"} and a warning
+#'   is issued.
+#' }
+#' \subsection{Directory vs. file dispatch}{
+#'   \code{path} is classified purely by its extension.  To use a directory
+#'   whose name ends in \code{.xlsx}, append a trailing slash.
+#' }
+#'
+#' @return Invisibly, a named \code{character} vector of written file paths.
+#'   In directory mode it is named by list element / \code{file_col} value;
+#'   in single-workbook mode it is named by \code{path}.
+#'
+#' @importFrom writexl write_xlsx
+#' @export
+export_xlsx <- function(data,
+                        path,
+                        file_col   = "excel_name",
+                        sheet_col  = "sheet_name",
+                        sheet_name = "Sheet1",
+                        drop_cols  = TRUE,
+                        overwrite  = TRUE,
+                        verbose    = FALSE) {
+
+  # -- 1. Argument validation --------------------------------------------------
+
+  .check_string <- function(x, arg) {
+    if (!is.character(x) || length(x) != 1L || is.na(x) || !nzchar(x))
+      stop(sprintf("`%s` must be a single non-empty character string.", arg),
+           call. = FALSE)
+  }
+  .check_flag <- function(x, arg) {
+    if (!is.logical(x) || length(x) != 1L || is.na(x))
+      stop(sprintf("`%s` must be a single TRUE or FALSE.", arg), call. = FALSE)
+  }
+
+  .check_string(path,       "path")
+  .check_string(file_col,   "file_col")
+  .check_string(sheet_col,  "sheet_col")
+  .check_string(sheet_name, "sheet_name")
+  .check_flag(drop_cols, "drop_cols")
+  .check_flag(overwrite, "overwrite")
+  .check_flag(verbose,   "verbose")
+
+  if (identical(file_col, sheet_col))
+    stop("`file_col` and `sheet_col` must name different columns.",
+         call. = FALSE)
+
+  is_list_input <- is.list(data) && !is.data.frame(data)
+  if (!is_list_input && !is.data.frame(data))
+    stop("`data` must be a data.frame, data.table, tibble, or a list of these.",
+         call. = FALSE)
+
+  if (grepl("\\.(xls|xlsm|xlsb|csv|txt)$", path, ignore.case = TRUE))
+    stop("`path` must end in .xlsx (single workbook) or be a directory; ",
+         "export_xlsx() only writes .xlsx files.", call. = FALSE)
+  to_single_file <- grepl("\\.xlsx$", path, ignore.case = TRUE)
+  if (!to_single_file && file.exists(path) && !dir.exists(path))
+    stop(sprintf("`path` (\"%s\") is an existing file, not a directory.", path),
+         call. = FALSE)
+
+  # -- 2. Helpers --------------------------------------------------------------
+
+  # `.make_unique()` and `.safe_path_segment()` are package-level helpers
+  # shared with export_nest() / export_list().
+
+  # Vectorised: sanitise a set of sheet names that will share one workbook.
+  .safe_sheet <- function(x) {
+    x <- as.character(x)
+    x[is.na(x)] <- "NA"
+    x <- gsub("[][*?/\\\\:]", "_", x)
+    x <- gsub("^'+|'+$", "", x)
+    x <- substr(x, 1L, 31L)
+    x[!nzchar(x)] <- "Sheet"
+    .make_unique(x, 31L)
+  }
+
+  # Vectorised: sanitise a set of file names that will share one directory.
+  .safe_file <- function(x) .make_unique(.safe_path_segment(x), 200L)
+
+  # Check every target up front, then create any missing directories.
+  .prepare_targets <- function(files) {
+    if (!overwrite) {
+      exists <- file.exists(files)
+      if (any(exists))
+        stop(sprintf("File(s) already exist (overwrite = FALSE):\n  %s",
+                     paste(files[exists], collapse = "\n  ")), call. = FALSE)
+    }
+    dirs <- unique(dirname(files))
+    for (d in dirs[!dir.exists(dirs)]) dir.create(d, recursive = TRUE)
+  }
+
+  .write <- function(sheet_list, file) {
+    # Excel holds at most 1,048,576 rows per sheet (one is the header).
+    too_big <- vapply(sheet_list, nrow, integer(1L)) > 1048575L
+    if (any(too_big))
+      stop(sprintf(paste0("Sheet(s) %s exceed Excel's limit of 1,048,575 data ",
+                          "rows. Split the data (e.g. via `sheet_col`) or use ",
+                          "a text format such as data.table::fwrite()."),
+                   paste0("'", names(sheet_list)[too_big], "'", collapse = ", ")),
+           call. = FALSE)
+    writexl::write_xlsx(sheet_list, path = file)
+    if (verbose) {
+      message(sprintf("Saved: %s", file))
+      for (nm in names(sheet_list))
+        message(sprintf("  Sheet '%s': %d rows", nm, nrow(sheet_list[[nm]])))
+    }
+  }
+
+  # -- 3a. List input ----------------------------------------------------------
+
+  if (is_list_input) {
+    if (length(data) == 0L)
+      stop("`data` is an empty list -- nothing to export.", call. = FALSE)
+
+    nms <- names(data)
+    if (is.null(nms)) nms <- rep("", length(data))
+    nms[is.na(nms)] <- ""
+
+    # Fill missing names with Sheet1, Sheet2, ... skipping names already used.
+    missing <- !nzchar(nms)
+    if (any(missing)) {
+      taken   <- nms[!missing]
+      counter <- 0L
+      for (i in which(missing)) {
+        repeat {
+          counter   <- counter + 1L
+          candidate <- paste0("Sheet", counter)
+          if (!candidate %in% taken) break
+        }
+        nms[[i]] <- candidate
+        taken    <- c(taken, candidate)
+      }
+    }
+
+    if (anyDuplicated(nms))
+      stop("List names must be unique (they become file / sheet names).",
+           call. = FALSE)
+
+    not_df <- !vapply(data, is.data.frame, logical(1L))
+    if (any(not_df))
+      stop(sprintf(paste0("All list elements must be a data.frame, ",
+                          "data.table, or tibble. Non-conforming: %s"),
+                   paste(nms[not_df], collapse = ", ")), call. = FALSE)
+
+    data <- lapply(data, as.data.frame)
+
+    if (to_single_file) {
+      names(data) <- .safe_sheet(nms)
+      .prepare_targets(path)
+      .write(data, path)
+      return(invisible(stats::setNames(path, path)))
+    }
+
+    out_paths <- file.path(path, paste0(.safe_file(nms), ".xlsx"))
+    .prepare_targets(out_paths)
+    for (i in seq_along(data))
+      .write(stats::setNames(data[i], .safe_sheet(nms[[i]])), out_paths[[i]])
+    return(invisible(stats::setNames(out_paths, nms)))
+  }
+
+  # -- 3b. data.frame input ----------------------------------------------------
+
+  df         <- as.data.frame(data)
+  has_file   <- file_col  %in% names(df)
+  has_sheet  <- sheet_col %in% names(df)
+  track_cols <- c(if (has_file) file_col, if (has_sheet) sheet_col)
+
+  # Group keys as character; NA rows are kept under the label "NA".
+  .key <- function(col) {
+    k <- as.character(df[[col]])
+    if (anyNA(k)) {
+      warning(sprintf(paste0("%d row(s) have NA in `%s`; they are exported ",
+                             "under the label \"NA\"."),
+                      sum(is.na(k)), col), call. = FALSE)
+      k[is.na(k)] <- "NA"
+    }
+    k
+  }
+  file_key  <- if (has_file)  .key(file_col)
+  sheet_key <- if (has_sheet) .key(sheet_col)
+
+  out_df <- if (drop_cols && length(track_cols))
+    df[, setdiff(names(df), track_cols), drop = FALSE]
+  else
+    df
+
+  # Split row indices by key, preserving order of first appearance.
+  .split_rows <- function(key) split(seq_along(key), factor(key, levels = unique(key)))
+
+  # Build a named sheet list for the given rows, one sheet per label.
+  .sheets_by <- function(rows, labels) {
+    idx <- .split_rows(labels)
+    out <- lapply(idx, function(j) out_df[rows[j], , drop = FALSE])
+    names(out) <- .safe_sheet(names(idx))
+    out
+  }
+
+  all_rows <- seq_len(nrow(df))
+  fallback <- stats::setNames(list(out_df), .safe_sheet(sheet_name))
+
+  ## (1) Single workbook
+  if (to_single_file) {
+    sheet_list <- if (has_file && has_sheet)
+      .sheets_by(all_rows, paste(file_key, sheet_key, sep = "_"))
+    else if (has_file)
+      .sheets_by(all_rows, file_key)
+    else if (has_sheet)
+      .sheets_by(all_rows, sheet_key)
+    else
+      fallback
+    if (!length(sheet_list)) sheet_list <- fallback   # zero-row input
+
+    .prepare_targets(path)
+    .write(sheet_list, path)
+    return(invisible(stats::setNames(path, path)))
+  }
+
+  ## (2) Directory: one file per file_col value
+  if (!has_file)
+    stop(sprintf(paste0("`path` (\"%s\") is a directory, but `data` has no ",
+                        "`%s` column to split files by.\n",
+                        "  Pass a path ending in .xlsx to write a single ",
+                        "workbook instead."),
+                 path, file_col), call. = FALSE)
+
+  file_groups <- .split_rows(file_key)
+  if (!length(file_groups)) {
+    warning("`data` has no rows -- nothing was written.", call. = FALSE)
+    return(invisible(stats::setNames(character(0), character(0))))
+  }
+
+  out_paths <- file.path(path, paste0(.safe_file(names(file_groups)), ".xlsx"))
+  .prepare_targets(out_paths)
+
+  for (i in seq_along(file_groups)) {
+    rows <- file_groups[[i]]
+    sheet_list <- if (has_sheet)
+      .sheets_by(rows, sheet_key[rows])
+    else
+      stats::setNames(list(out_df[rows, , drop = FALSE]),
+                      .safe_sheet(names(file_groups)[[i]]))
+    .write(sheet_list, out_paths[[i]])
+  }
+
+  invisible(stats::setNames(out_paths, names(file_groups)))
+}
+```
+
+```{r example-export_xlsx}
+# Example 1: A plain data.frame -> one workbook, one sheet
+out_file <- file.path(tempdir(), "mtcars.xlsx")
+export_xlsx(mtcars, path = out_file, sheet_name = "mtcars")
+invisible(file.remove(out_file))
+
+# Example 2: data.table input works exactly the same way
+out_file <- file.path(tempdir(), "mtcars_dt.xlsx")
+export_xlsx(data.table::as.data.table(mtcars),
+            path = out_file, sheet_name = "mtcars")
+invisible(file.remove(out_file))
+
+# Example 3: One sheet per group in a single workbook
+# Each Species value becomes a sheet; keep the Species column
+out_file <- file.path(tempdir(), "iris_by_species.xlsx")
+export_xlsx(iris, path = out_file, file_col = "Species", drop_cols = FALSE)
+invisible(file.remove(out_file))
+
+# Example 4: One file per group (directory mode: no .xlsx extension)
+out_dir <- file.path(tempdir(), "iris_by_species")
+out_files <- export_xlsx(iris, path = out_dir, file_col = "Species")
+basename(out_files)
+unlink(out_dir, recursive = TRUE)
+
+# Example 5: Round-trip the layout produced by import_xlsx(combine = TRUE)
+# Rows are routed back to their original file and sheet
+combined <- data.frame(
+  excel_name = c("sales", "sales", "costs"),
+  sheet_name = c("2024",  "2025",  "2024"),
+  amount     = c(100, 120, 80)
+)
+out_dir <- file.path(tempdir(), "roundtrip")
+out_files <- export_xlsx(combined, path = out_dir)   # sales.xlsx, costs.xlsx
+basename(out_files)
+unlink(out_dir, recursive = TRUE)
+
+# Example 6: Named list -> single workbook, one sheet per element
+out_file <- file.path(tempdir(), "combined.xlsx")
+res <- list(res1 = iris, res2 = mtcars)
+export_xlsx(res, path = out_file)
+invisible(file.remove(out_file))
+
+# Example 7: Named list -> directory, one file per element
+out_dir <- file.path(tempdir(), "combined")
+out_files <- export_xlsx(res, path = out_dir)        # res1.xlsx, res2.xlsx
+basename(out_files)
+unlink(out_dir, recursive = TRUE)
+```
+
+```{r tests-export_xlsx}
+test_that("plain data.frame writes a single named sheet", {
+  f <- tempfile(fileext = ".xlsx")
+  on.exit(unlink(f))
+  out <- export_xlsx(mtcars, f, sheet_name = "cars")
+  expect_true(file.exists(f))
+  expect_identical(unname(out), f)
+  expect_identical(readxl::excel_sheets(f), "cars")
+})
+
+test_that("list input: single workbook with auto-filled names", {
+  f <- tempfile(fileext = ".xlsx")
+  on.exit(unlink(f))
+  export_xlsx(list(a = iris, mtcars), f)
+  expect_identical(readxl::excel_sheets(f), c("a", "Sheet1"))
+})
+
+test_that("list input: directory mode writes one file per element", {
+  d <- tempfile()
+  on.exit(unlink(d, recursive = TRUE))
+  out <- export_xlsx(list(res1 = iris, res2 = mtcars), d)
+  expect_identical(names(out), c("res1", "res2"))
+  expect_true(all(file.exists(out)))
+})
+
+test_that("sheet names are sanitised and de-duplicated", {
+  f <- tempfile(fileext = ".xlsx")
+  on.exit(unlink(f))
+  long <- strrep("x", 35)
+  res <- stats::setNames(rep(list(iris), 4),
+                         c("a/b", "a:b", paste0(long, 1), paste0(long, 2)))
+  export_xlsx(res, f)
+  sheets <- readxl::excel_sheets(f)
+  expect_identical(sheets[1:2], c("a_b", "a_b_2"))
+  expect_true(all(nchar(sheets) <= 31))
+  expect_false(anyDuplicated(tolower(sheets)) > 0)
+})
+
+test_that("file_col + sheet_col round-trip into files and sheets", {
+  d <- tempfile()
+  on.exit(unlink(d, recursive = TRUE))
+  df <- data.frame(excel_name = c("a", "a", "b"),
+                   sheet_name = c("s1", "s2", "s1"),
+                   v = c(1, 2, 3))          # Excel stores numbers as double
+  out <- export_xlsx(df, d)
+  expect_identical(basename(out), c("a.xlsx", "b.xlsx"))
+  expect_identical(readxl::excel_sheets(out[["a"]]), c("s1", "s2"))
+  back <- as.data.frame(import_xlsx(out))
+  back <- back[order(back$v), names(df)]
+  rownames(back) <- NULL
+  expect_equal(back, df)
+})
+
+test_that("NA group values are kept with a warning", {
+  d <- tempfile()
+  on.exit(unlink(d, recursive = TRUE))
+  df <- data.frame(excel_name = c("a", NA), v = 1:2)
+  expect_warning(out <- export_xlsx(df, d), "NA")
+  expect_identical(basename(out), c("a.xlsx", "NA.xlsx"))
+})
+
+test_that("overwrite = FALSE fails before writing anything", {
+  d <- tempfile()
+  on.exit(unlink(d, recursive = TRUE))
+  dir.create(d)
+  file.create(file.path(d, "res2.xlsx"))
+  expect_error(export_xlsx(list(res1 = iris, res2 = mtcars), d, overwrite = FALSE),
+               "overwrite = FALSE")
+  expect_false(file.exists(file.path(d, "res1.xlsx")))
+})
+
+test_that("invalid inputs give informative errors", {
+  f <- tempfile(fileext = ".xlsx")
+  expect_error(export_xlsx(1:3, f), "`data` must be")
+  expect_error(export_xlsx(list(), f), "empty list")
+  expect_error(export_xlsx(list(a = 1), f), "Non-conforming: a")
+  expect_error(export_xlsx(mtcars, c("a.xlsx", "b.xlsx")), "`path`")
+  expect_error(export_xlsx(mtcars, f, verbose = NA), "`verbose`")
+  expect_error(export_xlsx(mtcars, tempfile()), "no `excel_name` column")
+  expect_error(export_xlsx(mtcars, f, file_col = "x", sheet_col = "x"),
+               "different columns")
+  expect_error(export_xlsx(mtcars, file.path(tempdir(), "a.xls")), "only writes .xlsx")
+})
+```
+
+  
+
+# Write a nested table to folders: `export_nest()`
+    
+```{r function-export_nest}
+#' Export Nested Data Structures with Hierarchical Directory Organization
+#'
+#' @description
+#' Exports list-columns containing \code{data.frame} or \code{data.table} objects from a
+#' \code{data.frame}/\code{data.table} to \code{txt} or \code{csv} files, automatically
+#' constructing a hierarchical directory structure from non-nested columns.
+#' Exportable nested columns (those holding \code{data.frame}/\code{data.table} elements)
+#' are distinguished from non-exportable custom-object columns (e.g. fitted model
+#' objects); only the former are written to disk by default.
+#'
+#' @param data        A \code{data.frame} or \code{data.table} containing at least one
+#'   nested list-column. Must have one or more rows.
+#' @param by          Optional character vector of column names used to build the
+#'   hierarchical output directory structure. When \code{NULL} (default), all non-nested
+#'   columns are used automatically.
+#' @param cols        Optional character vector of nested column names to export. When
+#'   \code{NULL} (default), all columns whose elements are \code{data.frame}/\code{data.table}
+#'   objects are exported automatically; custom-object list-columns are reported and skipped.
+#'   Specifying a non-\code{data.frame} column triggers a warning and that column is skipped.
+#' @param path        Single character string specifying the root export directory.
+#'   Defaults to \code{tempdir()}. Created recursively if it does not exist.
+#' @param file_type   Either \code{"txt"} (tab-separated, default) or \code{"csv"}
+#'   (comma-separated). Case-insensitive.
+#' @param na          Single string written for missing values. Default \code{"NA"}
+#'   (\code{fwrite}'s own default, an empty field, breaks whitespace-delimited
+#'   readers). Use e.g. \code{"-9999"} for DMU.
+#' @param quote       Passed to \code{\link[data.table]{fwrite}}. Default
+#'   \code{FALSE}: with a non-empty \code{na}, \code{fwrite}'s \code{"auto"}
+#'   would quote every header and character field, which command-line
+#'   breeding programs (HIBLUP, DMU, ...) cannot parse. Use \code{"auto"} if
+#'   values may contain the separator.
+#' @param ...         Further arguments passed to \code{\link[data.table]{fwrite}}
+#'   (e.g. \code{col.names = FALSE} for software that expects no header).
+#'
+#' @return An invisible \code{character} vector of the files written
+#'   (length 0 when nothing was written).
+#'
+#' @details
+#' **Nested column classification (mutually exclusive):**
+#' \itemize{
+#'   \item \emph{Exportable} — every element inherits from \code{data.frame} or \code{data.table}.
+#'   \item \emph{Non-exportable} — empty lists or elements of any other class
+#'     (e.g. model objects). Reported to the console; never written.
+#' }
+#'
+#' **Directory layout:**
+#' \code{path / <group1_value> / <group2_value> / <nest_col_name>.<file_type>}
+#'
+#' Group values are sanitised (characters that are invalid in file names,
+#' such as slashes, colons or asterisks, become underscores), so they can
+#' never create extra directory levels. The
+#' grouping columns must identify every row uniquely; otherwise rows would
+#' overwrite each other's files and the function stops with an error listing
+#' the duplicated targets.
+#'
+#' **Performance notes:**
+#' \itemize{
+#'   \item Row data is accessed via \code{.subset2()} (zero-copy column access) rather than
+#'     \code{data[i]}, eliminating per-row \code{data.table} allocation in the hot loop.
+#'   \item All output directory paths are pre-computed in a single vectorised
+#'     \code{do.call(file.path, ...)} call; only the unique directories are created.
+#'   \item The field separator and output filenames are computed once before the loop.
+#' }
+#'
+#' @seealso \code{\link[data.table]{fwrite}}
+#'
+#' @importFrom data.table is.data.table as.data.table fwrite
+#' @export
+export_nest <- function(data,
+                        by        = NULL,
+                        cols      = NULL,
+                        path      = tempdir(),
+                        file_type = "txt",
+                        na        = "NA",
+                        quote     = FALSE,
+                        ...) {
+  # Internally the long, explicit names are used for readability.
+  nest_dt     <- data
+  group_cols  <- by
+  nest_cols   <- cols
+  export_path <- path
+
+  # -- 1. Validation (fail fast) ------------------------------------------------
+  if (!is.data.frame(nest_dt))
+    stop("`data` must be a data.frame or data.table.", call. = FALSE)
+  if (!data.table::is.data.table(nest_dt))
+    nest_dt <- data.table::as.data.table(nest_dt)
+  if (nrow(nest_dt) == 0L)
+    stop("`data` must not be empty (nrow == 0).", call. = FALSE)
+  if (!is.character(export_path) || length(export_path) != 1L || is.na(export_path))
+    stop("`path` must be a single non-NA character string.", call. = FALSE)
+  if (!is.character(na) || length(na) != 1L || is.na(na))
+    stop("`na` must be a single character string, e.g. \"NA\" or \"-9999\".",
+         call. = FALSE)
+  file_type <- .check_choice(tolower(trimws(file_type)), c("txt", "csv"), "file_type")
+  sep  <- if (file_type == "txt") "\t" else ","
+  dots <- list(...)
+  .check_fwrite_dots(dots, "export_nest")
+
+  # -- 2. Classify list-columns -------------------------------------------------
+  .is_df_list_col <- function(x) {
+    if (!is.list(x) || length(x) == 0L) return(FALSE)
+    all(vapply(x, function(e) is.null(e) || is.data.frame(e), logical(1L))) &&
+      any(vapply(x, is.data.frame, logical(1L)))
+  }
+  all_list_cols <- names(nest_dt)[vapply(nest_dt, is.list, logical(1L))]
+  if (length(all_list_cols) == 0L)
+    stop("`data` contains no list-columns (nested columns).", call. = FALSE)
+  df_nested_cols  <- all_list_cols[vapply(nest_dt[, all_list_cols, with = FALSE],
+                                          .is_df_list_col, logical(1L))]
+  other_list_cols <- setdiff(all_list_cols, df_nested_cols)
+
+  # -- 3. Resolve nested columns to export -------------------------------------
+  if (is.null(nest_cols)) {
+    if (length(df_nested_cols) == 0L)
+      stop("No data.frame/data.table nested columns found. Specify `cols` ",
+           "explicitly or convert list-column elements first.", call. = FALSE)
+    nest_cols <- df_nested_cols
+    message("[ export_nest ] Auto-selected nested columns: ",
+            paste(nest_cols, collapse = ", "))
+    if (length(other_list_cols) > 0L)
+      message("[ export_nest ] Skipping columns holding custom objects ",
+              "(cannot be written as txt/csv): ",
+              paste(other_list_cols, collapse = ", "))
+  } else {
+    if (!is.character(nest_cols) || length(nest_cols) == 0L)
+      stop("`cols` must be a non-empty character vector.", call. = FALSE)
+    invalid_cols <- setdiff(nest_cols, names(nest_dt))
+    if (length(invalid_cols) > 0L)
+      stop("Column(s) in `cols` not found in `data`: ",
+           paste(invalid_cols, collapse = ", "), call. = FALSE)
+    non_df_cols <- setdiff(nest_cols, df_nested_cols)
+    if (length(non_df_cols) > 0L) {
+      warning("Column(s) not holding data.frame/data.table objects will be skipped: ",
+              paste(non_df_cols, collapse = ", "), call. = FALSE)
+      nest_cols <- intersect(nest_cols, df_nested_cols)
+    }
+    if (length(nest_cols) == 0L)
+      stop("No valid data.frame/data.table columns remain after filtering.",
+           call. = FALSE)
+  }
+
+  # -- 4. Resolve grouping columns ----------------------------------------------
+  if (is.null(group_cols)) {
+    group_cols <- setdiff(names(nest_dt), all_list_cols)
+    message("[ export_nest ] ",
+            if (length(group_cols)) paste0("Auto-selected grouping columns: ",
+                                           paste(group_cols, collapse = ", "))
+            else "No grouping columns found; writing to the root export path.")
+  } else {
+    if (!is.character(group_cols) || length(group_cols) == 0L)
+      stop("`by` must be a non-empty character vector (or NULL).", call. = FALSE)
+    missing_cols <- setdiff(group_cols, names(nest_dt))
+    if (length(missing_cols) > 0L)
+      stop("Column(s) in `by` not found in `data`: ",
+           paste(missing_cols, collapse = ", "), call. = FALSE)
+    bad_type <- intersect(group_cols, all_list_cols)
+    if (length(bad_type) > 0L)
+      stop("`by` must not contain list-columns: ",
+           paste(bad_type, collapse = ", "), call. = FALSE)
+  }
+
+  # -- 5. Directory paths (vectorised, sanitised) -------------------------------
+  # Group values are sanitised so that "/", "..", ":" etc. can never create
+  # unexpected directory levels or invalid file names.
+  if (length(group_cols) > 0L) {
+    segs <- lapply(nest_dt[, group_cols, with = FALSE], .safe_path_segment)
+    group_paths <- do.call(file.path, c(list(export_path), unname(segs)))
+  } else {
+    group_paths <- rep(export_path, nrow(nest_dt))
+  }
+
+  # Each row writes <dir>/<nest_col>.<ext>; identical directories would make
+  # rows overwrite each other's files, so this is an error, not a silent loss.
+  # The comparison is case-insensitive because Windows/macOS file systems are.
+  dup <- duplicated(tolower(group_paths))
+  if (any(dup))
+    stop("`by` (", if (length(group_cols)) paste(group_cols, collapse = ", ")
+         else "none", ") do not uniquely identify the rows of `data`, so files ",
+         "would overwrite each other. Duplicated target(s):\n  ",
+         paste(utils::head(unique(group_paths[dup]), 5L), collapse = "\n  "),
+         "\nAdd more columns to `by`.", call. = FALSE)
+
+  for (d in unique(group_paths)) dir.create(d, showWarnings = FALSE, recursive = TRUE)
+  not_created <- unique(group_paths)[!dir.exists(unique(group_paths))]
+  if (length(not_created) > 0L)
+    stop("Could not create directory/directories:\n  ",
+         paste(not_created, collapse = "\n  "), call. = FALSE)
+
+  # -- 6. Write ---------------------------------------------------------------
+  filenames <- stats::setNames(paste0(.safe_path_segment(nest_cols), ".", file_type),
+                               nest_cols)
+  written <- character(0L)
+
+  for (i in seq_len(nrow(nest_dt))) {
+    for (col_name in nest_cols) {
+      elem <- .subset2(nest_dt, col_name)[[i]]          # zero-copy access
+      if (is.null(elem) || nrow(elem) == 0L) next       # nothing to write
+      file_path <- file.path(group_paths[i], filenames[[col_name]])
+      ok <- tryCatch({
+        do.call(data.table::fwrite,
+                c(list(x = elem, file = file_path, sep = sep, na = na, quote = quote),
+                  dots))
+        TRUE
+      }, error = function(e) {
+        warning(sprintf("[ export_nest ] Failed to export column '%s' at row %d: %s",
+                        col_name, i, conditionMessage(e)), call. = FALSE)
+        FALSE
+      })
+      if (ok) written <- c(written, file_path)
+    }
+  }
+
+  message(sprintf("[ export_nest ] Export complete. %d file(s) written to: %s",
+                  length(written), export_path))
+  invisible(written)
+}
+```
+
+```{r example-export_nest}
+# Example: Basic nested data export workflow
+# A dedicated sub-folder of tempdir() keeps the clean-up safe
+out_dir <- file.path(tempdir(), "mintyr_export_nest")
+
+# Step 1: Create nested data structure
+dt_nest <- w2l_nest(
+  data = iris,              # Input iris dataset
+  cols = 1:2,               # Columns to be nested
+  by = "Species"            # Grouping variable
+)
+
+# Step 2: Export nested data to files
+files <- export_nest(
+  data = dt_nest,                    # Input nested data.table
+  cols = "data",                     # Column containing nested data
+  by = c("name", "Species"),         # Columns to create directory structure
+  path = out_dir
+)
+# Returns (invisibly) the paths of the written files
+# Directory structure: out_dir/<name>/<Species>/data.txt
+files
+
+# Clean up
+unlink(out_dir, recursive = TRUE)
+```
+
+```{r tests-export_nest}
+test_that("export_nest writes one file per row and returns the paths", {
+  out <- file.path(tempdir(), "test_export_nest")
+  on.exit(unlink(out, recursive = TRUE))
+  nd <- w2l_nest(iris, cols = 1:2, by = "Species")
+  files <- suppressMessages(export_nest(nd, path = out))
+  expect_length(files, 6L)
+  expect_true(all(file.exists(files)))
+})
+
+test_that("export_nest refuses to overwrite files of other rows", {
+  out <- file.path(tempdir(), "test_export_nest_dup")
+  on.exit(unlink(out, recursive = TRUE))
+  nd <- w2l_nest(iris, cols = 1:2, by = "Species")
+  expect_error(suppressMessages(export_nest(nd, by = "Species", path = out)),
+               "uniquely identify")
+})
+
+test_that("export_nest sanitises group values", {
+  out <- file.path(tempdir(), "test_export_nest_safe")
+  on.exit(unlink(out, recursive = TRUE))
+  nd <- data.table::data.table(g = c("a/b", ".."), data = list(iris[1:2, ], iris[3:4, ]))
+  files <- suppressMessages(export_nest(nd, path = out))
+  expect_identical(basename(dirname(files)), c("a_b", "unnamed"))
+})
+
+test_that("export_nest writes plain, unquoted text with explicit NA", {
+  out <- file.path(tempdir(), "test_export_nest_na")
+  on.exit(unlink(out, recursive = TRUE))
+  nd <- data.table::data.table(g = "x", data = list(data.frame(a = c(1, NA), b = c("u", "v"))))
+  f <- suppressMessages(export_nest(nd, path = out))
+  expect_identical(readLines(f), c("a\tb", "1\tu", "NA\tv"))
+  f <- suppressMessages(export_nest(nd, path = out, na = "-9999", col.names = FALSE))
+  expect_identical(readLines(f), c("1\tu", "-9999\tv"))
+  expect_error(suppressMessages(export_nest(nd, path = out, sep = ";")), "dedicated")
+})
+```
+
+# Write a list of tables to files: `export_list()`
+    
+```{r function-export_list}
+#' Export a List of Data Frames with Hierarchical Directory Management
+#'
+#' @description
+#' Exports every element of a named (or unnamed) \code{list} of \code{data.frame} /
+#' \code{data.table} objects to \code{txt} or \code{csv} files.  Element names may
+#' contain forward-slashes (\code{/}) to encode arbitrary subdirectory depth, e.g.
+#' \code{"group_a/subject_01/results"} writes
+#' \code{<path>/group_a/subject_01/results.txt}.
+#' Unnamed elements are automatically labelled \code{split_<i>}.
+#'
+#' @param data        A non-empty \code{list} whose elements are \code{data.frame},
+#'   \code{data.table}, or any object coercible via \code{data.table::as.data.table()}.
+#' @param path        Single character string - the root export directory.
+#'   Created recursively if absent. Defaults to \code{tempdir()}.
+#' @param file_type   \code{"txt"} (tab-separated, default) or \code{"csv"}
+#'   (comma-separated). Case-insensitive.
+#' @param na          Single string written for missing values. Default \code{"NA"}.
+#'   Use e.g. \code{"-9999"} for DMU.
+#' @param quote       Passed to \code{\link[data.table]{fwrite}}. Default
+#'   \code{FALSE}: with a non-empty \code{na}, \code{fwrite}'s \code{"auto"}
+#'   would quote every header and character field, which command-line
+#'   breeding programs (HIBLUP, DMU, ...) cannot parse. Use \code{"auto"} if
+#'   values may contain the separator.
+#' @param ...         Further arguments passed to \code{\link[data.table]{fwrite}}
+#'   (e.g. \code{col.names = FALSE}).
+#'
+#' @return An invisible named \code{character} vector of the file paths
+#'   written, with length equal to the number of successfully exported elements.
+#'   The total count is accessible via \code{length()} on the return value.
+#'
+#' @details
+#' **Performance design:**
+#' \itemize{
+#'   \item All element names are resolved and path components split in a single
+#'     vectorised pass \emph{before} the write loop, so no string work occurs
+#'     inside the hot path.
+#'   \item Unique subdirectories are collected and created in one batch
+#'     (\code{k} \code{dir.create()} syscalls, where \code{k} \eqn{\le} \code{n}).
+#'   \item The field separator is resolved once at function entry.
+#'   \item \code{as.data.table()} on an existing \code{data.table} is a
+#'     reference-pass (no copy).
+#' }
+#'
+#' **Name handling:** each \code{/}-separated component of an element name is
+#' sanitised separately (invalid characters become \code{_}; \code{..} cannot
+#' escape \code{path}). If two elements map to the same file
+#' (compared case-insensitively), the function stops instead of overwriting.
+#'
+#' **Error handling:**
+#' Individual element failures emit a \code{warning} and are skipped; the
+#' remaining elements continue to be processed.
+#'
+#' @seealso \code{\link[data.table]{fwrite}}
+#'
+#' @importFrom data.table is.data.table as.data.table fwrite
+#' @export
+export_list <- function(data,
+                        path      = tempdir(),
+                        file_type = "txt",
+                        na        = "NA",
+                        quote     = FALSE,
+                        ...) {
+  split_dt    <- data
+  export_path <- path
+
+  # -- 1. Validation (fail fast) ------------------------------------------------
+  # A data.frame is a list too; without this check each column would be
+  # written as a separate file.
+  if (!is.list(split_dt) || is.data.frame(split_dt))
+    stop("`data` must be a list of data.frame / data.table objects ",
+         "(wrap a single table in list()).", call. = FALSE)
+  if (length(split_dt) == 0L) {
+    message("[ export_list ] `data` is empty - nothing to export.")
+    return(invisible(character(0L)))
+  }
+  not_df <- !vapply(split_dt, is.data.frame, logical(1L))
+  if (any(not_df))
+    stop("All elements of `data` must be data.frames or data.tables. ",
+         "Invalid element(s) at index: ", paste(which(not_df), collapse = ", "),
+         call. = FALSE)
+  if (!is.character(export_path) || length(export_path) != 1L || is.na(export_path))
+    stop("`path` must be a single non-NA character string.", call. = FALSE)
+  if (!is.character(na) || length(na) != 1L || is.na(na))
+    stop("`na` must be a single character string, e.g. \"NA\" or \"-9999\".",
+         call. = FALSE)
+  file_type <- .check_choice(tolower(trimws(file_type)), c("txt", "csv"), "file_type")
+  sep  <- if (file_type == "txt") "\t" else ","
+  dots <- list(...)
+  .check_fwrite_dots(dots, "export_list")
+
+  # -- 2. Element names -> sanitised relative paths -----------------------------
+  n         <- length(split_dt)
+  raw_names <- names(split_dt)
+  if (is.null(raw_names)) raw_names <- rep("", n)
+  raw_names[is.na(raw_names)] <- ""
+  elem_names <- ifelse(nzchar(raw_names), raw_names, paste0("split_", seq_len(n)))
+
+  # "/" in a name encodes sub-directories; each component is sanitised on its
+  # own, and empty components ("a//b", leading "/") are dropped.
+  rel_paths <- vapply(strsplit(elem_names, "/", fixed = TRUE), function(p) {
+    p <- p[nzchar(p)]
+    if (length(p) == 0L) p <- "unnamed"
+    paste(.safe_path_segment(p), collapse = "/")
+  }, character(1L))
+  full_paths <- file.path(export_path, paste0(rel_paths, ".", file_type))
+
+  dup <- duplicated(tolower(full_paths))
+  if (any(dup))
+    stop("Several list elements map to the same output file and would ",
+         "overwrite each other:\n  ",
+         paste(utils::head(unique(full_paths[dup]), 5L), collapse = "\n  "),
+         "\nMake the list names unique.", call. = FALSE)
+
+  # -- 3. Directories (one call per unique directory) ---------------------------
+  all_dirs <- unique(c(export_path, dirname(full_paths)))
+  for (d in all_dirs) dir.create(d, showWarnings = FALSE, recursive = TRUE)
+  not_created <- all_dirs[!dir.exists(all_dirs)]
+  if (length(not_created) > 0L)
+    stop("Could not create directory/directories:\n  ",
+         paste(not_created, collapse = "\n  "), call. = FALSE)
+
+  # -- 4. Write ---------------------------------------------------------------
+  written <- rep(FALSE, n)
+  for (i in seq_len(n)) {
+    elem <- split_dt[[i]]
+    if (nrow(elem) == 0L) next                         # nothing to write
+    written[i] <- tryCatch({
+      do.call(data.table::fwrite,
+              c(list(x = elem, file = full_paths[i], sep = sep, na = na, quote = quote),
+                dots))
+      TRUE
+    }, error = function(e) {
+      warning(sprintf("[ export_list ] Failed to export element %d ('%s'): %s",
+                      i, elem_names[i], conditionMessage(e)), call. = FALSE)
+      FALSE
+    })
+  }
+
+  out <- stats::setNames(full_paths[written], elem_names[written])
+  message(sprintf("[ export_list ] Export complete. %d / %d file(s) written to: %s",
+                  sum(written), n, export_path))
+  invisible(out)
+}
+```
+  
+```{r example-export_list}
+# Example: Export split data to files
+out_dir <- file.path(tempdir(), "mintyr_export_list")
+
+# Step 1: Create split data structure
+dt_split <- w2l_split(
+  data = iris,              # Input iris dataset
+  cols = 1:2,               # Columns to be split
+  by = "Species"            # Grouping variable
+)
+
+# Step 2: Export split data to files
+files <- export_list(
+  data = dt_split,          # Input list of data.tables
+  path = out_dir
+)
+# Returns (invisibly) a named vector of the written file paths
+files
+
+# Clean up
+unlink(out_dir, recursive = TRUE)
+```
+
+```{r tests-export_list}
+test_that("export_list writes named files and sub-directories", {
+  out <- file.path(tempdir(), "test_export_list")
+  on.exit(unlink(out, recursive = TRUE))
+  files <- suppressMessages(export_list(list("g1/a" = iris, b = mtcars), path = out))
+  expect_identical(names(files), c("g1/a", "b"))
+  expect_identical(files[["g1/a"]], file.path(out, "g1", "a.txt"))
+  expect_true(all(file.exists(files)))
+})
+
+test_that("export_list rejects a data.frame and duplicated targets", {
+  out <- file.path(tempdir(), "test_export_list_err")
+  on.exit(unlink(out, recursive = TRUE))
+  expect_error(export_list(iris, path = out), "list of")
+  expect_error(suppressMessages(export_list(list(a = iris, A = iris), path = out)),
+               "same output file")
+})
+
+test_that("export_list cannot escape the export directory", {
+  out <- file.path(tempdir(), "test_export_list_safe")
+  on.exit(unlink(out, recursive = TRUE))
+  f <- suppressMessages(export_list(list("../x" = iris), path = out))
+  expect_identical(f[[1]], file.path(out, "unnamed", "x.txt"))
+})
+```
+
+```{r development-inflate, eval=FALSE}
+# Run in the console. After the first inflate of every flat,
+# fusen::inflate_all() rebuilds the whole package in one go.
+fusen::inflate(
+  flat_file     = "dev/flat_import_export.Rmd",
+  vignette_name = "Import and export",
+  overwrite     = TRUE,
+  check         = FALSE,
+  open_vignette = FALSE
+)
+```

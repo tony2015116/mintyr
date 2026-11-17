@@ -39,3 +39,16 @@ test_that("top_perc validates its arguments", {
   expect_error(top_perc(iris, 0.1, "Species"), "numeric")
   expect_error(top_perc(iris, 0.1), "Missing required")
 })
+
+test_that("top_perc is not off by one through floating-point rounding", {
+  d <- data.frame(x = 1:100)
+  res <- top_perc(d, perc = c(0.29, 0.57, 0.58, -0.29), cols = "x")
+  expect_identical(res$n, c(29L, 57L, 58L, 29L))
+})
+
+test_that("top_perc rejects column names that clash with its result", {
+  d <- data.frame(g = rep(1:2, 10), value = 1:20, w = 1:20)
+  expect_error(top_perc(d, 0.2, cols = "w", by = "g", keep_data = TRUE), "'value'")
+  d2 <- data.frame(n = rep(1:2, 10), w = 1:20)
+  expect_error(top_perc(d2, 0.2, cols = "w", by = "n"), "'n'")
+})

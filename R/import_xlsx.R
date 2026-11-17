@@ -396,6 +396,13 @@ import_xlsx <- function(file,
         if (!all(keep)) dt <- dt[keep]
       }
     }
+    # Tracking columns must not silently overwrite columns of the sheet.
+    track <- c(if (need_excel) file_col, if (need_sheet) sheet_col, if (need_path) path_col)
+    clash <- intersect(track, names(dt))
+    if (length(clash))
+      stop("column(s) ", paste0("'", clash, "'", collapse = ", "), " already exist in ",
+           "the sheet; choose other names via `file_col` / `sheet_col` / `path_col` ",
+           "(or set them to NULL)")
     if (need_excel) data.table::set(dt, j = file_col,  value = rep(tk$base,  nrow(dt)))
     if (need_sheet) data.table::set(dt, j = sheet_col, value = rep(tk$sheet, nrow(dt)))
     if (need_path)  data.table::set(dt, j = path_col,  value = rep(tk$full,  nrow(dt)))

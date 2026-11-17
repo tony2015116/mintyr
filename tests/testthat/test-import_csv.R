@@ -46,3 +46,10 @@ test_that("import_csv path_col keeps the full source path", {
   expect_identical(unique(get_path_info(res$path, n = -3)), "A")
   expect_error(import_csv(f, file_col = "p", path_col = "p"), "different")
 })
+
+test_that("import_csv stops when file_col already exists in a file", {
+  f <- tempfile(fileext = ".csv"); on.exit(unlink(f))
+  data.table::fwrite(data.frame(`_file` = "orig", v = 1, check.names = FALSE), f)
+  expect_error(import_csv(f), "already exist")
+  expect_identical(import_csv(f, file_col = "src")$`_file`, "orig")
+})

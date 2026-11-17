@@ -262,3 +262,15 @@ test_that("desc_stats total with fmt keeps count-only templates", {
   expect_error(desc_stats(mtcars, cols = c("mpg", "wt"), stats = "n", total = TRUE,
                           labels = c(wt = "Total")), "variable name")
 })
+
+test_that("desc_stats rejects by columns named like statistics", {
+  d <- data.frame(n = rep(1:2, 5), y = 1:10)
+  expect_error(desc_stats(d, cols = "y", by = "n", type = "mean"), "'n'")
+  d2 <- data.frame(q50 = rep(1:2, 5), y = 1:10)
+  expect_error(desc_stats(d2, cols = "y", by = "q50", type = "quantile"), "'q50'")
+})
+
+test_that("desc_stats fmt shows values rounding to zero without a minus sign", {
+  d <- data.frame(y = c(-0.001, -0.002, -0.003))
+  expect_identical(desc_stats(d, cols = "y", fmt = c(m = "{mean:2}"))$m, "0.00")
+})

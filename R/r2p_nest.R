@@ -107,6 +107,9 @@ r2p_nest <- function(data,
          "values into counts. Check for duplicated records or supply a more ",
          "specific `id`.", call. = FALSE)
 
+  if (anyNA(dt[[names_from]]))
+    warning("`names_from` (", names_from, ") contains NA; those rows become a ",
+            "column named 'NA' in every nested table.", call. = FALSE)
   clash <- intersect(as.character(unique(dt[[names_from]])), id)
   if (length(clash) > 0L)
     stop("Value(s) of `names_from` coincide with `id` column name(s): ",

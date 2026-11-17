@@ -41,3 +41,9 @@ test_that("masking with validate_idx leaves the nested data untouched", {
 test_that("nest_cv validates its input", {
   expect_error(nest_cv(iris), "no nested")
 })
+
+test_that("nest_cv rejects grouping columns named like CV columns", {
+  nd <- data.table::data.table(id = c("A", "B"),
+                               data = list(data.frame(y = 1:20), data.frame(y = 1:20)))
+  expect_error(nest_cv(nd, v = 5, seed = 1), "'id'")
+})

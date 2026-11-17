@@ -1,9 +1,8 @@
 Package: mintyr
 Title: Grouped and Nested Data Pipelines Built on 'data.table'
-Version: 0.2.1
+Version: 0.2.2
 Authors@R: c(
-    person("Guo Meng", , , "tony2015116@163.com", role = c("aut", "cre")),
-    person("Guo Meng", role = "cph")
+    person("Guo Meng", , , "tony2015116@163.com", role = c("aut", "cre", "cph"))
   )
 Description: A toolkit for grouped and nested data pipelines built on
     'data.table': import many Excel / CSV files (including multi-row

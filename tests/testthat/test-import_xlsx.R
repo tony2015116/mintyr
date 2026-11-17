@@ -197,3 +197,10 @@ test_that("import_xlsx on_error controls failing files and sheets", {
   expect_identical(unique(res$sheet_name), "ok")
   expect_error(import_xlsx(g, col_types = c("numeric", "numeric")), "1 of 2 sheet")
 })
+
+test_that("import_xlsx does not overwrite an existing tracking column", {
+  f <- tempfile(fileext = ".xlsx"); on.exit(unlink(f))
+  writexl::write_xlsx(list(s1 = data.frame(sheet_name = "orig", v = 1)), f)
+  expect_error(import_xlsx(f), "already exist")
+  expect_identical(import_xlsx(f, sheet_col = "src_sheet")$sheet_name, "orig")
+})

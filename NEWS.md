@@ -1,3 +1,37 @@
+# mintyr 0.2.2
+
+## Bug fixes
+
+* `top_perc()` no longer selects one record too few when `N * perc` is a
+  whole number that floating-point arithmetic puts just below it (e.g. top
+  29% of 100 records returned 28 instead of 29; also 57%, 58%, ...). The
+  number selected is now documented as `floor(N * abs(perc))`.
+* `nest_cv()` stops with a clear error when a non-nested column is called
+  `id`, `id2`, `train_idx`, `validate_idx`, `train` or `validate`, instead of
+  returning a table with two columns of the same name.
+* `w2l_split()` stops when two groups would get the same list name because
+  the key values contain `sep` (e.g. `"a_b" + "c"` and `"a" + "b_c"`);
+  previously the duplicated names made a later `export_list()` fail.
+* `import_csv()` / `import_xlsx()` with `combine = TRUE` stop with a clear
+  message when a file / sheet already has a column named like `file_col`,
+  `sheet_col` or `path_col`. `import_csv()` used to fail with an obscure
+  `setcolorder()` error and `import_xlsx()` overwrote the column silently.
+* `desc_stats()` stops with a clear message when a `by` column is named like
+  a statistic (`n`, `mean`, `q25`, ...) instead of failing inside
+  `setcolorder()`.
+* `top_perc()` stops when a `by` column (or, with `keep_data = TRUE`, any
+  kept column) is named `variable` / `value`, or a `by` column is named like
+  a statistic; previously the column was renamed silently or the call failed.
+* `format_digits()` and `desc_stats(fmt = )` show small negative values that
+  round to zero as `"0.00"` instead of `"-0.00"`.
+* `r2p_nest()` warns when `names_from` contains `NA` (those rows become a
+  column named `NA`).
+
+## Internal
+
+* `DESCRIPTION`: the author is listed once (roles `aut`, `cre`, `cph`).
+* `dev/.gitignore` no longer ignores the fusen flat files (`*.Rmd`).
+
 # mintyr 0.2.1
 
 ## Bug fixes

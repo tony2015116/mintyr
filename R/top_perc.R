@@ -34,6 +34,8 @@
 #' }
 #'
 #' @details
+#' The number of records selected in a group of \eqn{N} non-missing records
+#' is \code{floor(N * abs(perc))} (e.g. 29 of 100 for \code{perc = 0.29}).
 #' Ranking uses \code{ties.method = "min"}, so tied values at the cut-off are
 #' all selected and slightly more than the requested share can be returned.
 #' Missing values are removed before ranking. Groups with fewer than
@@ -110,6 +112,10 @@ top_perc <- function(data, perc, cols, by = NULL, keep_data = FALSE,
   # Only the grouping columns are carried along unless the selected rows are
   # requested, which keeps the long table small for wide inputs.
   id_cols <- if (keep_data) setdiff(names(dt), trait) else if (is.null(by)) character(0L) else by
+  .check_reserved(id_cols, c("variable", "value"), "top_perc",
+                  if (keep_data) "Columns kept with `keep_data = TRUE`" else "`by` column(s)")
+  .check_reserved(by, c(stats, "selection", ".variable", ".var_ord"), "top_perc",
+                  "`by` column(s)", "they would clash with the result columns")
   dt_long <- data.table::melt(
     dt,
     id.vars         = id_cols,
@@ -128,15 +134,18 @@ top_perc <- function(data, perc, cols, by = NULL, keep_data = FALSE,
     abs_p <- abs(p)
 
     # Groups too small for this percentage would select nothing at all.
-    small <- grp_size[N * abs_p < 1]
+    # The cut-off is a whole number of records; the small tolerance keeps
+    # floating-point products such as 0.29 * 100 = 28.999999999999996 from
+    # losing a record.
+    small <- grp_size[.n_select(N, abs_p) < 1]
     if (nrow(small) > 0L)
       warning(sprintf(paste0("perc = %s: %d group(s) have fewer than %d non-missing ",
                              "records, so no record is selected (reported with n = 0)."),
-                      format(p), nrow(small), ceiling(1 / abs_p)), call. = FALSE)
+                      format(p), nrow(small), ceiling(1 / abs_p - 1e-8)), call. = FALSE)
 
     idx <- dt_long[, .I[{
       r <- data.table::frank(if (p > 0) -value else value, ties.method = "min")
-      r <= .N * abs_p
+      r <= .n_select(.N, abs_p)
     }], by = groupby]$V1
     sub_dt <- dt_long[idx]
 

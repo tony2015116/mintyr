@@ -1,13 +1,13 @@
 ## Update
 
-This is a patch release (0.2.0 -> 0.2.1) that fixes bugs in
-`import_xlsx()` / `import_csv()`:
+This is a patch release (0.2.1 -> 0.2.2) with bug fixes:
 
-* Combining sheets/files with `combine = TRUE` no longer fails when a column
-  is empty or has a different type in some sources.
-* `import_xlsx()` now guesses column types from all rows, so columns empty in
-  the first 1000 rows are no longer read as logical with data lost.
-* Parallel reading in `import_xlsx(workers > 1)` now uses load balancing.
+* `top_perc()` no longer selects one record too few because of
+  floating-point rounding (e.g. top 29% of 100 records).
+* Clear errors instead of duplicated / overwritten columns when input column
+  names clash with names created by `nest_cv()`, `w2l_split()`,
+  `import_csv()`, `import_xlsx()`, `desc_stats()` and `top_perc()`.
+* Minor formatting fixes (`"-0.00"` shown as `"0.00"`).
 
 ## R CMD check results
 

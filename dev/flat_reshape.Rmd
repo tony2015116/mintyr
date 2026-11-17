@@ -1,0 +1,811 @@
+---
+title: "flat_reshape.Rmd for working package"
+output: html_document
+editor_options:
+  chunk_output_type: console
+---
+
+```{r development, include=FALSE}
+library(testthat)
+```
+
+These functions turn a wide table (one column per trait) into pieces that can be analysed one at a time: by trait and group (`w2l_nest()`, `w2l_split()`), by pairs of traits (`c2p_nest()`), or with the levels of one column side by side (`r2p_nest()`).
+
+# Wide to long, nested: `w2l_nest()`
+    
+```{r function-w2l_nest}
+#' Reshape Wide Data to Long Format and Nest by Specified Columns
+#'
+#' @description
+#' `w2l_nest` reshapes a wide-format `data.frame` or `data.table` into long
+#' format, then nests the result by `name` (the pivoted column identifier) and
+#' any optional grouping variables supplied via `by`. Each row of the returned
+#' table contains a nested `data.table` or `data.frame` in the `data` list-column.
+#'
+#' @param data `data.frame` or `data.table`. Wide-format input dataset.
+#'   The input object is never modified: a `data.frame` is converted with
+#'   `as.data.table()`, a `data.table` is read as-is.
+#' @param cols `numeric` or `character`. Columns to pivot from wide to long,
+#'   specified as integer indices or column names. Default `NULL`: when `NULL`,
+#'   `by` must be provided and the function performs a pure nest operation
+#'   (no melting).
+#' @param by `numeric` or `character`. Additional grouping variables for
+#'   hierarchical nesting, specified as integer indices or column names.
+#'   Default `NULL`.
+#' @param out_type `character`. Class of each nested subset:
+#'   `"dt"` for `data.table` (default) or `"df"` for `data.frame`.
+#'
+#' @return A `data.table` with one row per combination of `name` (and `by`
+#'   levels, if provided). The `data` list-column holds the corresponding
+#'   nested `data.table` or `data.frame` for each group. Grouping key columns
+#'   are never duplicated inside the nested objects.
+#'
+#' @details
+#' **Column resolution:** both `cols` and `by` accept either integer column
+#' positions or character column names. Out-of-bounds indices and unknown names
+#' are caught early with informative error messages.
+#'
+#' **Overlap guard:** if any column appears in both `cols` and `by`, the
+#' function stops with an error before attempting to melt, preventing silent
+#' structural corruption.
+#'
+#' **Factor-free melting:** `melt()` is called with `variable.factor = FALSE`
+#' so the `name` column is always `character`, avoiding unexpected factor-level
+#' ordering in downstream grouping operations.
+#'
+#' **No side effects:** earlier versions called `setDT()` on the argument,
+#' which silently turned the caller's `data.frame` into a `data.table`. The
+#' input is now left untouched.
+#'
+#' **Memory efficiency:** `.SDcols` restricts `.SD` to non-key columns, so
+#' grouping keys are never stored redundantly inside each nested object.
+#'
+#' @note
+#' \itemize{
+#'   \item Passing an empty table (0 rows) triggers a `warning()` and returns
+#'         a 0-row table with the regular column structure
+#'         (`name`, the `by` columns and `data`).
+#'   \item `name` and `value` are reserved for the long format; `data` must
+#'         not contain other columns with these names.
+#'   \item `cols` and `by` must not overlap; overlapping columns will raise
+#'         an error.
+#'   \item `out_type` values other than `"dt"` or `"df"` raise an error.
+#' }
+#'
+#' @seealso `tidytable::nest_by()` for a tidyverse-style equivalent.
+#'
+#' @import data.table
+#' @export
+w2l_nest <- function(data, cols = NULL, by = NULL, out_type = "dt") {
+
+  # -- 1. Input validation ----------------------------------------------------
+  if (!is.data.frame(data))
+    stop("`data` must be a data.frame or a data.table.", call. = FALSE)
+  .check_choice(out_type, c("dt", "df"), "out_type")
+
+  # Never touch the caller's object: setDT() would change its class by
+  # reference. as.data.table() is only called for non-data.table input;
+  # a data.table is used as-is because nothing below modifies it.
+  dt <- if (data.table::is.data.table(data)) data else data.table::as.data.table(data)
+  data_names <- names(dt)
+
+  # -- 2. Resolve columns -----------------------------------------------------
+  by <- .resolve_cols(by, data_names, "by", allow_null = TRUE)
+  if (is.null(cols)) {
+    if (is.null(by))
+      stop("When `cols` is NULL, `by` must be provided.", call. = FALSE)
+  } else {
+    cols  <- .resolve_cols(cols, data_names, "cols")
+    overlap <- intersect(cols, by)
+    if (length(overlap) > 0L)
+      stop("`cols` and `by` share column(s), which would corrupt the melt structure: ",
+           paste(overlap, collapse = ", "), call. = FALSE)
+    if (any(c("name", "value") %chin% setdiff(data_names, cols)))
+      stop("`data` already contains a column named 'name' or 'value' that is not ",
+           "in `cols`; rename it first, as these names are used for the long format.",
+           call. = FALSE)
+  }
+
+  # -- 3. Empty input: return a 0-row table with the regular structure --------
+  if (nrow(dt) == 0L) {
+    warning("`data` has 0 rows; returning an empty nested data.table.", call. = FALSE)
+    out <- c(if (!is.null(cols)) list(name = character(0L)),
+             if (length(by)) as.list(dt[0L, by, with = FALSE]),
+             list(data = list()))
+    return(data.table::setDT(out)[])
+  }
+
+  # -- 4. Pure nest mode (no melting) -----------------------------------------
+  if (is.null(cols)) {
+    return(.nest_by_group(dt, group_by = by,
+                          sd_cols = setdiff(data_names, by),
+                          out_type = out_type))
+  }
+
+  # -- 5. Wide-to-long, then nest by name (+ by) ------------------------------
+  melted <- data.table::melt(
+    dt,
+    measure.vars    = cols,
+    variable.name   = "name",
+    value.name      = "value",
+    variable.factor = FALSE
+  )
+  group_keys <- c("name", by)
+  .nest_by_group(melted, group_by = group_keys,
+                 sd_cols = setdiff(names(melted), group_keys),
+                 out_type = out_type)
+}
+```
+  
+```{r example-w2l_nest}
+# Example: Wide to long format nesting demonstrations
+
+# Example 1: Basic nesting by group
+w2l_nest(
+  data = iris,                    # Input dataset
+  by = "Species"                  # Group by Species column
+)
+
+# Example 2: Nest specific columns with numeric indices
+w2l_nest(
+  data = iris,                    # Input dataset
+  cols = 1:4,                   # Select first 4 columns to nest
+  by = "Species"                  # Group by Species column
+)
+
+# Example 3: Nest specific columns with column names
+w2l_nest(
+  data = iris,                    # Input dataset
+  cols = c("Sepal.Length",        # Select columns by name
+           "Sepal.Width",
+           "Petal.Length"),
+  by = 5                          # Group by column index 5 (Species)
+)
+# Returns similar structure to Example 2
+```
+
+```{r tests-w2l_nest}
+test_that("w2l_nest does not modify the caller's data.frame", {
+  df <- data.frame(a = 1:2, b = 3:4, g = c("x", "y"))
+  w2l_nest(df, cols = 1:2, by = "g")
+  expect_identical(class(df), "data.frame")
+  w2l_nest(iris, by = "Species")
+  expect_identical(class(iris), "data.frame")
+})
+
+test_that("w2l_nest returns the expected structure", {
+  res <- w2l_nest(iris, cols = 1:2, by = "Species")
+  expect_identical(names(res), c("name", "Species", "data"))
+  expect_equal(nrow(res), 6L)
+  expect_identical(names(res$data[[1]]), c("Petal.Length", "Petal.Width", "value"))
+  expect_s3_class(w2l_nest(iris, cols = 1, by = 5, out_type = "df")$data[[1]],
+                  "data.frame", exact = TRUE)
+})
+
+test_that("w2l_nest empty input keeps the regular structure", {
+  expect_warning(res <- w2l_nest(iris[0, ], cols = 1:2, by = "Species"), "0 rows")
+  expect_identical(names(res), c("name", "Species", "data"))
+  expect_equal(nrow(res), 0L)
+})
+
+test_that("w2l_nest validates its arguments", {
+  expect_error(w2l_nest(iris), "`by` must be provided")
+  expect_error(w2l_nest(iris, cols = 5, by = 5), "share column")
+  expect_error(w2l_nest(iris, by = 5, out_type = "x"), "out_type")
+  expect_error(w2l_nest(1:3, by = 1), "data.frame")
+})
+```
+
+```{r function-.nest_by_group}
+#' Nest a data.table by group (internal)
+#'
+#' Shared by w2l_nest() and c2p_nest(). `group_by` may be NULL (one group).
+#'
+#' @param dt        A data.table ready for nesting.
+#' @param group_by  Character vector of grouping columns, or NULL.
+#' @param sd_cols   Columns stored inside each nested object.
+#' @param out_type "dt" or "df".
+#' @return A data.table with the group keys and a `data` list-column.
+#' @noRd
+.nest_by_group <- function(dt, group_by, sd_cols, out_type) {
+  . <- NULL
+  if (out_type == "dt") {
+    dt[, .(data = list(.SD)), by = group_by, .SDcols = sd_cols]
+  } else {
+    # .SD is a re-used buffer inside grouping, so a copy is required anyway;
+    # setDF() then converts that private copy in place.
+    dt[, .(data = list(data.table::setDF(data.table::copy(.SD)))),
+       by = group_by, .SDcols = sd_cols]
+  }
+}
+```
+
+# Wide to long, split into a list: `w2l_split()`
+    
+```{r function-w2l_split}
+#' Reshape Wide Data to Long Format and Split into a Named List
+#'
+#' @description
+#' `w2l_split` reshapes a wide-format `data.frame` or `data.table` into long
+#' format, then splits the result into a named list keyed by the pivoted column
+#' identifier (`variable`) and any optional grouping variables supplied via
+#' `by`. List element names are derived directly from the grouping key
+#' combinations produced by `split()`, guaranteeing name-to-content alignment.
+#'
+#' @param data `data.frame` or `data.table`. Wide-format input dataset.
+#'   The input object is never modified.
+#' @param cols `numeric` or `character`. Columns to pivot from wide to long,
+#'   specified as integer indices or column names. Default `NULL`: when `NULL`,
+#'   `by` must be provided and the function splits the data as-is without
+#'   melting.
+#' @param by `numeric` or `character`. Additional grouping variables used as
+#'   secondary split keys, specified as integer indices or column names.
+#'   Default `NULL`.
+#' @param out_type `character`. Class of each list element: `"dt"` for
+#'   `data.table` (default) or `"df"` for `data.frame`.
+#' @param sep `character`. Separator used when concatenating multiple grouping
+#'   key values into a single list-element name. Default `"_"`.
+#'
+#' @return A named list of `data.table` or `data.frame` objects (controlled by
+#'   `out_type`). Names reflect the key combination of `variable` (and `by`
+#'   levels if provided), joined by `sep`.
+#' \itemize{
+#'   \item If `by` is `NULL`, the list is keyed by the pivoted column names only.
+#'   \item If `by` is specified, the list is keyed by `variable` and all `by`
+#'         level combinations.
+#' }
+#'
+#' @details
+#' **Name safety:** list names are built from each element's own key values
+#' (joined by `sep`), so names always match contents. This also makes `sep`
+#' work on every data.table version (`split(sep = )` is only honoured from
+#' data.table 1.16.0 on). If two groups would get the same name (key values
+#' that themselves contain `sep`, e.g. `"a_b" + "c"` and `"a" + "b_c"`), an
+#' error is raised; choose a `sep` that does not occur in the key values.
+#'
+#' **Column resolution:** both `cols` and `by` accept integer column
+#' positions or character column names. Out-of-bounds indices and unknown names
+#' are caught early with informative error messages.
+#'
+#' **Overlap guard:** columns appearing in both `cols` and `by` raise an
+#' error before melting to prevent `id.vars` / `measure.vars` conflicts.
+#'
+#' **Factor-free melting:** `melt()` is called with `variable.factor = FALSE`
+#' so the `variable` column is always `character`, keeping `split()` sort order
+#' consistent with lexicographic expectations.
+#'
+#' **Memory efficiency:** the elements returned by `split()` are independent
+#' objects, so for `out_type = "df"` they are converted in place with
+#' `setDF()` and no column vector is duplicated. The input itself is never
+#' modified.
+#'
+#' @note
+#' \itemize{
+#'   \item An empty input table (0 rows) triggers a `warning()` and returns an
+#'         empty list immediately.
+#'   \item `cols` and `by` must not overlap; shared columns raise an error.
+#'   \item `out_type` values other than `"dt"` or `"df"` raise an error.
+#' }
+#'
+#' @seealso `tidytable::group_split()` for a tidyverse-style equivalent.
+#'
+#' @import data.table
+#' @export
+w2l_split <- function(data, cols = NULL, by = NULL, out_type = "dt", sep = "_") {
+
+  # -- 1. Input validation ----------------------------------------------------
+  if (!is.data.frame(data))
+    stop("`data` must be a data.frame or a data.table.", call. = FALSE)
+  .check_choice(out_type, c("dt", "df"), "out_type")
+  if (!is.character(sep) || length(sep) != 1L || is.na(sep))
+    stop("`sep` must be a single character string.", call. = FALSE)
+
+  # Never modify the caller's object (see w2l_nest()).
+  dt <- if (data.table::is.data.table(data)) data else data.table::as.data.table(data)
+  data_names <- names(dt)
+
+  # -- 2. Resolve columns -----------------------------------------------------
+  by <- .resolve_cols(by, data_names, "by", allow_null = TRUE)
+  if (is.null(cols)) {
+    if (is.null(by))
+      stop("When `cols` is NULL, `by` must be provided.", call. = FALSE)
+  } else {
+    cols  <- .resolve_cols(cols, data_names, "cols")
+    overlap <- intersect(cols, by)
+    if (length(overlap) > 0L)
+      stop("`cols` and `by` share column(s), which would corrupt the melt structure: ",
+           paste(overlap, collapse = ", "), call. = FALSE)
+    if (any(c("variable", "value") %chin% setdiff(data_names, cols)))
+      stop("`data` already contains a column named 'variable' or 'value' that is ",
+           "not in `cols`; rename it first.", call. = FALSE)
+  }
+
+  # -- 3. Empty input ---------------------------------------------------------
+  if (nrow(dt) == 0L) {
+    warning("`data` has 0 rows; returning an empty list.", call. = FALSE)
+    return(list())
+  }
+
+  # -- 4. Split as-is (no melting) --------------------------------------------
+  if (is.null(cols)) {
+    return(.convert_split_type(.split_named(dt, by, sep), out_type))
+  }
+
+  # -- 5. Wide-to-long, then split by variable (+ by) -------------------------
+  dt_long <- data.table::melt(
+    dt,
+    measure.vars    = cols,
+    variable.name   = "variable",
+    value.name      = "value",
+    variable.factor = FALSE
+  )
+  .convert_split_type(.split_named(dt_long, c("variable", by), sep), out_type)
+}
+```
+  
+```{r example-w2l_split}
+# Example: Wide to long format splitting demonstrations
+
+# Example 1: Basic splitting by Species
+w2l_split(
+  data = iris,                    # Input dataset
+  by = "Species"                  # Split by Species column
+) |> 
+  lapply(head)                    # Show first 6 rows of each split
+
+# Example 2: Split specific columns using numeric indices
+w2l_split(
+  data = iris,                    # Input dataset
+  cols = 1:3,                   # Select first 3 columns to split
+  by = 5                          # Split by column index 5 (Species)
+) |> 
+  lapply(head)                    # Show first 6 rows of each split
+
+# Example 3: Split specific columns using column names
+list_res <- w2l_split(
+  data = iris,                    # Input dataset
+  cols = c("Sepal.Length",        # Select columns by name
+           "Sepal.Width"),
+  by = "Species"                  # Split by Species column
+)
+lapply(list_res, head)            # Show first 6 rows of each split
+# Returns similar structure to Example 2
+```
+
+```{r tests-w2l_split}
+test_that("w2l_split names match the content of each element", {
+  res <- w2l_split(mtcars, cols = "mpg", by = c("am", "vs"), sep = "|")
+  for (nm in names(res)) {
+    k <- strsplit(nm, "|", fixed = TRUE)[[1]]
+    expect_true(all(mtcars$mpg[mtcars$am == k[2] & mtcars$vs == k[3]] %in% res[[nm]]$value))
+  }
+  expect_false(any(c("variable", "am", "vs") %in% names(res[[1]])))
+})
+
+test_that("w2l_split honours out_type and leaves the input untouched", {
+  df <- data.frame(a = 1:4, g = c("x", "x", "y", "y"))
+  res <- w2l_split(df, by = "g", out_type = "df")
+  expect_identical(names(res), c("x", "y"))
+  expect_s3_class(res$x, "data.frame", exact = TRUE)
+  expect_identical(class(df), "data.frame")
+})
+
+test_that("w2l_split stops when list names would be duplicated", {
+  d <- data.frame(a = c("x_y", "x"), b = c("z", "y_z"), v = 1:2)
+  expect_error(w2l_split(d, by = c("a", "b")), "same list name")
+  expect_named(w2l_split(d, by = c("a", "b"), sep = "|"), c("x_y|z", "x|y_z"))
+})
+```
+
+
+```{r function-.convert_split_type}
+#' Convert the elements of a split() result to the requested class (internal)
+#'
+#' @param dt_list    Named list of data.tables produced by split().
+#' @param out_type "dt" or "df".
+#' @return The same named list with elements of the requested class.
+#' @noRd
+.convert_split_type <- function(dt_list, out_type) {
+  if (out_type == "df") {
+    # Elements returned by split() are independent objects, so they can be
+    # converted in place with setDF(): no column vector is duplicated.
+    dt_list <- lapply(dt_list, data.table::setDF)
+  }
+  dt_list
+}
+```
+
+```{r function-.split_named}
+#' Split a data.table by key columns with names joined by `sep` (internal)
+#'
+#' @param dt   A data.table.
+#' @param keys Character vector of key columns (dropped from each element).
+#' @param sep  Separator used to join key values into element names.
+#' @return A named list of data.tables.
+#' @noRd
+.split_named <- function(dt, keys, sep) {
+  # `sep =` is only honoured by split.data.table() from data.table 1.16.0 on
+  # (older versions silently use "."). Names are therefore built here from
+  # each element's own key values, which also guarantees name/content
+  # alignment regardless of the data.table version.
+  lst <- split(dt, by = keys, keep.by = TRUE, drop = TRUE, sorted = FALSE)
+  nms <- vapply(lst, function(x) {
+    paste(vapply(keys, function(k) as.character(x[[k]][1L]), character(1L)),
+          collapse = sep)
+  }, character(1L))
+  if (anyDuplicated(nms)) {
+    dup <- unique(nms[duplicated(nms)])
+    stop("Different groups would get the same list name (",
+         paste(utils::head(dup, 5L), collapse = ", "),
+         "): the key values contain `sep` (\"", sep, "\"). ",
+         "Choose a `sep` that does not occur in the `by` values.", call. = FALSE)
+  }
+  # Elements are independent objects: drop the key columns by reference.
+  lst <- lapply(lst, function(x) data.table::set(x, j = keys, value = NULL))
+  names(lst) <- nms
+  lst
+}
+```
+
+# All pairs of columns: `c2p_nest()`
+    
+```{r function-c2p_nest}
+#' Column to Pair Nested Transformation
+#'
+#' @description
+#' Generates combinations of specified columns and creates a nested data
+#' structure based on these pairs. Each nested subset renames the combined
+#' columns to \code{value1}, \code{value2}, ... (up to \code{pairs_n}) to
+#' support uniform iterative analyses such as genetic correlation estimation.
+#'
+#' @param data A data.frame or data.table to be transformed.
+#' @param cols A character vector of column names or a numeric vector of
+#'   column indices to be combined into pairs. Must not overlap with \code{by}.
+#'   Duplicated entries are removed with a warning.
+#' @param by A character vector of column names or a numeric vector of column
+#'   indices to group by. Default is \code{NULL}.
+#' @param pairs_n A positive integer >= 2 indicating the size of each column
+#'   combination (e.g., 2 for pairwise). Default is \code{2}.
+#' @param sep A single character string used as a separator when constructing
+#'   the \code{pairs} identifier column. Default is \code{"-"}.
+#' @param out_type A character string specifying the class of each nested
+#'   object: \code{"dt"} (data.table, default) or \code{"df"} (data.frame).
+#'
+#' @details
+#' The columns specified in \code{cols} are renamed to \code{value1},
+#' \code{value2}, ... within each nested subset. The original column names are
+#' preserved in the \code{pairs} column (e.g., \code{"Sepal.Length-Sepal.Width"}),
+#' ensuring full traceability for downstream iterative analyses such as genetic
+#' correlation estimation.
+#'
+#' Columns that belong to neither \code{cols} nor \code{by} (referred to
+#' internally as "extra columns") are retained inside the nested subsets so
+#' that covariates or ID fields remain accessible. Grouping columns (\code{by})
+#' are \emph{not} duplicated inside the nested data because they are already
+#' present as outer key columns in the returned table.
+#'
+#' When the number of requested combinations exceeds 500 a message is emitted;
+#' above 5000 a warning is raised, as memory usage grows linearly with the
+#' combination count.
+#'
+#' The names \code{value1}, \code{value2}, ..., \code{pairs} and
+#' \code{data} are reserved: \code{data} must not contain other columns
+#' with these names. The input object is never modified.
+#'
+#' @return A \code{data.table} with columns:
+#' \describe{
+#'   \item{pairs}{Character. The column-combination identifier, e.g.
+#'     \code{"Sepal.Length-Sepal.Width"}.}
+#'   \item{...}{Any \code{by} grouping columns, one per variable.}
+#'   \item{data}{List-column. Each cell holds a data.table (or data.frame when
+#'     \code{out_type = "df"}) containing \code{value1}, \code{value2}, ...,
+#'     plus any extra columns that were neither in \code{cols} nor
+#'     \code{by}.}
+#' }
+#'
+#' @seealso \code{\link[utils]{combn}} for the underlying combination generator.
+#'
+#' @import data.table
+#' @importFrom utils combn
+#' @export
+c2p_nest <- function(data,
+                     cols,
+                     by       = NULL,
+                     pairs_n  = 2L,
+                     sep      = "-",
+                     out_type = "dt") {
+  pairs <- NULL
+
+  # -- 1. Validate inputs -----------------------------------------------------
+  if (!is.data.frame(data))
+    stop("`data` must be a data.table or data.frame.", call. = FALSE)
+  # Read-only use below, so a data.table input needs no copy.
+  dt <- if (data.table::is.data.table(data)) data else data.table::as.data.table(data)
+
+  cols <- .resolve_cols(cols, names(dt), "cols")   # also de-duplicates
+  by        <- .resolve_cols(by, names(dt), "by", allow_null = TRUE)
+
+  overlap <- intersect(cols, by)
+  if (length(overlap) > 0L)
+    stop("Column(s) appear in both `cols` and `by`: ",
+         paste(overlap, collapse = ", "), call. = FALSE)
+
+  pairs_n <- .check_count(pairs_n, "pairs_n", 2L)
+  if (pairs_n > length(cols))
+    stop(sprintf("`pairs_n` (%d) cannot exceed the number of `cols` columns (%d).",
+                 pairs_n, length(cols)), call. = FALSE)
+  if (!is.character(sep) || length(sep) != 1L || is.na(sep))
+    stop("`sep` must be a single character string.", call. = FALSE)
+  .check_choice(out_type, c("dt", "df"), "out_type")
+
+  extra_cols  <- setdiff(names(dt), c(cols, by))
+  value_names <- paste0("value", seq_len(pairs_n))
+
+  # Reserved names would collide with the renamed / generated columns.
+  clash <- c(intersect(extra_cols, value_names),
+             intersect(c(by, extra_cols), c("pairs", "data")))
+  if (length(clash) > 0L)
+    stop("`data` contains column(s) whose names are reserved by c2p_nest(): ",
+         paste(unique(clash), collapse = ", "), ". Please rename them first.",
+         call. = FALSE)
+
+  # -- 2. Combination count guard ---------------------------------------------
+  n_combs <- choose(length(cols), pairs_n)
+  if (n_combs > 5000) {
+    warning(sprintf(paste0("%.0f combinations requested. Memory usage will be high - ",
+                           "consider reducing `cols` or `pairs_n`."), n_combs),
+            call. = FALSE)
+  } else if (n_combs > 500) {
+    message(sprintf("Note: generating %.0f combinations - this may take a moment.",
+                    n_combs))
+  }
+
+  # -- 3. One nested table per combination ------------------------------------
+  comb_list <- utils::combn(cols, pairs_n, simplify = FALSE)
+
+  nested_list <- lapply(comb_list, function(comb) {
+    # Column selection with `with = FALSE` already returns a new table, so
+    # renaming it never touches `dt`; no extra copy() is needed.
+    dt_sub <- dt[, c(by, extra_cols, comb), with = FALSE]
+    data.table::setnames(dt_sub, comb, value_names)
+    res <- .nest_by_group(dt_sub, group_by = by,
+                          sd_cols = setdiff(names(dt_sub), by),
+                          out_type = out_type)
+    res[, pairs := paste(comb, collapse = sep)]
+    res
+  })
+
+  # -- 4. Combine; order: pairs, by..., data ----------------------------------
+  result <- data.table::rbindlist(nested_list, use.names = TRUE)
+  data.table::setcolorder(result, c("pairs", by, "data"))
+  result[]
+}
+```
+
+
+```{r example-c2p_nest}
+# Example data preparation: Define column names for combination
+col_names <- c("Sepal.Length", "Sepal.Width", "Petal.Length")
+
+# Example 1: Basic column-to-pairs nesting with custom separator
+c2p_nest(
+  iris,                   # Input iris dataset
+  cols = col_names,       # Columns to be combined as pairs
+  pairs_n = 2,            # Create pairs of 2 columns
+  sep = "&"               # Custom separator for pair names
+)
+# Returns a nested data.table where:
+# - pairs: combined column names (e.g., "Sepal.Length&Sepal.Width")
+# - data: list column containing data.tables with value1, value2 columns
+
+# Example 2: Column-to-pairs nesting with numeric indices and grouping
+c2p_nest(
+  iris,                   # Input iris dataset
+  cols = 1:3,             # First 3 columns to be combined
+  pairs_n = 2,            # Create pairs of 2 columns
+  by = 5                  # Group by 5th column (Species)
+)
+# Returns a nested data.table where:
+# - pairs: combined column names
+# - Species: grouping variable
+# - data: list column containing data.tables grouped by Species
+```
+
+```{r tests-c2p_nest}
+test_that("c2p_nest builds every combination with renamed value columns", {
+  res <- c2p_nest(iris, cols = 1:3, by = "Species")
+  expect_equal(nrow(res), 3L * 3L)
+  expect_identical(names(res), c("pairs", "Species", "data"))
+  expect_true(all(c("value1", "value2") %in% names(res$data[[1]])))
+  expect_false("Species" %in% names(res$data[[1]]))
+})
+
+test_that("c2p_nest never renames columns of the input data.table", {
+  dt <- data.table::as.data.table(iris)
+  before <- data.table::copy(names(dt))
+  c2p_nest(dt, cols = 1:3)
+  expect_identical(names(dt), before)
+})
+
+test_that("c2p_nest validates its arguments", {
+  expect_warning(c2p_nest(iris, cols = c(1, 1, 2)), "duplicated")
+  df <- data.frame(a = 1, b = 2, value1 = 3)
+  expect_error(c2p_nest(df, cols = c("a", "b")), "reserved")
+  expect_error(c2p_nest(iris, cols = 1:2, pairs_n = 3), "cannot exceed")
+})
+```
+
+# Levels of a column side by side: `r2p_nest()`
+    
+```{r function-r2p_nest}
+#' Row to Pair Nested Transformation
+#'
+#' @description
+#' Pivots the levels of one column (`names_from`, e.g. environment, farm or
+#' test station) into separate columns for every trait in `cols`, aligning
+#' records by the identifier columns `id` (e.g. the animal ID). The result is
+#' nested by trait, ready for iterative analyses such as genetic correlations
+#' of the same trait across environments.
+#'
+#' @param data Input `data.frame` or `data.table`. It is never modified.
+#' @param names_from A single column name or index whose levels become columns.
+#' @param cols A character vector of column names or numeric indices: the
+#'   trait columns to pivot.
+#' @param id Identifier column(s) used to align rows across levels of
+#'   `names_from`. Default `NULL` uses all columns that are neither in `cols`
+#'   nor `names_from` (a message lists them); supplying `id` explicitly is
+#'   strongly recommended.
+#' @param out_type Output nesting format (`"dt"` or `"df"`). Default `"dt"`.
+#'
+#' @details
+#' The combination of `id` and `names_from` must identify every row uniquely.
+#' Otherwise `dcast()` would aggregate duplicated records with `length()` and
+#' silently replace trait values by counts; the function stops instead.
+#'
+#' Other trait columns in `cols` are never used as identifiers: their values
+#' differ between environments and would prevent any pairing.
+#'
+#' @return A nested `data.table` with columns `name` (trait) and `data`.
+#'   Each nested table holds the `id` columns plus one column per level of
+#'   `names_from`.
+#'
+#' @import data.table
+#' @importFrom stats as.formula
+#' @export
+r2p_nest <- function(data,
+                     names_from,
+                     cols,
+                     out_type = "dt",
+                     id       = NULL) {
+
+  # -- 1. Validate inputs -----------------------------------------------------
+  if (!is.data.frame(data))
+    stop("`data` must be a data.table or data.frame.", call. = FALSE)
+
+  # dcast() returns new objects, so the input is never modified: no copy.
+  dt <- if (data.table::is.data.table(data)) data else data.table::as.data.table(data)
+  nms <- names(dt)
+
+  names_from <- .resolve_cols(names_from, nms, "names_from")
+  if (length(names_from) != 1L)
+    stop("`names_from` must be a single column.", call. = FALSE)
+  cols <- .resolve_cols(cols, nms, "cols")
+  if (names_from %chin% cols)
+    stop("`names_from` must not also appear in `cols`.", call. = FALSE)
+  .check_choice(out_type, c("dt", "df"), "out_type")
+
+  # -- 2. Identifier columns ----------------------------------------------------
+  # Rows are aligned across levels of `names_from` by `id`. Other trait columns
+  # must never act as identifiers: they differ between environments and would
+  # prevent any pairing.
+  if (is.null(id)) {
+    id <- setdiff(nms, c(cols, names_from))
+    if (length(id) > 0L)
+      message("[ r2p_nest ] `id` not supplied; using all remaining column(s) as ",
+              "identifiers: ", paste(id, collapse = ", "),
+              ". Supply `id` explicitly (e.g. the animal ID) for reliable pairing.")
+  } else {
+    id <- .resolve_cols(id, nms, "id")
+    overlap <- intersect(id, c(cols, names_from))
+    if (length(overlap) > 0L)
+      stop("`id` must not overlap with `cols` or `names_from`: ",
+           paste(overlap, collapse = ", "), call. = FALSE)
+  }
+  if (length(id) == 0L)
+    stop("No identifier column available; supply `id`.", call. = FALSE)
+
+  # Without uniqueness dcast() would silently aggregate with length(),
+  # replacing trait values by counts.
+  if (anyDuplicated(dt, by = c(id, names_from)) > 0L)
+    stop("The combination of `id` (", paste(id, collapse = ", "), ") and `names_from` (",
+         names_from, ") does not uniquely identify rows; dcast() would aggregate ",
+         "values into counts. Check for duplicated records or supply a more ",
+         "specific `id`.", call. = FALSE)
+
+  if (anyNA(dt[[names_from]]))
+    warning("`names_from` (", names_from, ") contains NA; those rows become a ",
+            "column named 'NA' in every nested table.", call. = FALSE)
+  clash <- intersect(as.character(unique(dt[[names_from]])), id)
+  if (length(clash) > 0L)
+    stop("Value(s) of `names_from` coincide with `id` column name(s): ",
+         paste(clash, collapse = ", "), call. = FALSE)
+
+  form <- stats::as.formula(sprintf(
+    "%s ~ %s",
+    paste(sprintf("`%s`", id), collapse = " + "),
+    sprintf("`%s`", names_from)
+  ))
+
+  # -- 3. Pivot each trait --------------------------------------------------------
+  result_list <- lapply(cols, function(b) {
+    wide <- data.table::dcast(dt, form, value.var = b)
+    if (out_type == "df") data.table::setDF(wide)
+    res <- data.table::data.table(name = b)
+    res[, data := list(list(wide))]
+    res
+  })
+
+  data.table::rbindlist(result_list)
+}
+```
+
+```{r example-r2p_nest}
+# Example: the same traits recorded on the same animals in two farms
+set.seed(1)
+growth <- data.frame(
+  animal = rep(sprintf("A%02d", 1:6), each = 2),
+  farm   = rep(c("farm1", "farm2"), times = 6),
+  adg    = round(rnorm(12, 900, 50)),     # average daily gain
+  bf     = round(rnorm(12, 11, 1.5), 1)   # backfat
+)
+
+# Example 1: column names
+r2p_nest(
+  growth,
+  names_from = "farm",           # levels become columns: farm1, farm2
+  cols      = c("adg", "bf"),    # traits to pivot
+  id        = "animal"           # aligns records of the same animal
+)
+# Returns a nested data.table where:
+# - name: trait names (adg, bf)
+# - data: one row per animal with columns animal, farm1, farm2
+
+# Example 2: numeric indices
+r2p_nest(growth, names_from = 2, cols = 3:4, id = 1)
+```
+
+```{r tests-r2p_nest}
+test_that("r2p_nest aligns records of the same id across levels", {
+  d <- data.frame(id = c(1, 1, 2, 2), env = c("A", "B", "A", "B"),
+                  t1 = 1:4, t2 = 5:8)
+  res <- r2p_nest(d, names_from = "env", cols = c("t1", "t2"), id = "id")
+  expect_identical(res$name, c("t1", "t2"))
+  expect_identical(as.data.frame(res$data[[1]]),
+                   data.frame(id = c(1, 2), A = c(1L, 3L), B = c(2L, 4L)))
+  expect_s3_class(r2p_nest(d, "env", "t1", id = "id", out_type = "df")$data[[1]],
+                  "data.frame", exact = TRUE)
+})
+
+test_that("r2p_nest refuses duplicated id / names_from combinations", {
+  d <- data.frame(id = c(1, 1, 2), env = c("A", "A", "B"), t1 = 1:3)
+  expect_error(r2p_nest(d, "env", "t1", id = "id"), "uniquely identify")
+})
+
+test_that("r2p_nest warns about NA in names_from", {
+  d <- data.frame(id = c(1, 1, 2, 2), env = c("a", NA, "a", "b"), y = 1:4)
+  expect_warning(res <- r2p_nest(d, names_from = "env", cols = "y", id = "id"), "NA")
+  expect_true("NA" %in% names(res$data[[1]]))
+})
+```
+
+```{r development-inflate, eval=FALSE}
+# Run in the console. After the first inflate of every flat,
+# fusen::inflate_all() rebuilds the whole package in one go.
+fusen::inflate(
+  flat_file     = "dev/flat_reshape.Rmd",
+  vignette_name = "Reshape and nest",
+  overwrite     = TRUE,
+  check         = FALSE,
+  open_vignette = FALSE
+)
+```

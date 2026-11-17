@@ -16,3 +16,9 @@ test_that("w2l_split honours out_type and leaves the input untouched", {
   expect_s3_class(res$x, "data.frame", exact = TRUE)
   expect_identical(class(df), "data.frame")
 })
+
+test_that("w2l_split stops when list names would be duplicated", {
+  d <- data.frame(a = c("x_y", "x"), b = c("z", "y_z"), v = 1:2)
+  expect_error(w2l_split(d, by = c("a", "b")), "same list name")
+  expect_named(w2l_split(d, by = c("a", "b"), sep = "|"), c("x_y|z", "x|y_z"))
+})

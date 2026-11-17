@@ -119,6 +119,8 @@ format_digits <- function(data,
   scale   <- if (percentage) 100 else 1
   fmt_fn  <- function(x) {
     val <- sprintf(fmt_tpl, round(x * scale, digits))
+    # Small negatives rounded to zero print as "-0.00"; show them as "0.00".
+    val <- sub("^-(0(\\.0+)?%?)$", "\\1", val)
     val <- data.table::fifelse(is.na(x) & !is.nan(x), NA_character_, val)
     if (nan_as_na) val <- data.table::fifelse(is.nan(x), NA_character_, val)
     val

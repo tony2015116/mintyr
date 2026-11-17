@@ -32,6 +32,13 @@
     paste(vapply(keys, function(k) as.character(x[[k]][1L]), character(1L)),
           collapse = sep)
   }, character(1L))
+  if (anyDuplicated(nms)) {
+    dup <- unique(nms[duplicated(nms)])
+    stop("Different groups would get the same list name (",
+         paste(utils::head(dup, 5L), collapse = ", "),
+         "): the key values contain `sep` (\"", sep, "\"). ",
+         "Choose a `sep` that does not occur in the `by` values.", call. = FALSE)
+  }
   # Elements are independent objects: drop the key columns by reference.
   lst <- lapply(lst, function(x) data.table::set(x, j = keys, value = NULL))
   names(lst) <- nms
@@ -74,7 +81,9 @@
 #' **Name safety:** list names are built from each element's own key values
 #' (joined by `sep`), so names always match contents. This also makes `sep`
 #' work on every data.table version (`split(sep = )` is only honoured from
-#' data.table 1.16.0 on).
+#' data.table 1.16.0 on). If two groups would get the same name (key values
+#' that themselves contain `sep`, e.g. `"a_b" + "c"` and `"a" + "b_c"`), an
+#' error is raised; choose a `sep` that does not occur in the key values.
 #'
 #' **Column resolution:** both `cols` and `by` accept integer column
 #' positions or character column names. Out-of-bounds indices and unknown names

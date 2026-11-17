@@ -1,0 +1,298 @@
+---
+title: "flat_utils.Rmd for working package"
+output: html_document
+editor_options:
+  chunk_output_type: console
+---
+
+```{r development, include=FALSE}
+library(testthat)
+```
+
+Small helpers: file-path parts with `get_path_info()`, and the example files shipped with the package.
+
+# Parts of file paths: `get_path_info()`
+    
+```{r function-get_path_info}
+#' Extract Path Segments or Filenames from File Paths
+#'
+#' @description
+#' `get_path_info` is a merged, upgraded replacement for `get_path_segment` and
+#' `get_filename`. It operates in two modes:
+#'   - **Mode A (when `n` is specified)**: Extract a specific path segment by
+#'     position, supporting forward indexing, reverse indexing, and range extraction.
+#'   - **Mode B (when `n = NULL`)**: Extract the filename, with optional removal
+#'     of the file extension and/or the directory prefix.
+#'
+#' @param path A `character` vector of file system paths.
+#'   Supports mixed separators (`/` and `\\`) and Windows drive letters (e.g. `C:`).
+#'
+#' @param n A `numeric` segment index. Defaults to `NULL` (enters filename mode).
+#'   - Positive integer: forward index from the path start; `1` = first segment.
+#'   - Negative integer: reverse index from the path end; `-1` = last segment
+#'     (i.e. the filename segment).
+#'   - Length-2 vector: extract a contiguous range, e.g. `c(2, 4)` or `c(-3, -1)`.
+#'   - `0` is not allowed.
+#'
+#' @param rm_extension A `logical(1)` flag controlling extension removal.
+#'   Defaults to `TRUE`.
+#'   - In Mode B (`n = NULL`): always applied.
+#'   - In Mode A: **only applied when `n == -1`** (explicitly targeting the filename
+#'     segment). Has no effect for intermediate directory segments (e.g. `n = 2`).
+#'
+#' @param rm_path A `logical(1)` flag controlling whether the directory prefix is
+#'   stripped, keeping only the filename. Defaults to `TRUE`.
+#'   Only applies in Mode B (`n = NULL`); ignored when `n` is specified.
+#'   With `rm_path = FALSE` the normalised path keeps its root (`/`, `C:/` or
+#'   `//` for UNC paths), so absolute paths stay absolute.
+#'
+#' @return A `character` vector of the same length as `path`:
+#'   - Returns the extracted segment string when the segment exists.
+#'   - Returns `NA_character_` when the segment index exceeds the path depth,
+#'     the input element is `NA`, or the path reduces to empty after normalisation
+#'     (e.g. `"C:/"`, `"/"`).
+#'
+#' @details
+#' **Path normalisation (internal, fully vectorised):**
+#' 1. All backslashes and consecutive slashes are collapsed to a single `/`.
+#' 2. Windows drive letter prefixes (`C:`, `D:`, etc.) are stripped for
+#'    segment indexing (and restored in full-path mode).
+#' 3. Leading and trailing `/` characters are removed.
+#' 4. Paths that are empty after the above steps (e.g. original inputs `"C:/"`,
+#'    `"/"`, `""`) are coerced to `NA_character_`.
+#'
+#' **Extension-stripping behaviour (internal `.strip_ext` helper):**
+#' | Input             | Output          | Notes                                      |
+#' |-------------------|-----------------|--------------------------------------------|
+#' | `"report.txt"`    | `"report"`      | Standard file — last extension removed     |
+#' | `"data.tar.gz"`   | `"data.tar"`    | Compound extension — only last level removed|
+#' | `".bashrc"`       | `".bashrc"`     | Pure dot-file (no second dot) — unchanged  |
+#' | `".report.xlsx"`  | `".report"`     | Dot-file with extension — extension removed|
+#' | `"no_ext"`        | `"no_ext"`      | No extension — returned as-is              |
+#' | `"file."`         | `"file."`       | Trailing isolated dot — returned as-is     |
+#'
+#' **NA safety:**
+#' `strsplit(NA_character_, ...)` returns `list(NA)` with `length` 1, not
+#' `character(0)`. Consequently, every `vapply` callback guards against NA paths
+#' with an explicit `anyNA(x)` check rather than `length(x) == 0`.
+#'
+#' @seealso [base::basename()], [tools::file_path_sans_ext()]
+#' @export
+get_path_info <- function(path,
+                          n            = NULL,
+                          rm_extension = TRUE,
+                          rm_path      = TRUE) {
+  # -- 1. Input validation ------------------------------------------------------
+  if (missing(path))
+    stop("Argument `path` is missing.", call. = FALSE)
+  paths <- path
+  if (!is.character(paths))
+    stop("`path` must be a character vector.", call. = FALSE)
+  if (length(paths) == 0L)
+    return(character(0L))
+  if (!is.null(n)) {
+    if (!is.numeric(n) || length(n) == 0L || length(n) > 2L || anyNA(n) ||
+        any(n != floor(n)))
+      stop("`n` must be a single integer or a length-2 integer vector without NA.",
+           call. = FALSE)
+    if (any(n == 0))
+      stop("`n` must not contain 0.", call. = FALSE)
+    n <- as.integer(n)
+  }
+  .check_flag(rm_extension, "rm_extension")
+  .check_flag(rm_path, "rm_path")
+
+  if (is.null(n) && !rm_extension && !rm_path)
+    warning("Both `rm_extension` and `rm_path` are FALSE and `n` is not specified; ",
+            "returning normalised paths unchanged.", call. = FALSE)
+
+  # -- 2. Normalisation -----------------------------------------------------------
+  unc  <- !is.na(paths) & grepl("^(\\\\\\\\|//)[^/\\\\]", paths)   # \\server\share
+  norm <- gsub("\\\\+|/+", "/", paths)                          # unify separators
+  # Root prefix (drive letter and/or leading slash) is remembered so that the
+  # full-path mode can return an absolute path again.
+  root <- sub("^([A-Za-z]:)?(/?).*$", "\\1\\2", norm)
+  root[unc] <- "//"
+  norm <- sub("^[A-Za-z]:", "", norm)
+  norm <- gsub("^/+|/+$", "", norm)
+  norm[!is.na(norm) & norm == ""] <- NA_character_
+
+  segs <- strsplit(norm, "/", fixed = TRUE)    # NA path -> list(NA)
+
+  # -- 3. Mode A: segment extraction -------------------------------------------
+  if (!is.null(n)) {
+    if (length(n) == 1L) {
+      result <- vapply(segs, FUN.VALUE = NA_character_, function(x) {
+        if (anyNA(x)) return(NA_character_)
+        len <- length(x)
+        pos <- if (n > 0L) n else len + n + 1L
+        if (pos >= 1L && pos <= len) x[[pos]] else NA_character_
+      })
+      # Only the filename segment (n = -1) can carry an extension.
+      if (n == -1L && rm_extension) result <- .strip_ext(result)
+    } else {
+      result <- vapply(segs, FUN.VALUE = NA_character_, function(x) {
+        if (anyNA(x)) return(NA_character_)
+        len  <- length(x)
+        pos  <- ifelse(n > 0L, n, len + n + 1L)
+        pos  <- sort(pos)
+        if (pos[1L] >= 1L && pos[2L] <= len)
+          paste(x[pos[1L]:pos[2L]], collapse = "/")
+        else NA_character_
+      })
+    }
+    return(as.character(result))
+  }
+
+  # -- 4. Mode B: filename / full path ---------------------------------------------
+  if (rm_path) {
+    result <- vapply(segs, FUN.VALUE = NA_character_, function(x) {
+      if (anyNA(x)) NA_character_ else x[[length(x)]]
+    })
+    if (rm_extension) result <- .strip_ext(result)
+  } else {
+    result <- vapply(segs, FUN.VALUE = NA_character_, function(x) {
+      if (anyNA(x)) return(NA_character_)
+      if (rm_extension) x[[length(x)]] <- .strip_ext(x[[length(x)]])
+      paste(x, collapse = "/")
+    })
+    ok <- !is.na(result)
+    result[ok] <- paste0(root[ok], result[ok])   # keep the path absolute
+  }
+  as.character(result)
+}
+```
+
+```{r example-get_path_info}
+paths <- c("C:/Users/foo/Documents/report.xlsx",
+           "/home/user/.bashrc",
+           "relative/path/to/data.csv",
+           ".hidden.tar.gz",
+           NA_character_)
+
+# Mode B: filename only, extension stripped (default)
+get_path_info(paths)
+
+# Mode B: filename only, extension preserved
+get_path_info(paths, rm_extension = FALSE)
+
+# Mode B: full normalised path, extension stripped
+get_path_info(paths, rm_path = FALSE)
+
+# Mode A: extract the 2nd path segment
+get_path_info(paths, n = 2)
+
+# Mode A: extract the last segment with extension stripped (n = -1 linkage)
+get_path_info(paths, n = -1, rm_extension = TRUE)
+
+# Mode A: range extraction
+get_path_info(paths, n = c(2, 3))
+```
+
+```{r tests-get_path_info}
+test_that("get_path_info extracts names and segments", {
+  p <- c("C:/Users/foo/report.xlsx", "/home/u/.bashrc", "rel/a/b.tar.gz", NA)
+  expect_identical(get_path_info(p), c("report", ".bashrc", "b.tar", NA))
+  expect_identical(get_path_info(p, n = 1), c("Users", "home", "rel", NA))
+  expect_identical(get_path_info(p, n = c(-2, -1)),
+                   c("foo/report.xlsx", "u/.bashrc", "a/b.tar.gz", NA))
+})
+
+test_that("get_path_info keeps absolute paths absolute", {
+  p <- c("/a/b.txt", "C:\\x\\y.csv", "\\\\srv\\share\\f.r", "rel/z.gz")
+  expect_identical(get_path_info(p, rm_path = FALSE),
+                   c("/a/b", "C:/x/y", "//srv/share/f", "rel/z"))
+})
+
+test_that("get_path_info validates n", {
+  expect_error(get_path_info("a/b", n = NA), "without NA")
+  expect_error(get_path_info("a/b", n = 0), "must not contain 0")
+})
+```
+
+# Example files: `mintyr_example()`
+    
+```{r function-mintyr_example}
+#' Get path to mintyr examples
+#' 
+#' `mintyr` comes bundled with a number of sample files in
+#' its `inst/extdata` directory. Use `mintyr_example()` to retrieve the full file path to a 
+#' specific example file.
+#' 
+#' @param path Name of the example file to locate. If NULL or missing,
+#'   returns the directory path containing the examples.
+#' @return Character string containing the full path to the requested example file.
+#' @seealso [mintyr::mintyr_examples()] to list all available example files
+#' @export
+mintyr_example <- function(path = NULL) {
+  # Handle case when path is NULL or missing
+  if (is.null(path)) {
+    return(system.file("extdata", package = "mintyr", mustWork = TRUE))
+  }
+  
+  
+  # Get the file path
+  file_path <- system.file("extdata", path, package = "mintyr", mustWork = TRUE)
+  
+  return(file_path)
+}
+```
+  
+```{r example-mintyr_example}
+# Get path to an example file
+mintyr_example("csv_test1.csv")
+```
+
+# List example files: `mintyr_examples()`
+    
+```{r function-mintyr_examples}
+#' List all available example files in mintyr package
+#' 
+#' `mintyr` comes bundled with a number of sample files in its `inst/extdata` 
+#' directory. This function lists all available example files, optionally filtered
+#' by a pattern.
+#' 
+#' @param pattern A regular expression to filter filenames. If `NULL` (default),
+#'   all available files are returned.
+#' @return A character vector containing the names of example files. If no files
+#'   match the pattern or if the example directory is empty, returns a zero-length
+#'   character vector.
+#' @seealso [mintyr::mintyr_example()] to get the full path of a specific example file
+#' @export
+mintyr_examples <- function(pattern = NULL) {
+  # Validate pattern if provided
+  if (!is.null(pattern)) {
+    if (!is.character(pattern)) {
+      stop("'pattern' must be a character string or NULL", call. = FALSE)
+    }
+  }
+  
+  # Get the example directory path
+  example_dir <- system.file("extdata", package = "mintyr")
+  
+  # Check if directory exists
+  if (example_dir == "") {
+    return(character(0))
+  }
+  
+  # Get and return matching files
+  list.files(example_dir, pattern = pattern)
+}
+```
+  
+```{r example-mintyr_examples}
+# List all example files
+mintyr_examples()
+```
+
+```{r development-inflate, eval=FALSE}
+# Run in the console. After the first inflate of every flat,
+# fusen::inflate_all() rebuilds the whole package in one go.
+fusen::inflate(
+  flat_file     = "dev/flat_utils.Rmd",
+  vignette_name = "Utilities",
+  overwrite     = TRUE,
+  check         = FALSE,
+  open_vignette = FALSE
+)
+```

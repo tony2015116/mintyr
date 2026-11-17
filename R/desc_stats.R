@@ -280,6 +280,13 @@ desc_stats <- function(data,
   if ("quantile" %in% stats &&
       (!is.numeric(probs) || !length(probs) || anyNA(probs) || any(probs < 0 | probs > 1)))
     stop("`probs` must be numeric values in [0, 1].", call. = FALSE)
+  # Statistic columns (also those computed internally, e.g. `sd` for `se`)
+  # are created next to the `by` columns, so the names must not overlap.
+  q_cols <- if ("quantile" %in% stats)
+    paste0("q", format(probs * 100, trim = TRUE, drop0trailing = TRUE))
+  .check_reserved(by, c(setdiff(available, "quantile"), q_cols, ".is_total"),
+                  "desc_stats", "`by` column(s)",
+                  "they would clash with the statistic columns")
   if (!is.numeric(conf_level) || length(conf_level) != 1L || is.na(conf_level) ||
       conf_level <= 0 || conf_level >= 1)
     stop("`conf_level` must be a single number in (0, 1).", call. = FALSE)
@@ -551,6 +558,7 @@ desc_stats <- function(data,
         i <- which(d == dd)
         txt[i] <- formatC(x[i], format = "f", digits = dd)
       }
+      txt <- sub("^-(0(\\.0+)?)$", "\\1", txt)      # "-0.00" -> "0.00"
       # Counts are integers and shown without decimals.
       if (is.integer(x) && !t$pct[k]) txt <- as.character(x)
       txt[is.na(x)] <- "NA"

@@ -1,0 +1,1270 @@
+---
+title: "flat_summary.Rmd for working package"
+output: html_document
+editor_options:
+  chunk_output_type: console
+---
+
+```{r development, include=FALSE}
+library(testthat)
+```
+
+`desc_stats()` summarises numeric columns by group, with optional totals, report-ready text (`"{mean} ± {sd}"`) and a wide report layout. `top_perc()` describes the best (or worst) X% of records per group, and `format_digits()` formats numbers for tables.
+
+# Descriptive statistics by group: `desc_stats()`
+
+```{r function-desc_stats}
+#' Descriptive Statistics by Group, with an Optional Total Row
+#'
+#' @description
+#' `desc_stats()` computes descriptive statistics for numeric columns, overall
+#' or by group, in one tidy table (one row per group x variable, or one row
+#' per group in wide shape). The statistic sets follow
+#' `rstatix::get_summary_stats()`. An optional total row gives the
+#' statistics of every variable over all records; results can be returned
+#' as numbers or as report-ready text such as `"26.66 ± 4.51"`.
+#'
+#' @param data A `data.frame` or `data.table`. It is never modified.
+#' @param cols Numeric columns to summarise, as names or indices. Default
+#'   `NULL`: every numeric column not in `by`.
+#' @param by Grouping column(s), as names or indices. Default `NULL`. Must not
+#'   be named `variable` or `value`.
+#' @param type Preset set of statistics (ignored when `stats` or `fmt` is
+#'   given):
+#'   \describe{
+#'     \item{`"full"`}{n, min, max, median, q1, q3, iqr, mad, mean, sd, se, ci,
+#'       cv, skew, kurt}
+#'     \item{`"common"` (default)}{n, min, max, median, iqr, mean, sd, se, ci}
+#'     \item{`"robust"`}{n, median, iqr}
+#'     \item{`"five_number"`}{n, min, q1, median, q3, max}
+#'     \item{`"mean_sd"`, `"mean_se"`}{n, mean and sd / se}
+#'     \item{`"mean_ci"`}{n, mean, ci_low, ci_high}
+#'     \item{`"median_iqr"`, `"median_mad"`}{n, median and iqr / mad}
+#'     \item{`"quantile"`}{n and the quantiles given by `probs`}
+#'     \item{`"mean"`, `"median"`}{n and the mean / median}
+#'   }
+#' @param stats Optional character vector of statistics, overriding `type`:
+#'   any of `"n"`, `"n_miss"`, `"min"`, `"max"`, `"mean"`, `"median"`,
+#'   `"q1"`, `"q3"`, `"iqr"`, `"mad"`, `"sd"`, `"se"`, `"ci"`, `"ci_low"`,
+#'   `"ci_high"`, `"cv"`, `"skew"`, `"kurt"` and `"quantile"`, in the order
+#'   wanted.
+#' @param total Logical. If `TRUE`, add totals following one rule: across
+#'   groups the statistics are recomputed on all records, across variables
+#'   only counts are added up (different variables are not one quantity).
+#'   \itemize{
+#'     \item **Total row** (with `by`): an extra group whose `by` columns hold
+#'       `total_label`; every variable is summarised over all records, so its
+#'       `n` is the sum of the group `n`.
+#'     \item **Total variable / column** (with two or more variables, when
+#'       `n` or `n_miss` is requested or a `fmt` template uses only counts):
+#'       an extra variable
+#'       `total_label`, last, whose `n` / `n_miss` are the sums over the
+#'       variables in each row; its other statistics are `NA`, and in wide
+#'       shape its empty columns are dropped. A count-only wide table thus
+#'       gets row and column totals, as `janitor::adorn_totals()`.
+#'   }
+#'   Without `by` only the total variable is added. Default `FALSE`.
+#' @param total_label Label of the total row and the total variable. Default
+#'   `"Total"`. Must not already occur in a `by` column or as a variable name
+#'   (or label).
+#' @param min_n Minimum number of (non-missing) values a group needs for its
+#'   statistics to be reported. Groups with fewer values keep `n` / `n_miss`
+#'   but all other statistics are `NA`, so that e.g. the SD of a farm with
+#'   two animals is not mistaken for a reliable figure. Default `1`.
+#' @param probs Probabilities for `"quantile"`; output columns are named
+#'   `q0`, `q25`, `q2.5`, ... Default `c(0, 0.25, 0.5, 0.75, 1)`.
+#' @param conf_level Confidence level of `ci`. Default `0.95`.
+#' @param na_rm Logical. If `TRUE` (default) missing values are removed
+#'   before computing statistics, and `n` counts the non-missing values. If
+#'   `FALSE`, any missing value makes the statistics `NA` and `n` counts all
+#'   values.
+#' @param digits `NULL` (default, no rounding), one non-negative integer for
+#'   all variables, or a named vector per variable, optionally with one
+#'   unnamed default: `c(2, adg = 0, bf = 1)` rounds `adg` to 0, `bf` to 1
+#'   and every other variable to 2 decimals (variables without a value are
+#'   not rounded). The counts `n` / `n_miss` are integers. With `fmt`, these
+#'   are the decimals of placeholders without their own `{stat:d}` (default
+#'   2).
+#' @param fmt `NULL` (default) or a character vector of templates that turn
+#'   the statistics into report-ready text, e.g. `"{mean} ± {sd}"`. Each
+#'   template becomes one text column, replacing the numeric statistics;
+#'   name the elements to name the columns (default: the template without
+#'   braces, e.g. `"mean ± sd"`). Placeholders:
+#'   \itemize{
+#'     \item `{stat}` — any statistic listed in `stats` (except
+#'       `"quantile"`), with `digits` decimals (counts without decimals).
+#'     \item `{stat:d}` — with `d` decimals, e.g. `{mean:1}`.
+#'     \item `{stat:d\%}` — multiplied by 100 and followed by `\%`, e.g.
+#'       `{cv:1\%}`.
+#'     \item `{q2.5}`, `{q97.5}`, ... — percentiles (`{q1}` / `{q3}` are the
+#'       quartiles).
+#'   }
+#'   The statistics needed by the templates are computed automatically;
+#'   `type`, `stats` and `probs` are then ignored. Missing values are shown
+#'   as `"NA"` (e.g. the SD of a single record).
+#' @param labels `NULL` (default) or a named character vector of display
+#'   names for the variables, e.g. `c(adg = "ADG (g)", bf = "Backfat (mm)")`.
+#'   Applied to the `variable` column (long shape) or the column names (wide
+#'   shape). Variables without a label keep their name.
+#' @param shape `"long"` (default): one row per group x variable, one column
+#'   per statistic. `"wide"`: one row per group (total row last), columns
+#'   `<variable><sep><statistic>` in variable order, as
+#'   in a typical report table. With a single statistic or template (e.g.
+#'   `stats = "mean"`, `fmt = "{mean} ± {sd}"`) the columns are simply named
+#'   after the variables. Both shapes show the same numbers.
+#' @param sep Separator between variable and statistic in wide column names.
+#'   Default `"_"`.
+#' @param out_type `"dt"` (default) for a `data.table`, `"df"` for a
+#'   `data.frame`.
+#'
+#' @details
+#' Definitions: `q1` / `q3` and `quantile` use `stats::quantile()`
+#' (type 7), `iqr = q3 - q1`, `mad` is `stats::mad()` (scaled by 1.4826),
+#' `se = sd / sqrt(n)`, `ci` is the half-width of the t-based confidence
+#' interval of the mean (`qt((1 + conf_level) / 2, n - 1) * se`), and
+#' `ci_low` / `ci_high` are its bounds (`mean -/+ ci`),
+#' `cv = sd / mean` as a ratio (shown in percent with `fmt = "{cv:1\%}"`),
+#' `skew` is the adjusted Fisher-Pearson skewness G1 and `kurt` the excess
+#' kurtosis G2, as in SAS, SPSS and Excel's `SKEW()` / `KURT()` (`NA` with
+#' fewer than 3 / 4 values).
+#' The CV is only meaningful for strictly positive data and is `NA` when a
+#' group contains values <= 0. Statistics that are undefined for a group
+#' (e.g. `sd` with one value) are `NA`.
+#'
+#' Computation: statistics are computed column by column on the input table
+#' (no reshaping to long format, so memory use stays close to the input
+#' size). `n`, `mean`, `sd`, `min`, `max` and `median` use data.table's
+#' optimised grouped functions, quantiles are read off once-sorted groups,
+#' so tens of thousands of groups (sires, litters, pens) are summarised in
+#' about a second per million records.
+#'
+#' Rows are ordered by variable (in the order of `cols`),
+#' then by group (in the original order of the `by` values: numeric order,
+#' factor levels, alphabetical for text), with the total row last. With a
+#' total row, `by` columns that are not factors or character are returned as
+#' character; factors gain the label as their last level.
+#'
+#' @return A `data.table` (or `data.frame`). Long shape: the `by` columns,
+#'   `variable` and one column per statistic (or per `fmt` template, as
+#'   text). Wide shape: the `by` columns followed by one column per
+#'   variable x statistic (or template).
+#'
+#' @seealso [top_perc()] for statistics of the top / bottom X% per group.
+#'
+#' @import data.table
+#' @importFrom stats qt quantile median mad sd
+#' @export
+desc_stats <- function(data,
+                       cols        = NULL,
+                       by          = NULL,
+                       type        = "common",
+                       stats       = NULL,
+                       total       = FALSE,
+                       total_label = "Total",
+                       min_n       = 1L,
+                       probs       = c(0, 0.25, 0.5, 0.75, 1),
+                       conf_level  = 0.95,
+                       na_rm       = TRUE,
+                       digits      = NULL,
+                       fmt         = NULL,
+                       labels      = NULL,
+                       shape       = "long",
+                       sep         = "_",
+                       out_type    = "dt") {
+  variable <- .var_ord <- .is_total <- .variable <- NULL
+
+  # -- 1. Data and columns --------------------------------------------------------
+  if (!is.data.frame(data))
+    stop("`data` must be a data.frame or data.table.", call. = FALSE)
+  # Read-only use below (statistics are computed column by column on the
+  # original table), so no copy is needed.
+  dt <- if (data.table::is.data.table(data)) data else data.table::as.data.table(data)
+
+  by <- .resolve_cols(by, names(dt), "by", allow_null = TRUE)
+  reserved <- intersect(by, c("variable", ".variable", ".var_ord"))
+  if (length(reserved))
+    stop("`by` column(s) must not be named 'variable' (used in the result); ",
+         "rename: ", paste(reserved, collapse = ", "), call. = FALSE)
+  if (is.null(cols)) {
+    cols <- setdiff(names(dt)[vapply(dt, is.numeric, logical(1L))], by)
+    if (!length(cols))
+      stop("`data` has no numeric columns outside `by`.", call. = FALSE)
+  } else {
+    cols <- .resolve_cols(cols, names(dt), "cols")
+  }
+  overlap <- intersect(cols, by)
+  if (length(overlap))
+    stop("Column(s) appear in both `cols` and `by`: ", paste(overlap, collapse = ", "),
+         call. = FALSE)
+  non_num <- cols[!vapply(cols, function(cn) is.numeric(dt[[cn]]), logical(1L))]
+  if (length(non_num))
+    stop("`cols` must be numeric; not numeric: ", paste(non_num, collapse = ", "),
+         call. = FALSE)
+
+  # -- 2. Statistics to compute ---------------------------------------------------
+  presets <- list(
+    full        = c("n", "min", "max", "median", "q1", "q3", "iqr", "mad",
+                    "mean", "sd", "se", "ci", "cv", "skew", "kurt"),
+    common      = c("n", "min", "max", "median", "iqr", "mean", "sd", "se", "ci"),
+    robust      = c("n", "median", "iqr"),
+    five_number = c("n", "min", "q1", "median", "q3", "max"),
+    mean_sd     = c("n", "mean", "sd"),
+    mean_se     = c("n", "mean", "se"),
+    mean_ci     = c("n", "mean", "ci_low", "ci_high"),
+    median_iqr  = c("n", "median", "iqr"),
+    median_mad  = c("n", "median", "mad"),
+    quantile    = c("n", "quantile"),
+    mean        = c("n", "mean"),
+    median      = c("n", "median")
+  )
+  available <- c("n", "n_miss", "min", "max", "mean", "median", "q1", "q3",
+                 "iqr", "mad", "sd", "se", "ci", "ci_low", "ci_high", "cv",
+                 "skew", "kurt", "quantile")
+  if (!is.null(fmt)) {
+    # The template decides which statistics are computed.
+    if (!missing(stats) || !missing(type))
+      warning("`fmt` is supplied, so `type` / `stats` are ignored.", call. = FALSE)
+    spec  <- .fmt_spec(fmt, available)
+    stats <- spec$stats
+    if (length(spec$probs)) probs <- spec$probs
+  } else if (is.null(stats)) {
+    .check_choice(type, names(presets), "type")
+    stats <- presets[[type]]
+  } else {
+    if (!is.character(stats) || !length(stats) || anyNA(stats))
+      stop("`stats` must be a character vector of statistic names.", call. = FALSE)
+    bad <- setdiff(stats, available)
+    if (length(bad))
+      stop("Unknown statistic(s) in `stats`: ", paste(bad, collapse = ", "),
+           ". Available: ", paste(available, collapse = ", "), call. = FALSE)
+    stats <- unique(stats)
+  }
+  if ("quantile" %in% stats &&
+      (!is.numeric(probs) || !length(probs) || anyNA(probs) || any(probs < 0 | probs > 1)))
+    stop("`probs` must be numeric values in [0, 1].", call. = FALSE)
+  # Statistic columns (also those computed internally, e.g. `sd` for `se`)
+  # are created next to the `by` columns, so the names must not overlap.
+  q_cols <- if ("quantile" %in% stats)
+    paste0("q", format(probs * 100, trim = TRUE, drop0trailing = TRUE))
+  .check_reserved(by, c(setdiff(available, "quantile"), q_cols, ".is_total"),
+                  "desc_stats", "`by` column(s)",
+                  "they would clash with the statistic columns")
+  if (!is.numeric(conf_level) || length(conf_level) != 1L || is.na(conf_level) ||
+      conf_level <= 0 || conf_level >= 1)
+    stop("`conf_level` must be a single number in (0, 1).", call. = FALSE)
+  .check_flag(total, "total")
+  if (!is.character(total_label) || length(total_label) != 1L || is.na(total_label) ||
+      !nzchar(total_label))
+    stop("`total_label` must be a single non-empty string.", call. = FALSE)
+  min_n <- .check_count(min_n, "min_n", 1L)
+  .check_flag(na_rm, "na_rm")
+  .check_choice(shape, c("long", "wide"), "shape")
+  if (!is.character(sep) || length(sep) != 1L || is.na(sep))
+    stop("`sep` must be a single character string.", call. = FALSE)
+  .check_choice(out_type, c("dt", "df"), "out_type")
+
+  # digits: one number for all variables, or a (partly) named vector,
+  # e.g. c(2, adg = 0): unnamed element = default, names = per variable.
+  digits_of <- NULL
+  if (!is.null(digits)) {
+    if (!is.numeric(digits) || !length(digits) || anyNA(digits) ||
+        any(digits < 0 | digits != floor(digits)))
+      stop("`digits` must be non-negative whole number(s).", call. = FALSE)
+    nms <- names(digits)
+    if (is.null(nms)) nms <- rep("", length(digits))
+    if (sum(!nzchar(nms)) > 1L)
+      stop("`digits` may contain at most one unnamed (default) value.", call. = FALSE)
+    unknown <- setdiff(nms[nzchar(nms)], cols)
+    if (length(unknown))
+      stop("`digits` names not in `cols`: ", paste(unknown, collapse = ", "), call. = FALSE)
+    default <- if (any(!nzchar(nms))) as.integer(digits[!nzchar(nms)]) else NA_integer_
+    digits_of <- stats::setNames(rep(default, length(cols)), cols)
+    digits_of[nms[nzchar(nms)]] <- as.integer(digits[nzchar(nms)])
+  }
+
+  # labels: display names for the variables, e.g. c(adg = "ADG (g)")
+  if (!is.null(labels)) {
+    if (!is.character(labels) || is.null(names(labels)) || anyNA(labels) ||
+        any(!nzchar(names(labels))) || anyDuplicated(names(labels)))
+      stop("`labels` must be a character vector named by variable, ",
+           "e.g. c(adg = \"ADG (g)\").", call. = FALSE)
+    unknown <- setdiff(names(labels), cols)
+    if (length(unknown))
+      stop("`labels` names not in `cols`: ", paste(unknown, collapse = ", "), call. = FALSE)
+    shown <- cols
+    shown[match(names(labels), cols)] <- labels
+    if (anyDuplicated(shown))
+      stop("`labels` would give several variables the same name: ",
+           paste(unique(shown[duplicated(shown)]), collapse = ", "), call. = FALSE)
+  }
+
+  # Totals follow one rule: across groups, statistics are recomputed on all
+  # records (total row); across variables only counts are added up (total
+  # variable / column), because different variables are not one quantity.
+  count_tpl <- if (!is.null(fmt))
+    vapply(spec$templates, function(t) all(t$col %in% c("n", "n_miss")), logical(1L))
+  total_row <- total && length(by) > 0L
+  # A total over a single variable would just repeat it.
+  total_var <- total && length(cols) >= 2L &&
+    (if (is.null(fmt)) any(c("n", "n_miss") %in% stats) else any(count_tpl))
+  if (total && !total_row && !total_var)
+    warning("Nothing to total: without `by`, `total = TRUE` only adds up counts ",
+            "(\"n\" / \"n_miss\") across two or more variables.", call. = FALSE)
+  if (total_var) {
+    shown_names <- if (is.null(labels)) cols else { x <- cols; x[match(names(labels), cols)] <- labels; x }
+    if (total_label %in% shown_names)
+      stop("`total_label` '", total_label, "' is also a variable name; choose another.",
+           call. = FALSE)
+  }
+  if (total_row) {
+    clash <- by[vapply(by, function(b) total_label %in% as.character(dt[[b]]), logical(1L))]
+    if (length(clash))
+      stop("`total_label` '", total_label, "' already occurs in `by` column(s): ",
+           paste(clash, collapse = ", "), call. = FALSE)
+  }
+
+  # -- 3. Statistics per group and variable ---------------------------------------
+  engine <- function(by_cols)
+    .desc_engine(dt, cols, by_cols, stats, probs = probs, conf_level = conf_level,
+                 na_rm = na_rm, min_n = min_n)
+  res <- engine(by)
+  # Sort groups on their original type (numeric 9 before 10, factor levels in
+  # level order) before a total row may turn them into character.
+  data.table::setorderv(res, c(".var_ord", by), na.last = TRUE)
+
+  # -- 4. Total row ---------------------------------------------------------------
+  # Statistics of each variable over all records, ignoring the groups. Group
+  # statistics are never added up or averaged; only the counts add up
+  # (n of the total row = sum of the group n).
+  res[, .is_total := FALSE]
+  if (total_row) {
+    tot <- engine(NULL)
+    for (b in by) {
+      x <- res[[b]]
+      if (is.factor(x)) {
+        lev <- c(levels(x), total_label)
+        data.table::set(res, j = b, value = factor(as.character(x), levels = lev))
+        data.table::set(tot, j = b, value = factor(rep(total_label, nrow(tot)), levels = lev))
+      } else {
+        if (!is.character(x)) data.table::set(res, j = b, value = as.character(x))
+        data.table::set(tot, j = b, value = rep(total_label, nrow(tot)))
+      }
+    }
+    tot[, .is_total := TRUE]
+    res <- data.table::rbindlist(list(res, tot), use.names = TRUE)
+    # setorderv() is stable: groups keep their order, the total row comes last.
+    data.table::setorderv(res, c(".var_ord", ".is_total"))
+  }
+
+  # -- 4b. Total variable: counts of every row summed over the variables ---------
+  # One extra variable (last) per group and for the total row; only n /
+  # n_miss are filled, the other statistics stay NA.
+  if (total_var) {
+    cnt  <- intersect(c("n", "n_miss"), names(res))
+    keys <- c(by, ".is_total")
+    tv <- if (length(cnt)) res[, lapply(.SD, sum), by = keys, .SDcols = cnt]
+          else unique(res[, keys, with = FALSE])
+    data.table::set(tv, j = ".variable", value = rep(total_label, nrow(tv)))
+    data.table::set(tv, j = ".var_ord", value = rep(length(cols) + 1L, nrow(tv)))
+    res <- data.table::rbindlist(list(res, tv), use.names = TRUE, fill = TRUE)
+    data.table::setorderv(res, c(".var_ord", ".is_total"))
+  }
+  res[, .is_total := NULL]
+  data.table::setnames(res, ".variable", "variable")
+
+  # -- 5. Rounding or formatted text -----------------------------------------------
+  stat_cols <- setdiff(names(res), c(by, "variable", ".var_ord"))
+  row_digits <- if (is.null(digits_of)) rep(NA_integer_, nrow(res))
+                else unname(digits_of[res$variable])
+  if (!is.null(fmt)) {
+    row_digits[is.na(row_digits)] <- 2L
+    out_cols <- .fmt_apply(res, spec, default_digits = row_digits)
+    if (total_var) {
+      # Total variable: only count-only templates are meaningful.
+      tv_rows <- which(res$variable == total_label)
+      for (nm in names(out_cols)[!count_tpl]) out_cols[[nm]][tv_rows] <- NA_character_
+    }
+    clash <- intersect(names(out_cols), c(by, "variable"))
+    if (length(clash))
+      stop("`fmt` name(s) clash with grouping / variable columns: ",
+           paste(clash, collapse = ", "), call. = FALSE)
+    res[, (stat_cols) := NULL]
+    for (nm in names(out_cols)) data.table::set(res, j = nm, value = out_cols[[nm]])
+  } else if (!all(is.na(row_digits))) {
+    for (cn in stat_cols[vapply(stat_cols, function(cn) is.double(res[[cn]]), logical(1L))]) {
+      v <- res[[cn]]
+      for (dd in unique(row_digits[!is.na(row_digits)])) {
+        i <- which(row_digits == dd)
+        v[i] <- round(v[i], dd)
+      }
+      data.table::set(res, j = cn, value = v)
+    }
+  }
+  res[, .var_ord := NULL]
+
+  # -- 6. Variable labels, optional wide layout ----------------------------------
+  if (!is.null(labels)) {
+    hit <- res$variable %in% names(labels)
+    data.table::set(res, i = which(hit), j = "variable", value = unname(labels[res$variable[hit]]))
+  }
+  data.table::setcolorder(res, c(by, "variable"))
+  if (shape == "wide") {
+    res <- .desc_wide(res, by, sep)
+    if (total_var) {
+      # Drop the empty (non-count) columns of the total variable.
+      tot_cols <- grep(paste0("^", .re_escape(total_label), "(", .re_escape(sep), "|$)"),
+                       names(res), value = TRUE)
+      empty <- tot_cols[vapply(tot_cols, function(cn) all(is.na(res[[cn]])), logical(1L))]
+      if (length(empty)) res[, (empty) := NULL]
+    }
+  }
+
+  if (out_type == "df") data.table::setDF(res)
+  res[]
+}
+
+#' Reshape a long desc_stats() result to one row per group (internal)
+#'
+#' Columns are `<variable><sep><stat>` in variable order (input order, total
+#' column last), or just `<variable>` when a single statistic is present.
+#' Row order is the group order of the long table (total row last).
+#' @noRd
+.desc_wide <- function(res, by, sep) {
+  variable <- .row <- NULL
+  stat_cols <- setdiff(names(res), c(by, "variable"))
+  vars      <- unique(res$variable)
+  col_name  <- function(v, st) if (length(stat_cols) == 1L) v else paste(v, st, sep = sep)
+
+  if (length(by)) {
+    keys <- unique(res[, by, with = FALSE])           # first-appearance order
+    out  <- data.table::copy(keys)
+  } else {
+    out  <- data.table::data.table(.row = 1L)
+  }
+  for (v in vars) {
+    sub <- res[variable == v]
+    idx <- if (length(by)) sub[keys, on = by, which = TRUE] else 1L
+    for (st in stat_cols)
+      data.table::set(out, j = col_name(v, st), value = sub[[st]][idx])
+  }
+  if (!length(by)) out[, .row := NULL]
+  out[]
+}
+
+#' Parse a desc_stats() `fmt` template (internal)
+#'
+#' Placeholders: `{stat}`, `{stat:d}` (d decimals) and `{stat:d%}` (x 100,
+#' followed by "%"). `q1` / `q3` are quartiles; `q<number>` (e.g. `q2.5`,
+#' `q97.5`) are percentiles and switch on the `"quantile"` statistic.
+#' @return list(templates, stats, probs)
+#' @noRd
+.fmt_spec <- function(fmt, available) {
+  if (!is.character(fmt) || !length(fmt) || anyNA(fmt) || any(!nzchar(fmt)))
+    stop("`fmt` must be a character vector of non-empty templates.", call. = FALSE)
+  pat <- "\\{([A-Za-z0-9_.]+)(?::([0-9]+)(%?))?\\}"
+  nms <- names(fmt)
+  if (is.null(nms)) nms <- rep("", length(fmt))
+  auto <- !nzchar(nms)
+  # Default column name: the template without braces / format specs.
+  nms[auto] <- gsub("\\{([A-Za-z0-9_.]+)[^}]*\\}", "\\1", fmt[auto], perl = TRUE)
+  if (anyDuplicated(nms))
+    stop("`fmt` produces duplicated column names: ",
+         paste(unique(nms[duplicated(nms)]), collapse = ", "), call. = FALSE)
+
+  plain <- setdiff(available, "quantile")
+  templates <- lapply(seq_along(fmt), function(i) {
+    m    <- gregexpr(pat, fmt[[i]], perl = TRUE)
+    toks <- regmatches(fmt[[i]], m)[[1L]]
+    if (!length(toks))
+      stop("`fmt` template '", fmt[[i]], "' contains no {statistic} placeholder.",
+           call. = FALSE)
+    lits  <- regmatches(fmt[[i]], m, invert = TRUE)[[1L]]
+    parts <- regmatches(toks, regexec(pat, toks, perl = TRUE))
+    stat  <- vapply(parts, `[[`, character(1L), 2L)
+    dig   <- vapply(parts, function(p) if (nzchar(p[[3L]])) as.integer(p[[3L]]) else NA_integer_,
+                    integer(1L))
+    pct   <- vapply(parts, function(p) nzchar(p[[4L]]), logical(1L))
+    is_q  <- !stat %in% plain & grepl("^q[0-9]+(\\.[0-9]+)?$", stat)
+    bad   <- stat[!stat %in% plain & !is_q]
+    if (length(bad))
+      stop("Unknown statistic(s) in `fmt`: ", paste(unique(bad), collapse = ", "),
+           ". Available: ", paste(plain, collapse = ", "),
+           ", and percentiles such as q2.5 / q97.5.", call. = FALSE)
+    p <- rep(NA_real_, length(stat))
+    p[is_q] <- as.numeric(sub("^q", "", stat[is_q])) / 100
+    if (any(p > 1, na.rm = TRUE))
+      stop("Percentile placeholders must be between q0 and q100.", call. = FALSE)
+    # column produced by the quantile statistic for this percentile
+    col <- stat
+    col[is_q] <- paste0("q", format(p[is_q] * 100, trim = TRUE, drop0trailing = TRUE))
+    list(lits = lits, col = col, dig = dig, pct = pct, prob = p, is_q = is_q)
+  })
+  names(templates) <- nms
+
+  all_stat <- unique(unlist(lapply(templates, function(t) t$col[!t$is_q])))
+  probs    <- sort(unique(unlist(lapply(templates, function(t) t$prob[t$is_q]))))
+  stats    <- c(intersect(plain, all_stat), if (length(probs)) "quantile")
+  list(templates = templates, stats = stats, probs = probs)
+}
+
+#' Render the `fmt` templates for every row of a long desc_stats() table
+#' @noRd
+.fmt_apply <- function(res, spec, default_digits) {
+  lapply(spec$templates, function(t) {
+    vals <- lapply(seq_along(t$col), function(k) {
+      x <- res[[t$col[k]]]
+      if (t$pct[k]) x <- x * 100
+      d   <- if (is.na(t$dig[k])) default_digits else rep(t$dig[k], length(x))
+      txt <- character(length(x))
+      for (dd in unique(d)) {                          # vectorised per digit value
+        i <- which(d == dd)
+        txt[i] <- formatC(x[i], format = "f", digits = dd)
+      }
+      txt <- sub("^-(0(\\.0+)?)$", "\\1", txt)      # "-0.00" -> "0.00"
+      # Counts are integers and shown without decimals.
+      if (is.integer(x) && !t$pct[k]) txt <- as.character(x)
+      txt[is.na(x)] <- "NA"
+      if (t$pct[k]) txt[!is.na(x)] <- paste0(txt[!is.na(x)], "%")
+      txt
+    })
+    out <- t$lits[[1L]]
+    for (k in seq_along(vals)) out <- paste0(out, vals[[k]], t$lits[[k + 1L]])
+    out
+  })
+}
+
+#' Escape regular-expression metacharacters (internal)
+#' @noRd
+.re_escape <- function(x) gsub("([][{}()+*^$|\\\\?.])", "\\\\\\1", x)
+```
+
+```{r example-desc_stats}
+# Example 1: Common statistics for every numeric column of iris
+desc_stats(iris)
+
+# Example 2: Mean and SD by group, with a total row over all records
+desc_stats(
+  iris,
+  by = "Species",                 # Grouping column
+  type = "mean_sd",               # Preset: n, mean, sd
+  total = TRUE,                   # n = sum of the groups, mean / sd of all records
+  digits = 2                      # Round the statistics
+)
+
+# Example 3: Count table with row and column totals
+# (counts are the only statistic that adds up across variables)
+desc_stats(
+  iris,
+  by = "Species",
+  stats = "n",
+  total = TRUE,                   # Total row and Total column
+  shape = "wide"
+)
+
+# Without groups the total adds up the counts of all variables
+desc_stats(iris, type = "mean_sd", total = TRUE, digits = 2)
+
+# Example 3b: Report table - groups in rows, traits in columns, "mean ± sd"
+desc_stats(
+  mtcars,
+  cols = c("mpg", "hp", "wt"),
+  by = "cyl",
+  fmt = "{mean} ± {sd}",          # Report-ready text
+  total = TRUE,
+  shape = "wide"                  # One row per group, one column per trait
+)
+
+# Example 4: Several templates, per-placeholder decimals, CV in percent and
+# percentiles
+desc_stats(
+  mtcars,
+  cols = c("mpg", "wt"),
+  by = "am",
+  fmt = c(N = "{n}",
+          "Mean ± SD" = "{mean:1} ± {sd:1}",
+          "CV" = "{cv:1%}",
+          "Median [P2.5, P97.5]" = "{median:1} [{q2.5:1}, {q97.5:1}]"),
+  total = TRUE
+)
+
+# Example 5: Quantiles, returned as a data.frame
+desc_stats(iris, cols = 1:2, type = "quantile",
+           probs = c(0.05, 0.5, 0.95), out_type = "df")
+```
+
+```{r tests-desc_stats}
+test_that("desc_stats matches base R statistics", {
+  x <- iris$Sepal.Length
+  r <- desc_stats(iris, cols = "Sepal.Length", type = "full")
+  expect_identical(r$variable, "Sepal.Length")
+  expect_identical(r$n, 150L)
+  expect_equal(c(r$min, r$max, r$median, r$mean, r$sd, r$mad),
+               c(min(x), max(x), median(x), mean(x), sd(x), mad(x)))
+  expect_equal(r$iqr, IQR(x))
+  expect_equal(r$se, sd(x) / sqrt(150))
+  expect_equal(r$ci, qt(0.975, 149) * sd(x) / sqrt(150))
+  expect_equal(r$cv, sd(x) / mean(x))
+})
+
+test_that("desc_stats presets and custom stats select the right columns", {
+  expect_identical(names(desc_stats(iris, cols = 1)),
+                   c("variable", "n", "min", "max", "median", "iqr", "mean", "sd", "se", "ci"))
+  expect_identical(names(desc_stats(iris, cols = 1, type = "five_number")),
+                   c("variable", "n", "min", "q1", "median", "q3", "max"))
+  expect_identical(names(desc_stats(iris, cols = 1, stats = c("mean", "n_miss"))),
+                   c("variable", "mean", "n_miss"))
+  q <- desc_stats(iris, cols = 1, type = "quantile", probs = c(0.025, 0.5))
+  expect_identical(names(q), c("variable", "n", "q2.5", "q50"))
+  expect_equal(q$q2.5, unname(quantile(iris$Sepal.Length, 0.025)))
+  expect_identical(desc_stats(iris)$variable, names(iris)[1:4])   # default cols
+  expect_silent(desc_stats(mtcars, cols = c("cyl", "mpg"), type = "mean"))  # int + double
+})
+
+test_that("desc_stats total row: counts add up, statistics use all records", {
+  r <- desc_stats(iris, cols = 1, by = "Species", type = "mean_sd", total = TRUE)
+  expect_identical(as.character(r$Species), c("setosa", "versicolor", "virginica", "Total"))
+  expect_equal(r$mean[4], mean(iris$Sepal.Length))
+  expect_equal(r$sd[4], sd(iris$Sepal.Length))          # not a mean of group SDs
+  expect_identical(levels(r$Species), c(levels(iris$Species), "Total"))
+  expect_identical(r$n[4], sum(r$n[1:3]))               # only counts add up
+  d <- data.frame(farm = c(rep("A", 4), "B"), w = c(10, 12, 14, 16, NA))
+  t2 <- desc_stats(d, by = "farm", stats = c("n", "n_miss", "mean"), total = TRUE,
+                   total_label = "All farms")
+  expect_identical(t2$farm, c("A", "B", "All farms"))
+  expect_identical(t2$n, c(4L, 0L, 4L))
+  expect_identical(t2$n_miss, c(0L, 1L, 1L))
+  expect_equal(t2$mean[3], 13)                          # not the mean of 13 and NA
+})
+
+test_that("desc_stats CV is NA unless all values are positive", {
+  d <- data.frame(x = c(-1, 1, -2, 2.01), y = c(1, 2, 3, 4))
+  r <- desc_stats(d, stats = c("mean", "cv"))
+  expect_true(is.na(r$cv[1]))
+  expect_equal(r$cv[2], sd(d$y) / mean(d$y))
+})
+
+test_that("desc_stats keeps group order and handles NA / tiny groups", {
+  d <- data.frame(p = c(9, 10, 2, 10), v = c(1, 2, 3, NA))
+  r <- desc_stats(d, by = "p", stats = c("n", "mean", "sd"), total = TRUE)
+  expect_identical(r$p, c("2", "9", "10", "Total"))
+  expect_true(is.na(r$sd[1]))                            # one value: sd undefined
+  expect_identical(r$n[r$p == "10"], 1L)
+  r0 <- desc_stats(d, by = "p", stats = c("n", "mean"), na_rm = FALSE)
+  expect_true(is.na(r0$mean[r0$p == 10]))
+  expect_identical(r0$n[r0$p == 10], 2L)
+})
+
+test_that("desc_stats shape = 'wide' puts groups in rows and variables in columns", {
+  long <- desc_stats(mtcars, cols = c("mpg", "hp"), by = "cyl", type = "mean_sd",
+                     total = TRUE)
+  wide <- desc_stats(mtcars, cols = c("mpg", "hp"), by = "cyl", type = "mean_sd",
+                     total = TRUE, shape = "wide")
+  expect_identical(names(wide),
+                   c("cyl", "mpg_n", "mpg_mean", "mpg_sd", "hp_n", "hp_mean", "hp_sd",
+                     "Total_n"))                                 # counts add up
+  expect_identical(wide$cyl, c("4", "6", "8", "Total"))          # total row last
+  expect_equal(wide$hp_sd, long[variable == "hp"]$sd)            # same numbers
+  one <- desc_stats(iris, by = "Species", stats = "mean", total = TRUE,
+                    shape = "wide")
+  expect_identical(names(one), c("Species", names(iris)[1:4]))
+  flat <- desc_stats(iris, cols = 1:2, stats = c("mean", "sd"), shape = "wide", sep = ".")
+  expect_identical(names(flat), c("Sepal.Length.mean", "Sepal.Length.sd",
+                                  "Sepal.Width.mean", "Sepal.Width.sd"))
+  d <- data.frame(g = c("a", NA, "a", "b"), x = c(1, 2, 3, 4))
+  w <- desc_stats(d, by = "g", stats = c("n", "mean"), total = TRUE, shape = "wide")
+  expect_identical(w$g, c("a", "b", NA, "Total"))
+  two <- desc_stats(mtcars, cols = "mpg", by = c("am", "vs"), stats = "mean",
+                    total = TRUE, shape = "wide", out_type = "df")
+  expect_s3_class(two, "data.frame", exact = TRUE)
+  expect_identical(unlist(two[5, c("am", "vs")], use.names = FALSE), c("Total", "Total"))
+})
+
+test_that("desc_stats fmt renders report-ready text", {
+  r <- desc_stats(mtcars, cols = "mpg", by = "am", fmt = "{mean} ± {sd}",
+                  total = TRUE)
+  expect_identical(names(r), c("am", "variable", "mean ± sd"))
+  m <- tapply(mtcars$mpg, mtcars$am, mean); s <- tapply(mtcars$mpg, mtcars$am, sd)
+  expect_identical(r[["mean ± sd"]][1:2], sprintf("%.2f ± %.2f", m, s))
+  expect_identical(r[["mean ± sd"]][3], sprintf("%.2f ± %.2f", mean(mtcars$mpg), sd(mtcars$mpg)))
+  x <- mtcars$mpg
+  q <- desc_stats(mtcars, cols = "mpg",
+                  fmt = c(N = "{n}", CV = "{cv:1%}", P = "{q2.5:3}-{q97.5:3}", Q = "{q1:1}"))
+  expect_identical(q$N, "32")
+  expect_identical(q$CV, sprintf("%.1f%%", 100 * sd(x) / mean(x)))
+  expect_identical(q$P, sprintf("%.3f-%.3f", quantile(x, 0.025), quantile(x, 0.975)))
+  expect_identical(q$Q, sprintf("%.1f", quantile(x, 0.25)))
+  w <- desc_stats(mtcars, cols = c("mpg", "hp"), by = "cyl", fmt = "{mean} ± {sd}",
+                  total = TRUE, shape = "wide")
+  expect_identical(names(w), c("cyl", "mpg", "hp"))
+  d <- data.frame(farm = c(rep("A", 4), "B"), w = c(10, 12, 14, 16, 30))
+  r <- desc_stats(d, by = "farm", fmt = "{mean:1} ± {sd:1} (n = {n})", total = TRUE)
+  expect_identical(r[[3]], c("13.0 ± 2.6 (n = 4)", "30.0 ± NA (n = 1)",
+                             sprintf("%.1f ± %.1f (n = 5)", mean(d$w), sd(d$w))))
+})
+
+test_that("desc_stats rounding, output type and input safety", {
+  df <- data.frame(g = c("a", "b"), v = c(1.23456, 2.34567))
+  r <- desc_stats(df, by = "g", type = "mean", digits = 1, out_type = "df")
+  expect_s3_class(r, "data.frame", exact = TRUE)
+  expect_equal(r$mean, c(1.2, 2.3))
+  expect_identical(class(df), "data.frame")
+  expect_identical(names(df), c("g", "v"))
+})
+
+test_that("desc_stats validates its arguments", {
+  expect_error(desc_stats(iris, cols = "Species"), "numeric")
+  expect_error(desc_stats(iris, cols = 1, by = 1), "both")
+  expect_error(desc_stats(iris, type = "x"), "type")
+  expect_error(desc_stats(iris, stats = "geomean"), "Unknown statistic")
+  expect_error(desc_stats(iris, conf_level = 1), "conf_level")
+  expect_error(desc_stats(data.frame(g = "Total", y = 2), by = "g", total = TRUE),
+               "already occurs")
+  expect_error(desc_stats(data.frame(variable = c("a", "b"), x = 1:2), by = "variable"),
+               "must not be named")
+  expect_error(desc_stats(iris, by = 5, total = "yes"), "`total`")
+  expect_error(desc_stats(iris, stats = "sum"), "Unknown statistic")
+  expect_warning(desc_stats(iris, stats = "mean", total = TRUE), "Nothing to total")
+  expect_warning(desc_stats(iris, cols = 1, total = TRUE), "two or more variables")
+  one <- desc_stats(iris, cols = 1, by = "Species", stats = "n", total = TRUE)
+  expect_false("Total" %in% one$variable)                  # one variable: no total column
+  expect_error(desc_stats(iris, fmt = "{mean} ± {geomean}"), "Unknown statistic")
+  expect_error(desc_stats(iris, fmt = "no placeholder"), "no \\{statistic\\}")
+  expect_error(desc_stats(iris, fmt = c(a = "{n}", a = "{mean}")), "duplicated")
+  expect_error(desc_stats(iris, fmt = "{q150}"), "between q0 and q100")
+  expect_error(desc_stats(iris, fmt = c(variable = "{n}")), "clash")
+  expect_warning(desc_stats(iris, fmt = "{mean}", type = "full"), "ignored")
+})
+
+test_that("desc_stats engine matches base R for many random groups", {
+  set.seed(42)
+  d <- data.frame(g = sample(letters[1:15], 600, TRUE), x = rgamma(600, 3), y = rnorm(600))
+  d$x[sample(600, 50)] <- NA
+  r <- desc_stats(d, by = "g", stats = c("n", "median", "q1", "q3", "mad", "quantile",
+                                          "skew", "kurt"), probs = c(0.1, 0.9))
+  for (gg in c("a", "h", "o")) {
+    x <- d$x[d$g == gg & !is.na(d$x)]
+    n <- length(x); m <- mean(x); s <- sd(x)
+    row <- r[g == gg & variable == "x"]
+    expect_equal(row$n, length(x))
+    expect_equal(c(row$median, row$q1, row$q3, row$q10, row$q90),
+                 unname(quantile(x, c(0.5, 0.25, 0.75, 0.1, 0.9))))
+    expect_equal(row$mad, mad(x))
+    expect_equal(row$skew, n / ((n - 1) * (n - 2)) * sum(((x - m) / s)^3))
+    expect_equal(row$kurt, n * (n + 1) / ((n - 1) * (n - 2) * (n - 3)) * sum(((x - m) / s)^4) -
+                   3 * (n - 1)^2 / ((n - 2) * (n - 3)))
+  }
+})
+
+test_that("desc_stats skew / kurt need 3 / 4 values and non-zero spread", {
+  d <- data.frame(g = c("a", "a", "b", "b", "b", "c", "c", "c", "c"),
+                  x = c(1, 2, 1, 2, 4, 5, 5, 5, 5))
+  r <- desc_stats(d, by = "g", stats = c("n", "skew", "kurt"))
+  expect_true(is.na(r$skew[1]))                          # n = 2
+  expect_false(is.na(r$skew[2])); expect_true(is.na(r$kurt[2]))   # n = 3
+  expect_true(is.na(r$skew[3]))                          # constant values
+})
+
+test_that("desc_stats ci_low / ci_high bound the mean", {
+  x <- mtcars$mpg
+  r <- desc_stats(mtcars, cols = "mpg", type = "mean_ci")
+  expect_identical(names(r), c("variable", "n", "mean", "ci_low", "ci_high"))
+  half <- qt(0.975, 31) * sd(x) / sqrt(32)
+  expect_equal(c(r$ci_low, r$ci_high), mean(x) + c(-1, 1) * half)
+  f <- desc_stats(mtcars, cols = "mpg", fmt = "{mean:1} ({ci_low:1}, {ci_high:1})")
+  expect_identical(f[[2]], sprintf("%.1f (%.1f, %.1f)", mean(x), mean(x) - half, mean(x) + half))
+})
+
+test_that("desc_stats min_n hides statistics of small groups", {
+  r <- desc_stats(mtcars, cols = "mpg", by = "carb", stats = c("n", "mean", "sd"), min_n = 3)
+  small <- r$n < 3
+  expect_true(any(small))
+  expect_true(all(is.na(r$mean[small]) & is.na(r$sd[small])))
+  expect_false(anyNA(r$mean[!small]))
+  expect_identical(r$n, as.integer(table(mtcars$carb)))  # counts stay
+  t <- desc_stats(mtcars, cols = "mpg", by = "carb", stats = "mean", min_n = 3, total = TRUE)
+  expect_false(is.na(t$mean[nrow(t)]))                   # total row has 32 values
+  expect_error(desc_stats(mtcars, min_n = 0), "min_n")
+})
+
+test_that("desc_stats digits per variable", {
+  r <- desc_stats(mtcars, cols = c("mpg", "wt", "qsec"), type = "mean",
+                  digits = c(1, wt = 3))
+  expect_equal(r$mean, c(round(mean(mtcars$mpg), 1), round(mean(mtcars$wt), 3),
+                         round(mean(mtcars$qsec), 1)))
+  r2 <- desc_stats(mtcars, cols = c("mpg", "wt"), type = "mean", digits = c(wt = 1))
+  expect_equal(r2$mean, c(mean(mtcars$mpg), round(mean(mtcars$wt), 1)))   # mpg unrounded
+  f <- desc_stats(mtcars, cols = c("mpg", "wt"), fmt = "{mean}", digits = c(mpg = 0, wt = 3))
+  expect_identical(f[[2]], c(sprintf("%.0f", mean(mtcars$mpg)), sprintf("%.3f", mean(mtcars$wt))))
+  expect_error(desc_stats(mtcars, digits = c(zz = 1)), "not in `cols`")
+  expect_error(desc_stats(mtcars, digits = c(1, 2)), "at most one unnamed")
+  expect_error(desc_stats(mtcars, digits = -1), "non-negative")
+})
+
+test_that("desc_stats labels rename variables in both shapes", {
+  lab <- c(mpg = "Miles/gallon", wt = "Weight (1000 lbs)")
+  r <- desc_stats(mtcars, cols = c("mpg", "wt", "hp"), type = "mean", labels = lab)
+  expect_identical(r$variable, c("Miles/gallon", "Weight (1000 lbs)", "hp"))
+  w <- desc_stats(mtcars, cols = c("mpg", "wt"), by = "am", stats = "mean",
+                  labels = lab, shape = "wide", digits = c(wt = 2))
+  expect_identical(names(w), c("am", unname(lab)))
+  expect_equal(w[[3]], as.vector(round(tapply(mtcars$wt, mtcars$am, mean), 2)))
+  expect_error(desc_stats(mtcars, labels = c("x")), "named")
+  expect_error(desc_stats(mtcars, labels = c(zz = "x")), "not in `cols`")
+  expect_error(desc_stats(mtcars, cols = c("mpg", "wt"), labels = c(mpg = "wt")),
+               "same name")
+})
+
+
+test_that("desc_stats total adds row and column totals to a count table", {
+  ir <- iris
+  ir$Sepal.Width[c(1, 60, 61)] <- NA
+  w <- desc_stats(ir, by = "Species", stats = "n", total = TRUE, shape = "wide")
+  expect_identical(names(w), c("Species", names(iris)[1:4], "Total"))
+  expect_identical(as.character(w$Species), c(levels(iris$Species), "Total"))
+  expect_identical(w$Sepal.Width, c(49L, 48L, 50L, 147L))
+  expect_identical(w$Total, c(199L, 198L, 200L, 597L))
+  expect_identical(w$Total[4], sum(w$Total[1:3]))       # grand total both ways
+  w2 <- desc_stats(ir, by = "Species", stats = c("n", "n_miss"), total = TRUE, shape = "wide")
+  expect_identical(w2$Total_n_miss, c(1L, 2L, 0L, 3L))
+})
+
+test_that("desc_stats total variable only holds counts", {
+  r <- desc_stats(iris, type = "mean_sd", total = TRUE)
+  expect_identical(r$variable, c(names(iris)[1:4], "Total"))
+  expect_identical(r$n[5], 600L)
+  expect_true(is.na(r$mean[5]) && is.na(r$sd[5]))
+  w <- desc_stats(iris, cols = 1:2, by = "Species", type = "mean_sd", total = TRUE,
+                  shape = "wide")
+  expect_true("Total_n" %in% names(w))
+  expect_false(any(c("Total_mean", "Total_sd") %in% names(w)))   # empty columns dropped
+  expect_identical(w$Total_n, c(100L, 100L, 100L, 300L))
+  expect_identical(w$Sepal.Width_mean[4], mean(iris$Sepal.Width))  # total row: all records
+})
+
+test_that("desc_stats total with fmt keeps count-only templates", {
+  r <- desc_stats(mtcars, cols = c("mpg", "hp"), by = "am",
+                  fmt = c(N = "{n}", MS = "{mean:1} ± {sd:1}"), total = TRUE)
+  tv <- r[variable == "Total"]
+  expect_identical(tv$N, c("38", "26", "64"))               # mpg n + hp n
+  expect_true(all(is.na(tv$MS)))
+  w <- desc_stats(mtcars, cols = c("mpg", "hp"), by = "am", fmt = "{mean} ± {sd}",
+                  total = TRUE, shape = "wide")
+  expect_identical(names(w), c("am", "mpg", "hp"))         # no total variable
+  expect_error(desc_stats(data.frame(Total = 1:3, b = 2:4), stats = "n", total = TRUE),
+               "variable name")
+  expect_error(desc_stats(mtcars, cols = c("mpg", "wt"), stats = "n", total = TRUE,
+                          labels = c(wt = "Total")), "variable name")
+})
+
+test_that("desc_stats rejects by columns named like statistics", {
+  d <- data.frame(n = rep(1:2, 5), y = 1:10)
+  expect_error(desc_stats(d, cols = "y", by = "n", type = "mean"), "'n'")
+  d2 <- data.frame(q50 = rep(1:2, 5), y = 1:10)
+  expect_error(desc_stats(d2, cols = "y", by = "q50", type = "quantile"), "'q50'")
+})
+
+test_that("desc_stats fmt shows values rounding to zero without a minus sign", {
+  d <- data.frame(y = c(-0.001, -0.002, -0.003))
+  expect_identical(desc_stats(d, cols = "y", fmt = c(m = "{mean:2}"))$m, "0.00")
+})
+```
+
+# Top / bottom X% per group: `top_perc()`
+    
+```{r function-top_perc}
+#' Select Top or Bottom Percentage of Data
+#'
+#' @description
+#' Selects the top (largest) or bottom (smallest) percentage of data based on
+#' specified traits. Positive percentages extract the largest values; negative
+#' percentages extract the smallest values.
+#'
+#' @param data A data.frame or data.table.
+#' @param perc A numeric vector strictly between -1 and 1 (excluding 0).
+#'   Positive values (e.g., 0.05) select the top X% of largest values.
+#'   Negative values (e.g., -0.1) select the bottom X% of smallest values.
+#' @param cols Numeric trait column(s) to analyse, as names or indices.
+#' @param by Grouping column(s), as names or indices. Default is NULL.
+#' @param keep_data Logical. If TRUE, returns a named list where each element
+#'   contains both \code{stat} (summary statistics) and \code{data} (the
+#'   subset rows). If FALSE (default), returns a single combined data.frame of
+#'   statistics for all \code{perc} values.
+#' @param stats Statistics of the selected records, computed exactly as in
+#'   [desc_stats()] (same names and definitions). Default
+#'   \code{c("n", "min", "max", "mean", "median", "sd", "se", "cv")}; any of
+#'   \code{"n", "min", "max", "mean", "median", "q1", "q3", "iqr", "mad",
+#'   "sd", "se", "ci", "ci_low", "ci_high", "cv", "skew", "kurt"}.
+#'
+#' @return
+#' \itemize{
+#'   \item \code{keep_data = FALSE}: a \code{data.frame} with one row per
+#'     \code{by} / \code{cols} / \code{perc} combination: the \code{by}
+#'     columns, \code{variable}, the requested \code{stats} and
+#'     \code{selection}.
+#'   \item \code{keep_data = TRUE}: a named list (one element per \code{perc}
+#'     value) where each element is a list with \code{$stat} and \code{$data}.
+#' }
+#'
+#' @details
+#' The number of records selected in a group of \eqn{N} non-missing records
+#' is \code{floor(N * abs(perc))} (e.g. 29 of 100 for \code{perc = 0.29}).
+#' Ranking uses \code{ties.method = "min"}, so tied values at the cut-off are
+#' all selected and slightly more than the requested share can be returned.
+#' Missing values are removed before ranking. Groups with fewer than
+#' \code{1 / abs(perc)} non-missing records cannot contribute a single
+#' record: they are kept in the summary with \code{n = 0} and a warning is
+#' issued.
+#'
+#' @seealso [desc_stats()] for statistics of all records.
+#'
+#' @importFrom data.table as.data.table melt frank rbindlist
+#' @export
+top_perc <- function(data, perc, cols, by = NULL, keep_data = FALSE,
+                     stats = c("n", "min", "max", "mean", "median", "sd", "se", "cv")) {
+  value <- selection <- N <- .variable <- .var_ord <- NULL
+
+  # -- 1. Argument validation --------------------------------------------------
+  missing_args <- c(if (missing(data)) "data", if (missing(perc)) "perc",
+                    if (missing(cols)) "cols")
+  if (length(missing_args) > 0L)
+    stop("Missing required argument(s): ", paste(missing_args, collapse = ", "),
+         call. = FALSE)
+  if (!is.data.frame(data))
+    stop("`data` must be a data.frame or data.table.", call. = FALSE)
+  if (!is.numeric(perc) || length(perc) == 0L || anyNA(perc))
+    stop("`perc` must be a non-empty numeric vector with no NA values.", call. = FALSE)
+  if (any(perc <= -1 | perc >= 1 | perc == 0))
+    stop("Each element of `perc` must be strictly between -1 and 1, and not 0.",
+         call. = FALSE)
+  if (anyDuplicated(perc)) {
+    warning("Duplicated `perc` values were removed.", call. = FALSE)
+    perc <- unique(perc)
+  }
+  .check_flag(keep_data, "keep_data")
+  available <- c("n", "min", "max", "mean", "median", "q1", "q3", "iqr", "mad",
+                 "sd", "se", "ci", "ci_low", "ci_high", "cv", "skew", "kurt")
+  if (!is.character(stats) || !length(stats) || anyNA(stats))
+    stop("`stats` must be a character vector of statistic names.", call. = FALSE)
+  bad <- setdiff(stats, available)
+  if (length(bad))
+    stop("Unknown statistic(s) in `stats`: ", paste(bad, collapse = ", "),
+         ". Available: ", paste(available, collapse = ", "), call. = FALSE)
+  stats <- unique(stats)
+
+  # Read-only below, so a data.table input needs no copy.
+  dt <- if (data.table::is.data.table(data)) data else data.table::as.data.table(data)
+  trait <- .resolve_cols(cols, names(dt), "cols")
+  by    <- .resolve_cols(by, names(dt), "by", allow_null = TRUE)
+  overlap <- intersect(trait, by)
+  if (length(overlap) > 0L)
+    stop("Column(s) appear in both `cols` and `by`: ",
+         paste(overlap, collapse = ", "), call. = FALSE)
+  non_num <- trait[!vapply(trait, function(cn) is.numeric(dt[[cn]]), logical(1L))]
+  if (length(non_num) > 0L)
+    stop("`cols` column(s) must be numeric: ", paste(non_num, collapse = ", "),
+         call. = FALSE)
+
+  # -- 2. Long format, once ----------------------------------------------------
+  # Only the grouping columns are carried along unless the selected rows are
+  # requested, which keeps the long table small for wide inputs.
+  id_cols <- if (keep_data) setdiff(names(dt), trait) else if (is.null(by)) character(0L) else by
+  .check_reserved(id_cols, c("variable", "value"), "top_perc",
+                  if (keep_data) "Columns kept with `keep_data = TRUE`" else "`by` column(s)")
+  .check_reserved(by, c(stats, "selection", ".variable", ".var_ord"), "top_perc",
+                  "`by` column(s)", "they would clash with the result columns")
+  dt_long <- data.table::melt(
+    dt,
+    id.vars         = id_cols,
+    measure.vars    = trait,
+    variable.name   = "variable",
+    value.name      = "value",
+    variable.factor = FALSE,
+    na.rm           = TRUE
+  )
+  groupby  <- c(by, "variable")
+  grp_size <- dt_long[, .N, by = groupby]
+  grp_keys <- grp_size[, groupby, with = FALSE]
+
+  # -- 3. One pass per perc value ----------------------------------------------
+  results <- lapply(perc, function(p) {
+    abs_p <- abs(p)
+
+    # Groups too small for this percentage would select nothing at all.
+    # The cut-off is a whole number of records; the small tolerance keeps
+    # floating-point products such as 0.29 * 100 = 28.999999999999996 from
+    # losing a record.
+    small <- grp_size[.n_select(N, abs_p) < 1]
+    if (nrow(small) > 0L)
+      warning(sprintf(paste0("perc = %s: %d group(s) have fewer than %d non-missing ",
+                             "records, so no record is selected (reported with n = 0)."),
+                      format(p), nrow(small), ceiling(1 / abs_p - 1e-8)), call. = FALSE)
+
+    idx <- dt_long[, .I[{
+      r <- data.table::frank(if (p > 0) -value else value, ties.method = "min")
+      r <= .n_select(.N, abs_p)
+    }], by = groupby]$V1
+    sub_dt <- dt_long[idx]
+
+    # Statistics from the same engine as desc_stats(); every group is kept,
+    # including those with no selected record (n = 0).
+    stats_dt <- .desc_engine(sub_dt, "value", groupby, stats, groups = grp_keys)
+    stats_dt[, c(".variable", ".var_ord") := NULL]
+
+    label <- if (p > 0) sprintf("top_%.4g%%", abs_p * 100)
+             else       sprintf("bottom_%.4g%%", abs_p * 100)
+    stats_dt[, selection := label]
+
+    if (keep_data) list(stat = as.data.frame(stats_dt), data = as.data.frame(sub_dt))
+    else as.data.frame(stats_dt)
+  })
+  names(results) <- paste0("perc_", perc)
+
+  if (keep_data) results else as.data.frame(data.table::rbindlist(results))
+}
+```
+  
+```{r example-top_perc}
+# Example 1: Basic usage with single trait
+# This example selects the top 10% of observations based on Petal.Width
+# keep_data=TRUE returns both summary statistics and the filtered data
+top_perc(iris, 
+         perc = 0.1,                # Select top 10%
+         cols = c("Petal.Width"),   # Column to analyze
+         keep_data = TRUE)          # Return both stats and filtered data
+
+# Example 2: Using grouping with 'by' parameter
+# This example performs the same analysis but separately for each Species
+# Returns a data.frame of summary statistics, one row per Species
+top_perc(iris, 
+         perc = 0.1,                # Select top 10%
+         cols = c("Petal.Width"),   # Column to analyze
+         by = "Species")            # Group by Species
+```
+
+```{r tests-top_perc}
+test_that("top_perc selects the requested share per group", {
+  d <- data.frame(g = rep(c("a", "b"), each = 50), v = c(1:50, 101:150))
+  res <- top_perc(d, perc = 0.2, cols = "v", by = "g")
+  expect_identical(res$n, c(10L, 10L))
+  expect_equal(res$min, c(41, 141))
+  low <- top_perc(d, perc = -0.2, cols = 2, by = 1)
+  expect_equal(low$max, c(10, 110))
+})
+
+test_that("top_perc keeps all ties at the cut-off", {
+  d <- data.frame(v = c(10, 9, 9, 9, 1:6))
+  expect_identical(top_perc(d, perc = 0.2, cols = "v")$n, 4L)
+})
+
+test_that("top_perc keeps groups that are too small, with a warning", {
+  d <- data.frame(g = rep(1:2, c(3, 10)), v = 1:13)
+  expect_warning(res <- top_perc(d, perc = 0.1, cols = "v", by = "g"), "n = 0")
+  expect_identical(res$n, c(0L, 1L))
+})
+
+test_that("top_perc statistics match desc_stats on the selected records", {
+  res <- top_perc(mtcars, perc = 0.25, cols = c("mpg", "hp"), by = "am", keep_data = TRUE,
+                  stats = c("n", "mean", "sd", "cv", "skew"))[[1]]
+  sel <- data.table::as.data.table(res$data)
+  sel[, trait := variable]                 # `variable` is reserved in desc_stats()
+  ref <- desc_stats(sel, cols = "value", by = c("am", "trait"),
+                    stats = c("n", "mean", "sd", "cv", "skew"))
+  expect_identical(names(res$stat), c("am", "variable", "n", "mean", "sd", "cv", "skew",
+                                      "selection"))
+  expect_equal(res$stat$mean, ref$mean[match(paste(res$stat$am, res$stat$variable),
+                                             paste(ref$am, ref$trait))])
+  expect_error(top_perc(iris, 0.1, "Sepal.Length", stats = "sum"), "Unknown statistic")
+})
+
+test_that("top_perc validates its arguments", {
+  expect_error(top_perc(iris, 1.5, "Sepal.Length"), "strictly between")
+  expect_error(top_perc(iris, 0.1, "Species"), "numeric")
+  expect_error(top_perc(iris, 0.1), "Missing required")
+})
+
+test_that("top_perc is not off by one through floating-point rounding", {
+  d <- data.frame(x = 1:100)
+  res <- top_perc(d, perc = c(0.29, 0.57, 0.58, -0.29), cols = "x")
+  expect_identical(res$n, c(29L, 57L, 58L, 29L))
+})
+
+test_that("top_perc rejects column names that clash with its result", {
+  d <- data.frame(g = rep(1:2, 10), value = 1:20, w = 1:20)
+  expect_error(top_perc(d, 0.2, cols = "w", by = "g", keep_data = TRUE), "'value'")
+  d2 <- data.frame(n = rep(1:2, 10), w = 1:20)
+  expect_error(top_perc(d2, 0.2, cols = "w", by = "n"), "'n'")
+})
+```
+
+# Format numbers for reports: `format_digits()`
+    
+```{r function-format_digits}
+#' Format Numeric Columns to Fixed-Decimal Character Strings
+#'
+#' @param data        A data.frame or data.table. The input dataset.
+#' @param cols        A character or integer vector specifying columns to format.
+#'                    If NULL (default), all numeric columns are formatted.
+#' @param digits      A non-negative integer specifying decimal places. Defaults to 2.
+#' @param percentage  Logical. If TRUE, values are multiplied by 100 and a "%"
+#'                    sign is appended. Defaults to FALSE.
+#' @param nan_as_na   Logical. If TRUE, NaN is treated identically to NA and
+#'                    coerced to NA_character_. If FALSE (default), NaN is
+#'                    preserved as the string "NaN".
+#'
+#' @return A data.table with the specified numeric columns formatted as character
+#'         strings. The original object is never modified.
+#'
+#' @details
+#' The function processes columns in the following order:
+#' \enumerate{
+#'   \item Validates all input parameters with informative error messages.
+#'   \item Copies the input only once: data.table inputs are deep-copied via
+#'         \code{copy()}; data.frame inputs are copied implicitly by
+#'         \code{as.data.table()}, avoiding a redundant second copy.
+#'   \item Resolves \code{cols} to a character vector of valid numeric column
+#'         names, warning and skipping any non-numeric columns specified.
+#'   \item Applies a vectorised formatting function via
+#'         \code{lapply(.SD, fn)} and \code{:=}, so all target columns are
+#'         dispatched in a single data.table call rather than a column-by-column
+#'         loop.
+#' }
+#'
+#' NA and NaN handling:
+#' \itemize{
+#'   \item \code{NA_real_} is always returned as \code{NA_character_}.
+#'   \item \code{NaN} is returned as \code{"NaN"} by default. Set
+#'         \code{nan_as_na = TRUE} to coerce it to \code{NA_character_} instead.
+#' }
+#'
+#' Rounding uses explicit \code{round()} before \code{sprintf()} to guarantee
+#' consistent results across platforms (Windows, Linux, macOS), where the
+#' underlying C library's rounding behaviour may otherwise differ.
+#'
+#' @note
+#' \itemize{
+#'   \item \code{data} must be a data.frame or data.table.
+#'   \item Integer column indices in \code{cols} are converted to column names
+#'         internally; duplicates are silently removed.
+#'   \item \code{digits} accepts numeric values such as \code{2.0} and coerces
+#'         them to integer; non-integer-valued numbers raise an error.
+#'   \item The function depends only on \code{data.table} and base R.
+#' }
+#'
+#' @import data.table
+#' @export
+format_digits <- function(data,
+                          cols       = NULL,
+                          digits     = 2L,
+                          percentage = FALSE,
+                          nan_as_na  = FALSE) {
+  # -- 1. Input validation ----------------------------------------------------
+  if (!is.data.frame(data))
+    stop("`data` must be a data.frame or data.table.", call. = FALSE)
+  .check_flag(percentage, "percentage")
+  .check_flag(nan_as_na, "nan_as_na")
+  # Length/type are checked before any scalar comparison, so a vector input
+  # gets this message instead of an "invalid 'length' in coercion" error.
+  digits <- .check_count(digits, "digits", 0L)
+
+  # -- 2. One copy: the result is modified by reference below ------------------
+  result <- if (data.table::is.data.table(data)) data.table::copy(data)
+            else data.table::as.data.table(data)
+
+  # -- 3. Target columns --------------------------------------------------------
+  if (is.null(cols)) {
+    target_cols <- names(result)[vapply(result, is.numeric, logical(1L))]
+    if (length(target_cols) == 0L) {
+      message("`data` contains no numeric columns. Returning a copy of the input.")
+      return(result)
+    }
+  } else {
+    cols   <- .resolve_cols(cols, names(result), "cols")
+    is_num <- vapply(cols, function(cn) is.numeric(.subset2(result, cn)), logical(1L))
+    if (any(!is_num))
+      warning("The following columns are not numeric and will be skipped: ",
+              paste(cols[!is_num], collapse = ", "), call. = FALSE)
+    target_cols <- cols[is_num]
+    if (length(target_cols) == 0L) {
+      message("No formattable numeric columns remain. Returning a copy of the input.")
+      return(result)
+    }
+  }
+
+  # -- 4. Formatter -------------------------------------------------------------
+  fmt_tpl <- paste0("%.", digits, "f", if (percentage) "%%" else "")
+  scale   <- if (percentage) 100 else 1
+  fmt_fn  <- function(x) {
+    val <- sprintf(fmt_tpl, round(x * scale, digits))
+    # Small negatives rounded to zero print as "-0.00"; show them as "0.00".
+    val <- sub("^-(0(\\.0+)?%?)$", "\\1", val)
+    val <- data.table::fifelse(is.na(x) & !is.nan(x), NA_character_, val)
+    if (nan_as_na) val <- data.table::fifelse(is.nan(x), NA_character_, val)
+    val
+  }
+
+  # -- 5. In-place update -------------------------------------------------------
+  result[, (target_cols) := lapply(.SD, fmt_fn), .SDcols = target_cols]
+  result[]
+}
+```
+  
+```{r example-format_digits}
+# Example: Number formatting demonstrations
+
+# Setup test data
+dt <- data.table::data.table(
+  a = c(0.1234, 0.5678),      # Numeric column 1
+  b = c(0.2345, 0.6789),      # Numeric column 2
+  c = c("text1", "text2")     # Text column
+)
+
+# Example 1: Format all numeric columns
+format_digits(
+  dt,                         # Input data table
+  digits = 2                  # Round to 2 decimal places
+)
+
+# Example 2: Format specific column as percentage
+format_digits(
+  dt,                         # Input data table
+  cols = c("a"),              # Only format column 'a'
+  digits = 2,                 # Round to 2 decimal places
+  percentage = TRUE           # Convert to percentage
+)
+```
+
+```{r tests-format_digits}
+test_that("format_digits formats numbers, percentages and NaN", {
+  d <- data.frame(a = c(0.1234, NA, NaN), b = c("x", "y", "z"))
+  res <- format_digits(d, digits = 1)
+  expect_identical(res$a, c("0.1", NA, "NaN"))
+  expect_identical(format_digits(d, digits = 1, nan_as_na = TRUE)$a, c("0.1", NA, NA))
+  expect_identical(format_digits(d, cols = 1, digits = 0, percentage = TRUE)$a[1], "12%")
+  expect_identical(d$a[1], 0.1234)              # input untouched
+})
+
+test_that("format_digits validates digits and cols", {
+  expect_error(format_digits(iris, digits = c(1, 2)), "single integer")
+  expect_error(format_digits(iris, digits = -1), "single integer")
+  expect_warning(format_digits(iris, cols = c(1, 5)), "not numeric")
+})
+
+test_that("format_digits shows values rounding to zero without a minus sign", {
+  res <- format_digits(data.frame(x = c(-0.001, -0.5, 0.001)), digits = 2)
+  expect_identical(res$x, c("0.00", "-0.50", "0.00"))
+  pct <- format_digits(data.frame(x = -0.00001), digits = 1, percentage = TRUE)
+  expect_identical(pct$x, "0.0%")
+})
+```
+
+```{r development-inflate, eval=FALSE}
+# Run in the console. After the first inflate of every flat,
+# fusen::inflate_all() rebuilds the whole package in one go.
+fusen::inflate(
+  flat_file     = "dev/flat_summary.Rmd",
+  vignette_name = "Descriptive statistics",
+  overwrite     = TRUE,
+  check         = FALSE,
+  open_vignette = FALSE
+)
+```

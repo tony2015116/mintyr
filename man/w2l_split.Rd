@@ -46,7 +46,9 @@ combinations produced by \code{split()}, guaranteeing name-to-content alignment.
 \strong{Name safety:} list names are built from each element's own key values
 (joined by \code{sep}), so names always match contents. This also makes \code{sep}
 work on every data.table version (\code{split(sep = )} is only honoured from
-data.table 1.16.0 on).
+data.table 1.16.0 on). If two groups would get the same name (key values
+that themselves contain \code{sep}, e.g. \code{"a_b" + "c"} and \code{"a" + "b_c"}), an
+error is raised; choose a \code{sep} that does not occur in the key values.
 
 \strong{Column resolution:} both \code{cols} and \code{by} accept integer column
 positions or character column names. Out-of-bounds indices and unknown names

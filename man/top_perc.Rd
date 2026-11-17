@@ -51,6 +51,8 @@ specified traits. Positive percentages extract the largest values; negative
 percentages extract the smallest values.
 }
 \details{
+The number of records selected in a group of \eqn{N} non-missing records
+is \code{floor(N * abs(perc))} (e.g. 29 of 100 for \code{perc = 0.29}).
 Ranking uses \code{ties.method = "min"}, so tied values at the cut-off are
 all selected and slightly more than the requested share can be returned.
 Missing values are removed before ranking. Groups with fewer than

@@ -148,6 +148,16 @@ import_csv <- function(file,
 
   if (!combine) return(file_list)
 
+  # The tracking columns must not overwrite / duplicate columns of the files.
+  track <- c(file_col, path_col)
+  hit <- vapply(file_list, function(d) any(track %in% names(d)), logical(1L))
+  if (any(hit))
+    stop(sprintf(paste0("Column(s) %s already exist in file(s): %s. ",
+                        "Choose other names via `file_col` / `path_col` (or set them to NULL)."),
+                 paste0("'", intersect(track, unique(unlist(lapply(file_list[hit], names)))),
+                        "'", collapse = ", "),
+                 paste(utils::head(labels[hit], 5L), collapse = ", ")), call. = FALSE)
+
   # Full, normalised path of every source file (absolute, "/" separators),
   # e.g. to extract farm / year folders later with get_path_info().
   if (!is.null(path_col)) {

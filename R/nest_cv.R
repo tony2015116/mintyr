@@ -17,7 +17,9 @@
 #'   the columns described in [split_cv()] (`id`, `id2`, `train_idx`,
 #'   `validate_idx` and, if `materialize = TRUE`, `train` / `validate`, whose
 #'   class follows `out_type`).
-#'   Other nested columns are dropped (a message lists them).
+#'   Other nested columns are dropped (a message lists them). Non-nested
+#'   columns must not use these names (an error is raised instead of
+#'   creating duplicated columns).
 #'
 #' @seealso [split_cv()]
 #'
@@ -118,6 +120,10 @@ nest_cv <- function(data,
   # -- 4. Broadcast each row's metadata across its CV rows and bind ------------
   cv_dt <- data.table::rbindlist(cv_list, use.names = TRUE)
   if (length(non_nested_cols) == 0L) return(cv_dt)
+  # Without this check cbind() would silently create duplicated column names
+  # (e.g. a grouping column called `id`).
+  .check_reserved(non_nested_cols, names(cv_dt), "nest_cv", "Grouping column(s)",
+                  "these names are used for the cross-validation columns")
 
   n_cv <- vapply(cv_list, nrow, integer(1L))
   meta <- dt[rep(seq_len(nrow(dt)), n_cv), non_nested_cols, with = FALSE]

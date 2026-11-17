@@ -1,0 +1,457 @@
+---
+title: "flat_cross_validation.Rmd for working package"
+output: html_document
+editor_options:
+  chunk_output_type: console
+---
+
+```{r development, include=FALSE}
+library(testthat)
+```
+
+Repeated, optionally stratified k-fold cross-validation, implemented with base R and `data.table`. `split_cv()` works on a list of tables, `nest_cv()` on a nested table such as the output of `w2l_nest()`. Folds are returned as row indices and, optionally, as training / validation subsets (`data.table` or `data.frame`).
+
+# Cross-validation for a list of tables: `split_cv()`
+    
+```{r function-split_cv}
+#' Apply V-Fold Cross-Validation to a List of Datasets
+#'
+#' @description
+#' `split_cv` creates (optionally repeated and stratified) v-fold
+#' cross-validation splits for every dataset in a list. It is implemented
+#' with base R and `data.table` only and returns, per dataset, a
+#' `data.table` of fold identifiers, row indices and (optionally) the
+#' training / validation subsets.
+#'
+#' @param data     A `list` whose every element is a `data.frame` or
+#'   `data.table`. Must be non-empty. A single `data.frame` is not accepted
+#'   (wrap it in `list()`).
+#' @param v        Number of folds. A single integer >= 2. Default `10`.
+#' @param repeats  Number of repeats. A single integer >= 1. Default `1`.
+#' @param strata   `NULL` (default) or a single column name present in
+#'   **every** dataset. Rows are shuffled within each stratum so that every
+#'   fold receives a proportional share of each stratum.
+#' @param breaks   Number of quantile bins used when `strata` is numeric with
+#'   more than `breaks` distinct values. Default `4`.
+#' @param pool     Strata holding less than this proportion of the rows are
+#'   merged with the next-smallest stratum. A number in `[0, 0.5)`.
+#'   Default `0.1`.
+#' @param seed     `NULL` (default) or a single number for reproducible folds.
+#'   The caller's random-number stream is restored on exit.
+#' @param materialize Logical. If `TRUE` (default), `train` / `validate`
+#'   list-columns holding the subsets are added. `FALSE` keeps only the row
+#'   indices, which needs far less memory for large data.
+#' @param out_type Class of the `train` / `validate` subsets: `"dt"`
+#'   (`data.table`, default) or `"df"` (plain `data.frame`, e.g. for
+#'   'ASReml-R' or other modelling functions that expect a `data.frame`).
+#'   Factor levels are kept in full in every subset. Only used when
+#'   `materialize = TRUE`; the returned fold table itself is always a
+#'   `data.table`.
+#'
+#' @details
+#' Fold sizes differ by at most one row. With stratification, rows are
+#' shuffled within strata, the strata are laid out one after another and fold
+#' labels are dealt out cyclically, so each stratum is spread evenly across
+#' folds. The stratification rules (`breaks`, `pool`) follow the same idea
+#' as `rsample::vfold_cv()`, but the random fold assignments are not
+#' identical to rsample's.
+#'
+#' Training and validation subsets can always be rebuilt from the indices:
+#' `data[[1]][res[[1]]$train_idx[[k]], ]`.
+#'
+#' For mixed-model cross-validation (e.g. genomic prediction with
+#' 'ASReml-R') a common alternative to subsetting is masking: keep all
+#' records, set the phenotypes of `validate_idx` to `NA`, fit the model on
+#' the full data and correlate the predicted breeding values of the masked
+#' individuals with their observations. `materialize = FALSE` is enough for
+#' this, since only the indices are needed.
+#'
+#' @return A `list` of `data.table` objects (one per input dataset, names of
+#'   `data` preserved), each with one row per fold and the columns:
+#' \itemize{
+#'   \item `id`           — fold label (`Fold1`, ...), or repeat label
+#'         (`Repeat1`, ...) when `repeats > 1`.
+#'   \item `id2`          — fold label, only when `repeats > 1`.
+#'   \item `train_idx`    — list-column of training row indices.
+#'   \item `validate_idx` — list-column of validation row indices.
+#'   \item `train`, `validate` — list-columns of subsets, `data.table` or
+#'         `data.frame` according to `out_type` (only when
+#'         `materialize = TRUE`).
+#' }
+#'
+#' @seealso [nest_cv()] for the nested `data.table` variant.
+#'
+#' @import data.table
+#' @export
+split_cv <- function(data,
+                     v           = 10L,
+                     repeats     = 1L,
+                     strata      = NULL,
+                     breaks      = 4L,
+                     pool        = 0.1,
+                     seed        = NULL,
+                     materialize = TRUE,
+                     out_type    = "dt") {
+
+  # -- 1. Input validation (once, before the loop) -----------------------------
+  # A data.frame is also a list, so it must be rejected explicitly; otherwise
+  # its columns would be treated as datasets.
+  if (!is.list(data) || is.data.frame(data))
+    stop("`data` must be a list of data.frames/data.tables. ",
+         "To use a single data.frame, wrap it in list(). Received: ",
+         paste(class(data), collapse = "/"), call. = FALSE)
+  if (length(data) == 0L)
+    stop("`data` must not be empty.", call. = FALSE)
+  v       <- .check_count(v, "v", 2L)
+  repeats <- .check_count(repeats, "repeats", 1L)
+  breaks  <- .check_count(breaks, "breaks", 2L)
+  if (!is.numeric(pool) || length(pool) != 1L || is.na(pool) || pool < 0 || pool >= 0.5)
+    stop("`pool` must be a single number in [0, 0.5).", call. = FALSE)
+  .check_flag(materialize, "materialize")
+  .check_choice(out_type, c("dt", "df"), "out_type")
+
+  is_valid <- vapply(data, is.data.frame, logical(1L))
+  if (!all(is_valid)) {
+    bad_idx <- which(!is_valid)
+    stop("All elements of `data` must be data.frames or data.tables.\n",
+         "  Invalid element(s) at index: ", paste(bad_idx, collapse = ", "),
+         "\n  Types received: ",
+         paste(vapply(data[bad_idx], function(x) class(x)[1L], character(1L)),
+               collapse = ", "), call. = FALSE)
+  }
+
+  too_small <- vapply(data, nrow, integer(1L)) < v
+  if (any(too_small))
+    stop("Dataset(s) at index ", paste(which(too_small), collapse = ", "),
+         " have fewer rows than `v` (", v, ").", call. = FALSE)
+
+  if (!is.null(strata)) {
+    if (!is.character(strata) || length(strata) != 1L || is.na(strata))
+      stop("`strata` must be a single character string (column name).", call. = FALSE)
+    strata_missing <- vapply(data, function(df) !strata %in% names(df), logical(1L))
+    if (any(strata_missing)) {
+      missing_idx <- which(strata_missing)
+      stop("The `strata` column '", strata,
+           "' is absent from dataset(s) at index: ",
+           paste(missing_idx, collapse = ", "),
+           if (!is.null(names(data)))
+             paste0(" (name(s): '", paste(names(data)[missing_idx],
+                                          collapse = "', '"), "')"),
+           call. = FALSE)
+    }
+  }
+
+  # -- 2. Fold assignment for every dataset -------------------------------------
+  run <- function() {
+    out <- lapply(data, function(x) {
+      x <- if (data.table::is.data.table(x)) x else data.table::as.data.table(x)
+      .vfold_table(x, v = v, repeats = repeats, strata = strata,
+                   breaks = breaks, pool = pool, materialize = materialize,
+                   out_type = out_type)
+    })
+    names(out) <- names(data)
+    out
+  }
+  # A non-NULL seed makes the folds reproducible without disturbing the
+  # caller's RNG stream.
+  .with_seed(seed, run())
+}
+```
+  
+```{r example-split_cv}
+# Prepare example data: Convert first 3 columns of iris dataset to long format and split
+dt_split <- w2l_split(data = iris, cols = 1:3)
+# dt_split is now a list containing 3 data tables for Sepal.Length, Sepal.Width, and Petal.Length
+
+# Example 1: Single cross-validation (no repeats)
+split_cv(
+  data = dt_split,      # Input list of split data
+  v = 3,                # Set 3-fold cross-validation
+  repeats = 1,          # Perform cross-validation once (no repeats)
+  seed = 123            # Reproducible folds
+)
+# Returns a list where each element contains:
+# - id: fold labels (Fold1, Fold2, Fold3)
+# - train_idx / validate_idx: row indices of each fold
+# - train / validate: training and validation subsets
+
+# Example 2: Repeated cross-validation
+split_cv(
+  data = dt_split,      # Input list of split data
+  v = 3,                # Set 3-fold cross-validation
+  repeats = 2,          # Perform cross-validation twice
+  seed = 123
+)
+# Returns a list where each element contains:
+# - id: repeat labels (Repeat1, Repeat2)
+# - id2: fold labels (Fold1, Fold2, Fold3)
+# - train_idx / validate_idx, train / validate
+
+# Example 3: Stratified CV, indices only (memory friendly)
+res <- split_cv(dt_split, v = 5, strata = "Species", seed = 1,
+                materialize = FALSE)
+# Rebuild the training set of fold 1 of the first dataset when needed
+head(dt_split[[1]][res[[1]]$train_idx[[1]], ])
+```
+
+```{r tests-split_cv}
+test_that("split_cv creates complete, disjoint and balanced folds", {
+  res <- split_cv(list(a = iris), v = 4, seed = 1)$a
+  expect_identical(res$id, paste0("Fold", 1:4))
+  v_idx <- res$validate_idx
+  expect_identical(sort(unlist(v_idx)), 1:150)
+  expect_true(max(lengths(v_idx)) - min(lengths(v_idx)) <= 1)
+  for (k in 1:4) {
+    expect_length(intersect(res$train_idx[[k]], v_idx[[k]]), 0)
+    expect_identical(nrow(res$validate[[k]]), length(v_idx[[k]]))
+  }
+})
+
+test_that("split_cv labels repeats and pads fold numbers", {
+  res <- split_cv(list(iris), v = 10, repeats = 2, seed = 1)[[1]]
+  expect_identical(names(res)[1:2], c("id", "id2"))
+  expect_identical(unique(res$id), c("Repeat1", "Repeat2"))
+  expect_identical(res$id2[1:2], c("Fold01", "Fold02"))
+})
+
+test_that("split_cv stratifies categorical and numeric variables", {
+  res <- split_cv(list(iris), v = 5, strata = "Species", seed = 2)[[1]]
+  counts <- vapply(res$validate, function(d) as.integer(table(d$Species)), integer(3))
+  expect_true(all(counts == 10L))
+  expect_silent(split_cv(list(mtcars), v = 4, strata = "mpg", breaks = 3))
+})
+
+test_that("split_cv seed is reproducible and does not disturb the RNG", {
+  set.seed(9); ref <- runif(1)
+  set.seed(9)
+  a <- split_cv(list(iris), v = 3, seed = 1, materialize = FALSE)
+  expect_identical(runif(1), ref)
+  expect_identical(a, split_cv(list(iris), v = 3, seed = 1, materialize = FALSE))
+})
+
+test_that("split_cv out_type = 'df' returns plain data.frames with full factor levels", {
+  res <- split_cv(list(iris), v = 3, seed = 1, out_type = "df")[[1]]
+  expect_s3_class(res, "data.table")                       # fold table itself
+  for (d in c(res$train, res$validate)) {
+    expect_s3_class(d, "data.frame", exact = TRUE)
+    expect_identical(levels(d$Species), levels(iris$Species))
+  }
+  ref <- iris[res$validate_idx[[1]], ]
+  rownames(ref) <- NULL
+  expect_equal(res$validate[[1]], ref)
+  expect_error(split_cv(list(iris), v = 3, out_type = "tibble"), "out_type")
+})
+
+test_that("split_cv out_type does not change the folds", {
+  a <- split_cv(list(iris), v = 3, seed = 5, out_type = "dt")[[1]]
+  b <- split_cv(list(iris), v = 3, seed = 5, out_type = "df")[[1]]
+  expect_identical(a$validate_idx, b$validate_idx)
+  expect_equal(as.data.frame(a$train[[2]]), b$train[[2]])
+})
+
+test_that("split_cv validates its input", {
+  expect_error(split_cv(iris), "wrap it in list")
+  expect_error(split_cv(list()), "empty")
+  expect_error(split_cv(list(iris[1:3, ]), v = 5), "fewer rows")
+  expect_error(split_cv(list(iris), strata = "nope"), "absent")
+  expect_error(split_cv(list(iris), v = 1), "`v`")
+})
+```
+
+# Cross-validation inside a nested table: `nest_cv()`
+    
+```{r function-nest_cv}
+#' Apply V-Fold Cross-Validation to Nested Data
+#'
+#' @description
+#' `nest_cv` creates v-fold cross-validation splits for each nested data frame
+#' of a nested `data.table` (e.g. the output of [w2l_nest()]) and returns one
+#' row per fold, with the outer (non-nested) columns broadcast to every fold.
+#' The cross-validation itself is performed by [split_cv()].
+#'
+#' @param data    A `data.frame` or `data.table` containing at least one nested
+#'   `data.frame`/`data.table` column. A column named `data` is used if
+#'   present, otherwise the first nested column.
+#' @inheritParams split_cv
+#'
+#' @return A `data.table` with all non-nested columns of `data`, followed by
+#'   the columns described in [split_cv()] (`id`, `id2`, `train_idx`,
+#'   `validate_idx` and, if `materialize = TRUE`, `train` / `validate`, whose
+#'   class follows `out_type`).
+#'   Other nested columns are dropped (a message lists them). Non-nested
+#'   columns must not use these names (an error is raised instead of
+#'   creating duplicated columns).
+#'
+#' @seealso [split_cv()]
+#'
+#' @import data.table
+#' @export
+nest_cv <- function(data,
+                    v           = 10L,
+                    repeats     = 1L,
+                    strata      = NULL,
+                    breaks      = 4L,
+                    pool        = 0.1,
+                    seed        = NULL,
+                    materialize = TRUE,
+                    out_type    = "dt") {
+  nest_dt <- data
+
+  # -- 1. Input validation ----------------------------------------------------
+  if (!is.data.frame(nest_dt))
+    stop("`data` must be a data.frame or data.table. Received: ",
+         paste(class(nest_dt), collapse = "/"), call. = FALSE)
+  if (nrow(nest_dt) == 0L)
+    stop("`data` must not be empty (0 rows).", call. = FALSE)
+
+  # -- 2. Identify nested columns ----------------------------------------------
+  nested_cols <- names(nest_dt)[vapply(nest_dt, function(col) {
+    is.list(col) && length(col) > 0L &&
+      all(vapply(col, is.data.frame, logical(1L)))
+  }, logical(1L))]
+
+  if (length(nested_cols) == 0L)
+    stop("`data` contains no nested data.frame/data.table columns.\n",
+         "  Column types detected: ",
+         paste(names(nest_dt),
+               vapply(nest_dt, function(x) class(x)[1L], character(1L)),
+               sep = "=", collapse = ", "), call. = FALSE)
+
+  target_col <- if ("data" %in% nested_cols) "data" else nested_cols[1L]
+  if (target_col != "data")
+    message("[nest_cv] No nested column named 'data' found. Using '", target_col,
+            "' instead.\n          Available nested columns: ",
+            paste(nested_cols, collapse = ", "))
+  if (length(nested_cols) > 1L)
+    message("[nest_cv] Only '", target_col, "' is split; other nested column(s) ",
+            "are dropped from the result: ",
+            paste(setdiff(nested_cols, target_col), collapse = ", "))
+
+  dt <- if (data.table::is.data.table(nest_dt)) nest_dt else data.table::as.data.table(nest_dt)
+  non_nested_cols <- setdiff(names(dt), nested_cols)
+
+  # -- 3. Delegate the CV work to split_cv() (single implementation) ----------
+  cv_list <- split_cv(
+    data        = dt[[target_col]],
+    v           = v,
+    repeats     = repeats,
+    strata      = strata,
+    breaks      = breaks,
+    pool        = pool,
+    seed        = seed,
+    materialize = materialize,
+    out_type    = out_type
+  )
+
+  # -- 4. Broadcast each row's metadata across its CV rows and bind ------------
+  cv_dt <- data.table::rbindlist(cv_list, use.names = TRUE)
+  if (length(non_nested_cols) == 0L) return(cv_dt)
+  # Without this check cbind() would silently create duplicated column names
+  # (e.g. a grouping column called `id`).
+  .check_reserved(non_nested_cols, names(cv_dt), "nest_cv", "Grouping column(s)",
+                  "these names are used for the cross-validation columns")
+
+  n_cv <- vapply(cv_list, nrow, integer(1L))
+  meta <- dt[rep(seq_len(nrow(dt)), n_cv), non_nested_cols, with = FALSE]
+  cbind(meta, cv_dt)
+}
+```
+  
+```{r example-nest_cv}
+# Example: Cross-validation for nested data.table demonstrations
+
+# Setup test data
+dt_nest <- w2l_nest(
+  data = iris,                   # Input dataset
+  cols = 1:2                     # Nest first 2 columns
+)
+
+# Example 1: Basic 2-fold cross-validation (reproducible)
+nest_cv(
+  data = dt_nest,                # Input nested data.table
+  v = 2,                         # Number of folds (2-fold CV)
+  seed = 123                     # Reproducible folds
+)
+
+# Example 2: Repeated 2-fold CV, keeping only the split objects
+nest_cv(
+  data = dt_nest,                # Input nested data.table
+  v = 2,                         # Number of folds (2-fold CV)
+  repeats = 2,                   # Number of repetitions
+  seed = 123,
+  materialize = FALSE            # No train/validate copies (saves memory)
+)
+
+# Example 3: data.frame subsets, ready for ASReml-R / lm() / glm()
+cv_df <- nest_cv(dt_nest, v = 2, seed = 123, out_type = "df")
+class(cv_df$train[[1]])        # "data.frame"
+
+# Example 4: masking-style CV (keep all rows, hide validation phenotypes)
+cv_idx <- nest_cv(dt_nest, v = 2, seed = 123, materialize = FALSE)
+cv_idx[dt_nest, on = "name", full := i.data]   # attach the full nested table
+masked <- as.data.frame(cv_idx$full[[1]])      # a copy: dt_nest stays intact
+masked$value[cv_idx$validate_idx[[1]]] <- NA
+sum(is.na(masked$value))       # validation records to be predicted
+```
+
+```{r tests-nest_cv}
+test_that("nest_cv broadcasts metadata and partitions every nested table", {
+  nd <- w2l_nest(iris, cols = 1:2, by = "Species")
+  res <- nest_cv(nd, v = 5, seed = 1)
+  expect_equal(nrow(res), 6L * 5L)
+  expect_identical(names(res)[1:3], c("name", "Species", "id"))
+  one <- res[name == "Sepal.Length" & Species == "setosa"]
+  expect_identical(sort(unlist(one$validate_idx)), 1:50)
+  expect_equal(nrow(one$train[[1]]) + nrow(one$validate[[1]]), 50L)
+})
+
+test_that("nest_cv is reproducible and supports materialize = FALSE", {
+  nd <- w2l_nest(iris, cols = 1, by = "Species")
+  a <- nest_cv(nd, v = 3, seed = 7, materialize = FALSE)
+  b <- nest_cv(nd, v = 3, seed = 7, materialize = FALSE)
+  expect_identical(a, b)
+  expect_false(any(c("train", "validate") %in% names(a)))
+})
+
+test_that("nest_cv out_type = 'df' gives data.frame subsets", {
+  nd <- w2l_nest(iris, cols = 1, by = "Species")
+  res <- nest_cv(nd, v = 2, seed = 1, out_type = "df")
+  expect_true(all(vapply(c(res$train, res$validate),
+                         function(d) identical(class(d), "data.frame"), logical(1L))))
+})
+
+test_that("masking with validate_idx leaves the nested data untouched", {
+  nd <- w2l_nest(iris, cols = 1:2, by = "Species")
+  cv <- nest_cv(nd, v = 5, seed = 1, materialize = FALSE)
+  cv[nd, on = c("name", "Species"), full := i.data]
+  n_masked <- mapply(function(full, vidx) {
+    d <- as.data.frame(full)
+    d$value[vidx] <- NA
+    sum(is.na(d$value))
+  }, cv$full, cv$validate_idx)
+  expect_identical(n_masked, lengths(cv$validate_idx))
+  expect_false(anyNA(unlist(lapply(nd$data, `[[`, "value"))))
+})
+
+test_that("nest_cv validates its input", {
+  expect_error(nest_cv(iris), "no nested")
+})
+
+test_that("nest_cv rejects grouping columns named like CV columns", {
+  nd <- data.table::data.table(id = c("A", "B"),
+                               data = list(data.frame(y = 1:20), data.frame(y = 1:20)))
+  expect_error(nest_cv(nd, v = 5, seed = 1), "'id'")
+})
+```
+
+```{r development-inflate, eval=FALSE}
+# Run in the console. After the first inflate of every flat,
+# fusen::inflate_all() rebuilds the whole package in one go.
+fusen::inflate(
+  flat_file     = "dev/flat_cross_validation.Rmd",
+  vignette_name = "Cross-validation",
+  overwrite     = TRUE,
+  check         = FALSE,
+  open_vignette = FALSE
+)
+```

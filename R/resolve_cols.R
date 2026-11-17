@@ -52,6 +52,32 @@
   x
 }
 
+#' Stop if input column names collide with names a function creates
+#'
+#' @param x Column names supplied by / found in the user's data.
+#' @param reserved Names generated or used internally by `fn`.
+#' @param fn Function name for the message.
+#' @param what Description of `x` for the message.
+#' @param why Reason shown in the message.
+#' @noRd
+.check_reserved <- function(x, reserved, fn, what = "Column(s)",
+                            why = "these names are used for the result") {
+  clash <- intersect(x, reserved)
+  if (length(clash))
+    stop(sprintf("[ %s ] %s must not be named %s (%s); rename them first.",
+                 fn, what, paste0("'", clash, "'", collapse = ", "), why),
+         call. = FALSE)
+  invisible(TRUE)
+}
+
+#' Number of records in the top / bottom share `p` of `n` records
+#'
+#' `floor(n * p)`, with a small tolerance so that floating-point products
+#' just below a whole number (0.29 * 100 = 28.999999999999996) are not
+#' rounded down by one.
+#' @noRd
+.n_select <- function(n, p) floor(n * p + 1e-8)
+
 #' Validate a single choice from a fixed set of strings
 #' @noRd
 .check_choice <- function(x, choices, arg_name) {

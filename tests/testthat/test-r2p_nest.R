@@ -15,3 +15,9 @@ test_that("r2p_nest refuses duplicated id / names_from combinations", {
   d <- data.frame(id = c(1, 1, 2), env = c("A", "A", "B"), t1 = 1:3)
   expect_error(r2p_nest(d, "env", "t1", id = "id"), "uniquely identify")
 })
+
+test_that("r2p_nest warns about NA in names_from", {
+  d <- data.frame(id = c(1, 1, 2, 2), env = c("a", NA, "a", "b"), y = 1:4)
+  expect_warning(res <- r2p_nest(d, names_from = "env", cols = "y", id = "id"), "NA")
+  expect_true("NA" %in% names(res$data[[1]]))
+})

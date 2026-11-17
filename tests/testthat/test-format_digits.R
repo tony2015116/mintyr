@@ -14,3 +14,10 @@ test_that("format_digits validates digits and cols", {
   expect_error(format_digits(iris, digits = -1), "single integer")
   expect_warning(format_digits(iris, cols = c(1, 5)), "not numeric")
 })
+
+test_that("format_digits shows values rounding to zero without a minus sign", {
+  res <- format_digits(data.frame(x = c(-0.001, -0.5, 0.001)), digits = 2)
+  expect_identical(res$x, c("0.00", "-0.50", "0.00"))
+  pct <- format_digits(data.frame(x = -0.00001), digits = 1, percentage = TRUE)
+  expect_identical(pct$x, "0.0%")
+})

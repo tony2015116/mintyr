@@ -55,7 +55,9 @@ A \code{data.table} with all non-nested columns of \code{data}, followed by
 the columns described in \code{\link[=split_cv]{split_cv()}} (\code{id}, \code{id2}, \code{train_idx},
 \code{validate_idx} and, if \code{materialize = TRUE}, \code{train} / \code{validate}, whose
 class follows \code{out_type}).
-Other nested columns are dropped (a message lists them).
+Other nested columns are dropped (a message lists them). Non-nested
+columns must not use these names (an error is raised instead of
+creating duplicated columns).
 }
 \description{
 \code{nest_cv} creates v-fold cross-validation splits for each nested data frame

@@ -30,7 +30,8 @@
 ## Internal
 
 * `DESCRIPTION`: the author is listed once (roles `aut`, `cre`, `cph`).
-* `dev/.gitignore` no longer ignores the fusen flat files (`*.Rmd`).
+* The fusen flat files (`dev/flat_*.Rmd`), the sources of `R/` and
+  `tests/`, are now in the repository; `dev/.gitignore` no longer ignores them.
 
 # mintyr 0.2.1
 

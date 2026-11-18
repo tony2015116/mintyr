@@ -23,7 +23,7 @@ Rscript -e 'library(mintyr); cat(as.character(packageVersion("mintyr")))'
 
 能输出 0.2.1 或更高版本就跳到第 2 步。否则按顺序尝试：
 
-1. **能访问 CRAN 时**：`Rscript -e 'install.packages("mintyr", repos = "https://cloud.r-project.org")'`
+1. **能访问 CRAN 时**：`Rscript -e 'install.packages("mintyr", repos = "https://cloud.r-project.org")'`，装完再执行一次上面的检查；如果 CRAN 上的版本仍低于 0.2.1，改用第 2 种方式从 GitHub 安装。
 2. **CRAN 被拦截、但 apt 和 GitHub 可用时（Ubuntu/Debian 沙箱常见）**：
    ```bash
    export DEBIAN_FRONTEND=noninteractive
@@ -164,6 +164,7 @@ mintyr_examples("xlsx"); mintyr_example("xlsx_test1.xlsx")   # 包自带示例�
 ## 5. 交付前检查
 
 - 核对行数：导入后总行数应等于各文件行数之和；嵌套后各组行数之和应等于原数据。
+- 自 0.2.2 起，列名冲突会直接报错（例如 `nest_cv()` 的分组列名为 `id`、`train`、`validate`，`desc_stats()` / `top_perc()` 的 `by` 列与统计量同名或名为 `variable` / `value`，或导入时已有 `excel_name` 列）。应重命名该列，或换一个 `file_col` / `sep`，并告诉用户改了什么。
 - 把 mintyr 给出的警告（类型合并、跳过的文件、重复 id 等）原样转告用户。
 - 打开导出的文件确认列和缺失值写法符合目标软件要求。
 - 不确定某个参数行为时，用 `?函数名` 或 `args(函数名)` 查本机安装版本的文档，不要凭记忆。

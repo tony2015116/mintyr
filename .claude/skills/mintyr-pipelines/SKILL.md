@@ -23,7 +23,7 @@ Rscript -e 'library(mintyr); cat(as.character(packageVersion("mintyr")))'
 
 If this prints 0.2.1 or later, go to step 2. Otherwise try, in order:
 
-1. **CRAN reachable**: `Rscript -e 'install.packages("mintyr", repos = "https://cloud.r-project.org")'`
+1. **CRAN reachable**: `Rscript -e 'install.packages("mintyr", repos = "https://cloud.r-project.org")'`, then run the check above again; if CRAN still serves a version older than 0.2.1, use route 2 to install from GitHub.
 2. **CRAN blocked, but apt and GitHub reachable (common in Ubuntu / Debian sandboxes)**:
    ```bash
    export DEBIAN_FRONTEND=noninteractive
@@ -164,6 +164,7 @@ mintyr_examples("xlsx"); mintyr_example("xlsx_test1.xlsx")   # example files shi
 ## 5. Check before delivering
 
 - Row counts: after import, the total equals the sum over files; after nesting, the group sizes add up to the original data.
+- Since 0.2.2, column-name clashes stop with an error (e.g. a grouping column named `id`, `train` or `validate` in `nest_cv()`, a `by` column named like a statistic or `variable` / `value` in `desc_stats()` / `top_perc()`, or an existing `excel_name` column on import). Rename the column, or pick another `file_col` / `sep`, and tell the user what was renamed.
 - Pass mintyr's warnings (type conflicts, skipped files, duplicated ids, ...) on to the user verbatim.
 - Open the exported files and confirm columns and missing-value codes match what the target software expects.
 - When unsure how an argument behaves, check the installed version with `?function` or `args(function)` instead of relying on memory.

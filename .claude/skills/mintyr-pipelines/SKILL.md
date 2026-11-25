@@ -128,6 +128,7 @@ export_scenarios(sc, path = "gblup_runs", na = ".")
 
 - Results use `rep` / `fold` (not `id` / `id2`), so an animal ID column called `id` is fine.
 - Summarise accuracy per repeat (mean over its folds), then mean ± SD over repeats; compare models paired by repeat, not as 50 independent folds.
+- Full walkthrough (folds, scenarios, export, accuracy summary): https://tony2015116.github.io/mintyr/articles/genomic-evaluation.html
 - `mt_bt` keeps all covariates and puts the trait in one column per group level (`r2p_nest()` keeps only the ID).
 
 ### Descriptive statistics

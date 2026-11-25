@@ -46,6 +46,11 @@ articles:
   - cross-validation
   - descriptive-statistics
   - utilities
+- title: Genomic evaluation
+  navbar: Genomic evaluation
+  contents:
+  - articles/genomic-evaluation
+  - articles/genomic-evaluation-zh
 - title: AI agents
   navbar: AI agents
   contents:

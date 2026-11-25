@@ -1,0 +1,428 @@
+---
+title: "Genomic evaluation data: parameter estimation and cross-validation"
+description: >
+  Use cv_folds(), apply_folds(), cv_scenarios() and export_scenarios() to build the
+  parameter-estimation and cross-validation files of single- / multi-trait, single- /
+  multi-group GBLUP models in one go, with every model validated on the same individuals.
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+```
+
+[中文版](genomic-evaluation-zh.html)
+
+When genomic prediction models are compared, the usual questions are: is a multi-trait model more accurate than a single-trait model? Does adding another herd (population) to the reference population improve the prediction of this herd? What is the genetic correlation of a trait between two herds?
+
+Each model needs two kinds of files:
+
+- **parameter-estimation data**: all records, to estimate variance components, heritabilities and genetic correlations;
+- **cross-validation data**: a training and a validation set for every repeat × fold, to compute prediction accuracy.
+
+The four functions added in mintyr 0.2.3 turn this into three steps:
+
+| Step | Function | What it does |
+|---|---|---|
+| 1 | `cv_folds()` | Assigns every **individual** to a fold within each group: one fold table |
+| 2 | `cv_scenarios()` | Builds parameter-estimation and CV data of five scenarios from that fold table |
+| 3 | `export_scenarios()` | Writes input files for ASReml, DMU, HIBLUP, ... per scenario |
+
+`apply_folds()` is the building block behind `cv_scenarios()`; use it directly for custom designs (see [Beyond the five scenarios](#beyond-the-five-scenarios)).
+
+```{r setup, message = FALSE}
+library(mintyr)
+library(data.table)
+```
+
+## Example data
+
+The examples use simulated data: two herds (`north`, `south`), three traits (`adg`, `bf`, `fcr`), the fixed effects `sex` and `batch`, and 400 SNP genotypes. Both herds share the same SNP effects, so adding the other herd to the reference population usually helps; adg and bf have a moderate genetic correlation; some phenotypes are missing.
+
+```{r data}
+set.seed(2026)
+n_snp <- 400
+n     <- c(north = 300, south = 280)
+ids   <- c(sprintf("N%04d", seq_len(n[["north"]])), sprintf("S%04d", seq_len(n[["south"]])))
+
+# Genotypes (0/1/2), from a SNP chip in practice; row names are the IDs
+freq <- runif(n_snp, 0.05, 0.5)
+geno <- sapply(freq, function(p) rbinom(length(ids), 2, p))
+dimnames(geno) <- list(ids, paste0("snp", seq_len(n_snp)))
+Z <- sweep(geno, 2, 2 * freq)                       # centred genotype matrix
+
+# True breeding values, scaled to the heritability and phenotypic SD
+bv <- function(b, h2, sd_p) { g <- drop(Z %*% b); g / sd(g) * sqrt(h2) * sd_p }
+b_adg <- rnorm(n_snp)
+b_bf  <- 0.5 * b_adg + sqrt(0.75) * rnorm(n_snp)   # genetic correlation with adg ~ 0.5
+b_fcr <- rnorm(n_snp)
+
+phe <- data.table(id = ids, herd = rep(names(n), n))
+phe[, sex   := sample(c("M", "F"), .N, replace = TRUE)]
+phe[, batch := paste0(herd, sample(2401:2404, .N, replace = TRUE))]
+phe[, adg := round(900 + 20 * (sex == "M") + 30 * (herd == "south") +
+                     bv(b_adg, 0.30, 80) + rnorm(.N, 0, 80 * sqrt(0.70)), 1)]
+phe[, bf  := round(12 - 0.5 * (sex == "M") + bv(b_bf, 0.40, 2) + rnorm(.N, 0, 2 * sqrt(0.60)), 2)]
+phe[, fcr := round(2.4 + bv(b_fcr, 0.25, 0.2) + rnorm(.N, 0, 0.2 * sqrt(0.75)), 3)]
+
+# Missing phenotypes: an individual need not have all traits recorded
+phe[sample(.N, 40), adg := NA]
+phe[sample(.N, 60), bf  := NA]
+phe[sample(.N, 30), fcr := NA]
+
+phe
+phe[, .N, by = herd]
+```
+
+With your own data, the phenotype table needs:
+
+- one row per individual (or several rows for repeated records, see the [FAQ](#faq));
+- an ID column whose IDs match the genotype file / G matrix;
+- a grouping column (population, herd, line, ...); each individual belongs to exactly one group.
+
+## Why all models should share one fold table
+
+Two models are best compared on the **same validation individuals**. Otherwise their difference also contains the random error of validating different individuals, and comparing them fold by fold is meaningless.
+
+Calling `nest_cv()` per trait gives each trait its own random split:
+
+```{r overlap-demo}
+cv_old <- nest_cv(w2l_nest(phe, cols = c("adg", "bf"), by = "herd"), v = 5, seed = 1)
+v_adg <- cv_old[name == "adg" & herd == "north" & id == "Fold1", validate[[1]]$id]
+v_bf  <- cv_old[name == "bf"  & herd == "north" & id == "Fold1", validate[[1]]$id]
+c(adg_fold1 = length(v_adg), both = length(intersect(v_adg, v_bf)))
+```
+
+Both are called `Fold1`, but only 10 of the 60 adg validation individuals are also in the bf validation set. Comparing a single-trait adg model with an adg + bf model on such folds compares two different sets of animals.
+
+`cv_folds()` instead splits the individuals once, and every trait and model takes its split from that table by ID.
+
+## Step 1: one fold table, `cv_folds()`
+
+```{r folds}
+folds <- cv_folds(phe, id = "id", by = "herd", v = 5, repeats = 10, seed = 123)
+folds
+```
+
+Each row is "the fold in which an individual is validated in one repeat":
+
+- `herd`: the grouping column; folds are built independently within each group;
+- `id`: the individual;
+- `rep`: the repeat (`Repeat01` ... `Repeat10`);
+- `fold`: the fold in which this individual is validated in this repeat (`Fold1` ... `Fold5`).
+
+In every repeat each individual appears exactly once, and fold sizes differ by at most one:
+
+```{r folds-check}
+folds[, .N, by = .(herd, rep, id)][, all(N == 1L)]
+folds[rep == "Repeat01", .N, by = .(herd, fold)]
+```
+
+Repeats are independent random splits, so an individual moves between folds across repeats:
+
+```{r folds-repeats}
+folds[id == "N0001", .(rep, fold)]
+```
+
+### Stratification
+
+To spread a factor (e.g. sex) evenly over the folds, use `strata`. It must be constant within an individual; numeric columns are binned at quantiles first:
+
+```{r folds-strata}
+f_sex <- cv_folds(phe, id = "id", by = "herd", v = 5, strata = "sex", seed = 1)
+dcast(f_sex[phe, on = "id", sex := i.sex][herd == "north"], sex ~ fold, value.var = "id", fun.aggregate = length)
+```
+
+### Adding repeats later
+
+Repeats are generated one after another, so with the same `seed` a larger `repeats` leaves the existing repeats unchanged, and results already computed can be kept:
+
+```{r folds-extend}
+f3 <- cv_folds(phe, id = "id", by = "herd", v = 5, repeats = 3, seed = 123)
+identical(f3$fold, folds$fold[seq_len(nrow(f3))])
+```
+
+Only the label width changes when `repeats` goes from one to two digits (`Repeat1` → `Repeat01`); the split does not.
+
+## Step 2: five scenarios, `cv_scenarios()`
+
+```{r scenarios}
+traits <- c("adg", "bf", "fcr")
+sc <- cv_scenarios(phe, cols = traits, id = "id", group = "herd", folds = folds)
+sc
+```
+
+The five scenarios:
+
+| Scenario | Model | Parameter data | Training set | Validation set |
+|---|---|---|---|---|
+| `st_sp` | single-trait, single group | trait × group | other folds of the target group | current fold of the target group |
+| `st_mp` | single-trait, groups combined | trait | same **+ all records of the other groups** | same |
+| `mt_sp` | two-trait, single group | trait pair × group | other folds of the target group | same |
+| `mt_mp` | two-trait, groups combined | trait pair | same **+ all records of the other groups** | same |
+| `mt_bt` | one trait treated as a different trait in each group (genetic correlation between groups) | trait | same **+ all records of the other groups** | same |
+
+Each scenario is a list with `param` (parameter-estimation data) and `cv` (cross-validation data).
+
+### Parameter-estimation data
+
+```{r param}
+sc$st_sp$param     # single group: one data set per trait x group
+sc$st_mp$param     # groups combined: one data set per trait
+sc$mt_sp$param     # trait pair x group
+head(sc$mt_sp$param$data[[1]])
+```
+
+In two-trait data the values are in `value1` and `value2`, in the order of `pairs` (in `adg-bf`, `value1` is adg). Rows with missing phenotypes are kept: an individual recorded for only one of the two traits is exactly the information a multi-trait model uses.
+
+### Cross-validation data
+
+```{r cv}
+sc$st_mp$cv
+```
+
+Each row is one trait (or pair) × validated group × repeat × fold, with the `train` and `validate` tables. In `st_mp` the training set holds all records of the other group, and the validation set comes from the target group only:
+
+```{r cv-check}
+sc$st_mp$cv[1, .(
+  name, herd, rep, fold,
+  n_train          = nrow(train[[1]]),
+  herds_in_train   = paste(unique(train[[1]]$herd), collapse = ", "),
+  n_validate       = nrow(validate[[1]]),
+  herd_in_validate = unique(validate[[1]]$herd)
+)]
+```
+
+### All five scenarios validate the same individuals
+
+This is what the shared fold table buys: for a given group × repeat × fold, every scenario and every trait validates the same individuals.
+
+```{r same-ids}
+val_ids <- function(cv) {
+  cv[, .(herd, rep, fold,
+         ids = vapply(validate, function(d) paste(sort(d$id), collapse = ","), ""))]
+}
+all_v <- rbindlist(lapply(c("st_sp", "st_mp", "mt_sp", "mt_mp", "mt_bt"),
+                          function(s) val_ids(sc[[s]]$cv)))
+all_v[, uniqueN(ids), by = .(herd, rep, fold)][, all(V1 == 1L)]
+```
+
+### One file layout
+
+Every data set keeps all non-trait columns (including the group column `herd`) in their original order; only the trait columns differ. `mt_bt` spreads the trait into one column per group, an individual having a value only in its own group's column, and training and validation sets have the same columns:
+
+```{r mt-bt}
+head(sc$mt_bt$cv$train[[1]], 3)
+names(sc$mt_bt$cv$validate[[1]])
+```
+
+To fit the group as a fixed effect (`st_mp`, `mt_mp`), use the `herd` column.
+
+### Only some scenarios
+
+```{r subset, eval = FALSE}
+sc2 <- cv_scenarios(phe, cols = traits, id = "id", group = "herd", folds = folds,
+                    scenarios = c("st_sp", "mt_sp"))
+```
+
+Without `folds`, `cv_scenarios()` calls `cv_folds()` itself with `v`, `repeats`, `strata` and `seed`. Building the fold table first, as above, is still recommended: it is part of the result, needed to summarise accuracies and to add models later.
+
+## Step 3: write the files, `export_scenarios()`
+
+```{r export}
+out <- file.path(tempdir(), "gblup")
+files <- export_scenarios(
+  sc,
+  path = out,
+  dirs = c(st_sp = "2.1.st_sp", st_mp = "2.2.st_mp", mt_sp = "2.3.mt_sp",
+           mt_mp = "2.4.mt_mp", mt_bt = "2.5.mt_bt"),
+  na   = "."
+)
+length(files)
+head(substring(files, nchar(out) + 2), 4)
+tail(substring(files, nchar(out) + 2), 2)
+```
+
+The layout is:
+
+```
+<path>/<scenario dir>/param_est_data/<trait or pair>[/<group>]/data.txt
+<path>/<scenario dir>/cv_data/<trait or pair>/<group>/<repeat>/<fold>/train.txt
+<path>/<scenario dir>/cv_data/<trait or pair>/<group>/<repeat>/<fold>/validate.txt
+```
+
+```{r export-file}
+readLines(file.path(out, "2.5.mt_bt", "cv_data", "adg", "north", "Repeat01", "Fold1", "train.txt"), n = 3)
+```
+
+Save the fold table too; it is needed to summarise, reproduce or extend the analysis:
+
+```{r export-folds}
+fwrite(folds, file.path(out, "cv_folds.txt"), sep = "\t")
+```
+
+### Missing values and headers for each program
+
+`na` sets the missing-value code; other arguments (e.g. `col.names`) are passed to `data.table::fwrite()`:
+
+| Program | Typical call |
+|---|---|
+| ASReml (standalone) | `na = "."` (`NA` and `*` also work) |
+| HIBLUP | `na = "NA"` |
+| DMU | `na = "-9999", col.names = FALSE`, and all columns numeric |
+
+```{r dmu, eval = FALSE}
+export_scenarios(sc, path = "dmu_runs", na = "-9999", col.names = FALSE)
+```
+
+DMU needs integer codes for class variables and IDs. Add coded columns before `cv_scenarios()`; the ID codes must match those of the pedigree / genotype files.
+
+## Step 4: summarise prediction accuracy
+
+Once the models have run, compute accuracies per scenario × trait × group × repeat × fold. To keep this article runnable, a simplified SNP-BLUP (ridge regression, equivalent to GBLUP under the same assumptions) stands in for the external program: fixed effects are removed with `lm()`, SNP effects are estimated on the training set, and the GEBVs of the validation individuals are correlated with their corrected phenotypes.
+
+```{r accuracy}
+snp_blup_r <- function(tr, va, h2) {
+  tr  <- tr[!is.na(value)]
+  va  <- va[!is.na(value)]
+  fe  <- lm(value ~ sex + batch, data = tr)            # fixed effects (batch includes herd)
+  Zt  <- Z[tr$id, , drop = FALSE]
+  lam <- sum(2 * freq * (1 - freq)) * (1 - h2) / h2
+  b   <- solve(crossprod(Zt) + diag(lam, ncol(Zt)), crossprod(Zt, residuals(fe)))
+  gebv <- drop(Z[va$id, , drop = FALSE] %*% b)
+  cor(gebv, va$value - predict(fe, va))
+}
+h2 <- c(adg = 0.30, bf = 0.40, fcr = 0.25)
+
+fold_r <- function(cv) {
+  cv <- copy(cv)
+  cv[, r := mapply(snp_blup_r, train, validate, h2[name])]
+  cv[, .(name, herd, rep, fold, r)]
+}
+res <- rbind(fold_r(sc$st_sp$cv)[, scenario := "st_sp"],
+             fold_r(sc$st_mp$cv)[, scenario := "st_mp"])
+head(res)
+```
+
+With an external program, replace `snp_blup_r()` by reading its GEBV output from each folder, for example:
+
+```{r gebv, eval = FALSE}
+cv <- copy(sc$st_sp$cv)
+cv[, dir := file.path(out, "2.1.st_sp", "cv_data", name, herd, rep, fold)]
+cv[, r := mapply(function(d, va) {
+  g <- fread(file.path(d, "gebv.txt"))          # assumed columns: id, gebv
+  m <- merge(va, g, by = "id")
+  cor(m$gebv, m$value, use = "complete.obs")    # often divided by sqrt(h2)
+}, dir, validate)]
+```
+
+### Average within repeats, then compare models
+
+Folds of one repeat share most of their training individuals and are not independent. Average the folds within each repeat first, then report mean ± SD over repeats:
+
+```{r summary}
+by_rep <- res[, .(r = mean(r)), by = .(scenario, name, herd, rep)]
+by_rep[, .(mean_r = mean(r), sd_r = sd(r)), by = .(scenario, name, herd)]
+```
+
+Compare two models paired by repeat, testing the repeat-level differences:
+
+```{r paired}
+paired <- dcast(by_rep, name + herd + rep ~ scenario, value.var = "r")
+paired[, d := st_mp - st_sp]
+paired[, .(mean_diff = mean(d), se = sd(d) / sqrt(.N), p = t.test(d)$p.value),
+       by = .(name, herd)]
+```
+
+This pairing is valid only because all scenarios validate the same individuals.
+
+In these simulated data, adding the other herd clearly improves bf and fcr, but not adg. Different conclusions for different traits of the same data are common in practice too, so report results per trait and per group rather than one overall average. Accuracies are often reported as the correlation divided by $\sqrt{h^2}$.
+
+## Beyond the five scenarios
+
+`cv_scenarios()` covers the five most common scenarios. Other designs can be built with `apply_folds()` and the same fold table, still validating the same individuals as above.
+
+### Three-trait models
+
+```{r three-traits}
+mt3 <- apply_folds(c2p_nest(phe, cols = traits, pairs_n = 3), folds, ref = "others")
+mt3[1:2]
+names(mt3$train[[1]])
+```
+
+### Some traits or some groups only
+
+```{r subset-data}
+cv_adg_north <- apply_folds(w2l_nest(phe[herd == "north"], cols = "adg"), folds)
+nrow(cv_adg_north)
+```
+
+Groups of the fold table that do not occur in the data are skipped; individuals in the data but not in the fold table are dropped with a warning.
+
+### Masking: one file, validation phenotypes set to missing
+
+Some programs prefer one complete data set in which the phenotypes of the validation individuals are set to missing. Combine training and validation sets into one file:
+
+```{r masked}
+cv <- copy(sc$st_sp$cv)
+cv[, masked := Map(function(tr, va) rbind(tr, copy(va)[, value := NA]), train, validate)]
+cv$masked[[1]][, .(n = .N, n_missing = sum(is.na(value)))]
+```
+
+```{r masked-export, eval = FALSE}
+export_nest(cv, by = c("name", "herd", "rep", "fold"), cols = "masked",
+            path = "masked_runs", na = ".")
+```
+
+For two-trait data, set both `value1` and `value2` to missing.
+
+### Across-group prediction: one group predicts another
+
+Training on the south herd only and predicting the north herd needs no folds:
+
+```{r across}
+across <- w2l_nest(phe, cols = traits)[, .(
+  train    = lapply(data, function(d) d[herd == "south"]),
+  validate = lapply(data, function(d) d[herd == "north"])
+), by = name]
+across
+```
+
+The genotypes of both groups must then be in one G matrix.
+
+### ASReml-R inside R
+
+`out_type = "df"` returns every subset as a `data.frame`, ready for `asreml()`:
+
+```{r asreml, eval = FALSE}
+sc_df <- cv_scenarios(phe, cols = traits, id = "id", group = "herd",
+                      folds = folds, scenarios = "st_sp", out_type = "df")
+cv <- sc_df$st_sp$cv
+cv[, r := mapply(function(tr, va) {
+  tr$id <- factor(tr$id, levels = rownames(Ginv))
+  fit <- asreml::asreml(value ~ sex + batch, random = ~ vm(id, Ginv),
+                        data = tr, na.action = asreml::na.method(y = "include"))
+  gebv <- predict(fit, classify = "id")$pvals
+  m <- merge(va, gebv, by = "id")
+  cor(m$predicted.value, m$value, use = "complete.obs")
+}, train, validate)]
+```
+
+## FAQ
+
+**What is required of the IDs?**
+An ID may belong to one group only; otherwise `cv_folds()` stops and lists those IDs. IDs must match the genotype file. Individuals without genotypes cannot be predicted by GBLUP, so drop them from the phenotypes before building the fold table (single-step ssGBLUP aside).
+
+**Repeated records (several rows per individual)?**
+They are fine. `cv_folds()` splits individuals, so all records of an individual are always in the same fold: no information leaks from training to validation through other records of the same animal.
+
+**Are rows with missing phenotypes removed?**
+No. All scenarios keep them, and they are written with the `na` code. When computing accuracies, use `use = "complete.obs"` or drop validation individuals without a phenotype.
+
+**Why `rep` / `fold` instead of `id` / `id2` as in `nest_cv()`?**
+Because the individual ID column is often called `id` itself. The exported folders are still named `Repeat01/Fold1`.
+
+**How do I reproduce the same split later?**
+Pass `seed` to `cv_folds()`; it affects only this split and leaves the random-number stream of the rest of your script alone. Also save the fold table to a file.
+
+**Can I build the fold table now and add models later?**
+Yes, that is the recommended workflow. Any new model built with the same fold table, through `apply_folds()` or `cv_scenarios(folds = folds)`, validates the same individuals as all earlier models.

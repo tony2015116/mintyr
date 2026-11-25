@@ -107,6 +107,8 @@ export_nest(nested, path = file.path(tempdir(), "by_trait"))
 | `format_digits()` | Format numeric columns for reports (decimals, percentages) |
 | `get_path_info()` | Extract file names or path segments, cross-platform |
 
+For genomic prediction studies, see [Genomic evaluation data](https://tony2015116.github.io/mintyr/articles/genomic-evaluation.html) ([中文](https://tony2015116.github.io/mintyr/articles/genomic-evaluation-zh.html)): one fold table, five GBLUP scenarios, input files and accuracy summaries.
+
 ## Examples by use case
 
 **Pairwise correlations between many variables, per group**

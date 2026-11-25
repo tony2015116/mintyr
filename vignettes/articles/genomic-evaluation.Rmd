@@ -10,7 +10,7 @@ description: >
 knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
 ```
 
-[中文版](genomic-evaluation-zh.html)
+[中文版](genomic-evaluation-zh.html) · Visual guide: [Cross-validation for genomic evaluation](../cv-cheatsheet.html)
 
 When genomic prediction models are compared, the usual questions are: is a multi-trait model more accurate than a single-trait model? Does adding another herd (population) to the reference population improve the prediction of this herd? What is the genetic correlation of a trait between two herds?
 

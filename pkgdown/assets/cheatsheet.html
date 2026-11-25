@@ -378,6 +378,7 @@ cv[, .(mean_r = mean(r)), by = .(name, am)]</code></pre>
     <p><b>Same individuals for every model</b>: one fold table per individual (<code>by | id | rep | fold</code>), shared by all traits; <code>apply_folds()</code> matches by ID. <code>ref = "others"</code> adds all other groups to every training set.</p>
     <div class="sig"><b><a href="reference/cv_scenarios.html">cv_scenarios</a></b>(data, cols, id, group, folds = NULL, v = 5, repeats = 1, seed = NULL)</div>
     <div class="sig"><b><a href="reference/export_scenarios.html">export_scenarios</a></b>(x, path, dirs = NULL, na = ".")</div>
+    <p><a href="cv-cheatsheet.html">Visual guide to these splits &rarr;</a></p>
     <p>Five GBLUP scenarios in one call: <code>st_sp</code>, <code>st_mp</code>, <code>mt_sp</code>, <code>mt_mp</code>, <code>mt_bt</code> (single- / two-trait, within / across groups).</p>
     <pre><code>folds &lt;- cv_folds(phe, id = "id", by = "herd", v = 5, repeats = 10, seed = 1)
 sc &lt;- cv_scenarios(phe, cols = c("adg", "bf"), id = "id",

@@ -26,6 +26,11 @@ navbar:
         href: cheatsheet.html
       - text: 中文
         href: cheatsheet-zh.html
+      - text: -------
+      - text: CV for genomic evaluation (visual)
+        href: cv-cheatsheet.html
+      - text: 基因组评估交叉验证（图解）
+        href: cv-cheatsheet-zh.html
     github:
       icon: fab fa-github fa-lg
       href: https://github.com/tony2015116/mintyr

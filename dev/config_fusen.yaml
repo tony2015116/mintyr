@@ -4,9 +4,17 @@ flat_cross_validation.Rmd:
   R:
   - R/nest_cv.R
   - R/split_cv.R
+  - R/cv_folds.R
+  - R/apply_folds.R
+  - R/cv_scenarios.R
+  - R/export_scenarios.R
   tests:
   - tests/testthat/test-split_cv.R
   - tests/testthat/test-nest_cv.R
+  - tests/testthat/test-cv_folds.R
+  - tests/testthat/test-apply_folds.R
+  - tests/testthat/test-cv_scenarios.R
+  - tests/testthat/test-export_scenarios.R
   vignettes: vignettes/cross-validation.Rmd
   inflate:
     flat_file: dev/flat_cross_validation.Rmd

@@ -105,5 +105,52 @@ masked$value[cv_idx$validate_idx[[1]]] <- NA
 sum(is.na(masked$value))       # validation records to be predicted
 ```
 
+# Shared folds for comparing models: `cv_folds()` and `apply_folds()`
+
+When several models are compared (single- vs multi-trait, one group vs groups combined, ...), they should be validated on the same individuals. `cv_folds()` assigns every individual to a fold once, within each group and independently in each repeat; `apply_folds()` then cuts any nested table (from `w2l_nest()`, `c2p_nest()`, `r2p_nest()`, ...) into training / validation sets by matching the individual ID, optionally adding all records of the other groups to every training set.
+    
+  
+```{r example-cv_folds}
+dat <- data.frame(id = paste0("i", 1:40), herd = rep(c("A", "B"), each = 20),
+                  adg = rnorm(40), bf = rnorm(40))
+folds <- cv_folds(dat, id = "id", by = "herd", v = 5, repeats = 2, seed = 1)
+folds[, .N, by = .(herd, rep, fold)]
+```
+
+```{r example-apply_folds}
+dat <- data.frame(id = paste0("i", 1:40), herd = rep(c("A", "B"), each = 20),
+                  adg = rnorm(40), bf = rnorm(40))
+folds <- cv_folds(dat, id = "id", by = "herd", v = 5, seed = 1)
+# single-trait, within herd
+apply_folds(w2l_nest(dat, cols = c("adg", "bf"), by = "herd"), folds)
+# single-trait, other herd added to the training set
+apply_folds(w2l_nest(dat, cols = c("adg", "bf")), folds, ref = "others")
+```
+
+# Five genomic prediction scenarios in one call: `cv_scenarios()`
+
+`cv_scenarios()` builds the parameter-estimation data and the cross-validation data of five usual scenarios (single- / two-trait, within one group / groups combined, and one trait treated as a different trait in each group) from one phenotype table and one fold table; `export_scenarios()` writes everything to disk, e.g. as input files for 'ASReml', 'DMU' or 'HIBLUP'.
+    
+  
+```{r example-cv_scenarios}
+set.seed(1)
+dat <- data.frame(id = paste0("i", 1:60), herd = rep(c("A", "B"), each = 30),
+                  sex = sample(c("M", "F"), 60, TRUE),
+                  adg = rnorm(60), bf = rnorm(60), fcr = rnorm(60))
+sc <- cv_scenarios(dat, cols = c("adg", "bf", "fcr"), id = "id",
+                   group = "herd", v = 5, repeats = 2, seed = 123)
+sc
+sc$mt_bt$cv$train[[1]]
+```
+
+```{r example-export_scenarios}
+dat <- data.frame(id = paste0("i", 1:40), herd = rep(c("A", "B"), each = 20),
+                  adg = rnorm(40), bf = rnorm(40))
+sc <- cv_scenarios(dat, cols = c("adg", "bf"), id = "id", group = "herd",
+                   v = 2, seed = 1, scenarios = c("st_sp", "mt_bt"))
+files <- export_scenarios(sc, path = file.path(tempdir(), "gblup"))
+head(files)
+```
+
 
 

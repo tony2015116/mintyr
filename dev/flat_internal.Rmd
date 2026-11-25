@@ -21,7 +21,7 @@ fusen::fill_description(
   fields = list(
     # Without this, overwrite = TRUE resets the version to usethis' default
     # (0.0.0.9000). Keep it in step with NEWS.md.
-    Version = "0.2.1",
+    Version = "0.2.3",
     Title = "Grouped and Nested Data Pipelines Built on 'data.table'",
     Description = "A toolkit for grouped and nested data pipelines built on 'data.table': import many Excel / CSV files (including multi-row headers) into one table, reshape and nest data by trait and group, run reproducible (stratified) k-fold cross-validation inside every group, summarise groups with report-ready descriptive statistics, and write each piece back to its own file or sheet. Developed for animal breeding, where it prepares phenotypic files for 'ASReml-R', 'HIBLUP' or 'DMU', but useful for any multi-group, multi-variable analysis.",
     `Authors@R` = c(

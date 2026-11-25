@@ -39,7 +39,7 @@
       </button>
       <span class="navbar-brand">
         <a class="navbar-link" href="index.html">mintyr</a>
-        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="">0.2.2</span>
+        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="">0.2.3</span>
       </span>
     </div>
 
@@ -301,6 +301,18 @@
 <code><a href="reference/split_cv.html">split_cv()</a></code> / <code><a href="reference/nest_cv.html">nest_cv()</a></code>
 </td>
 <td>Repeated, optionally stratified k-fold CV for a list of tables or a nested table; returns fold indices and (optionally) the subsets</td>
+</tr>
+<tr>
+<td>
+<code><a href="reference/cv_folds.html">cv_folds()</a></code> / <code><a href="reference/apply_folds.html">apply_folds()</a></code>
+</td>
+<td>One individual-level fold table per group, shared by every trait and model; cut any nested table into train / validate by ID, optionally adding the other groups to the training set</td>
+</tr>
+<tr>
+<td>
+<code><a href="reference/cv_scenarios.html">cv_scenarios()</a></code> / <code><a href="reference/export_scenarios.html">export_scenarios()</a></code>
+</td>
+<td>Parameter-estimation and CV data for five genomic prediction scenarios (single- / two-trait, within / across groups) in one call, written as software input files</td>
 </tr>
 <tr>
 <td><code><a href="reference/top_perc.html">top_perc()</a></code></td>

@@ -36,7 +36,7 @@
       </button>
       <span class="navbar-brand">
         <a class="navbar-link" href="../index.html">mintyr</a>
-        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="">0.2.2</span>
+        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="">0.2.3</span>
       </span>
     </div>
 
@@ -352,6 +352,202 @@ and, optionally, as training / validation subsets
 <span><span class="va">masked</span><span class="op">$</span><span class="va">value</span><span class="op">[</span><span class="va">cv_idx</span><span class="op">$</span><span class="va">validate_idx</span><span class="op">[[</span><span class="fl">1</span><span class="op">]</span><span class="op">]</span><span class="op">]</span> <span class="op">&lt;-</span> <span class="cn">NA</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/NA.html" class="external-link">is.na</a></span><span class="op">(</span><span class="va">masked</span><span class="op">$</span><span class="va">value</span><span class="op">)</span><span class="op">)</span>       <span class="co"># validation records to be predicted</span></span>
 <span><span class="co">#&gt; [1] 75</span></span></code></pre></div>
+</div>
+<div class="section level2">
+<h2 id="shared-folds-for-comparing-models-cv_folds-and-apply_folds">Shared folds for comparing models: <code>cv_folds()</code> and
+<code>apply_folds()</code><a class="anchor" aria-label="anchor" href="#shared-folds-for-comparing-models-cv_folds-and-apply_folds"></a>
+</h2>
+<p>When several models are compared (single- vs multi-trait, one group
+vs groups combined, …), they should be validated on the same
+individuals. <code><a href="../reference/cv_folds.html">cv_folds()</a></code> assigns every individual to a fold
+once, within each group and independently in each repeat;
+<code><a href="../reference/apply_folds.html">apply_folds()</a></code> then cuts any nested table (from
+<code><a href="../reference/w2l_nest.html">w2l_nest()</a></code>, <code><a href="../reference/c2p_nest.html">c2p_nest()</a></code>,
+<code><a href="../reference/r2p_nest.html">r2p_nest()</a></code>, …) into training / validation sets by matching
+the individual ID, optionally adding all records of the other groups to
+every training set.</p>
+<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">dat</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span>id <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="st">"i"</span>, <span class="fl">1</span><span class="op">:</span><span class="fl">40</span><span class="op">)</span>, herd <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/rep.html" class="external-link">rep</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"A"</span>, <span class="st">"B"</span><span class="op">)</span>, each <span class="op">=</span> <span class="fl">20</span><span class="op">)</span>,</span>
+<span>                  adg <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">rnorm</a></span><span class="op">(</span><span class="fl">40</span><span class="op">)</span>, bf <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">rnorm</a></span><span class="op">(</span><span class="fl">40</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="va">folds</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/cv_folds.html">cv_folds</a></span><span class="op">(</span><span class="va">dat</span>, id <span class="op">=</span> <span class="st">"id"</span>, by <span class="op">=</span> <span class="st">"herd"</span>, v <span class="op">=</span> <span class="fl">5</span>, repeats <span class="op">=</span> <span class="fl">2</span>, seed <span class="op">=</span> <span class="fl">1</span><span class="op">)</span></span>
+<span><span class="va">folds</span><span class="op">[</span>, <span class="va">.N</span>, by <span class="op">=</span> <span class="fu">.</span><span class="op">(</span><span class="va">herd</span>, <span class="va">rep</span>, <span class="va">fold</span><span class="op">)</span><span class="op">]</span></span>
+<span><span class="co">#&gt;       herd     rep   fold     N</span></span>
+<span><span class="co">#&gt;     &lt;char&gt;  &lt;char&gt; &lt;char&gt; &lt;int&gt;</span></span>
+<span><span class="co">#&gt;  1:      A Repeat1  Fold4     4</span></span>
+<span><span class="co">#&gt;  2:      A Repeat1  Fold2     4</span></span>
+<span><span class="co">#&gt;  3:      A Repeat1  Fold1     4</span></span>
+<span><span class="co">#&gt;  4:      A Repeat1  Fold3     4</span></span>
+<span><span class="co">#&gt;  5:      A Repeat1  Fold5     4</span></span>
+<span><span class="co">#&gt;  6:      B Repeat1  Fold5     4</span></span>
+<span><span class="co">#&gt;  7:      B Repeat1  Fold4     4</span></span>
+<span><span class="co">#&gt;  8:      B Repeat1  Fold2     4</span></span>
+<span><span class="co">#&gt;  9:      B Repeat1  Fold1     4</span></span>
+<span><span class="co">#&gt; 10:      B Repeat1  Fold3     4</span></span>
+<span><span class="co">#&gt; 11:      A Repeat2  Fold1     4</span></span>
+<span><span class="co">#&gt; 12:      A Repeat2  Fold3     4</span></span>
+<span><span class="co">#&gt; 13:      A Repeat2  Fold2     4</span></span>
+<span><span class="co">#&gt; 14:      A Repeat2  Fold5     4</span></span>
+<span><span class="co">#&gt; 15:      A Repeat2  Fold4     4</span></span>
+<span><span class="co">#&gt; 16:      B Repeat2  Fold2     4</span></span>
+<span><span class="co">#&gt; 17:      B Repeat2  Fold1     4</span></span>
+<span><span class="co">#&gt; 18:      B Repeat2  Fold3     4</span></span>
+<span><span class="co">#&gt; 19:      B Repeat2  Fold4     4</span></span>
+<span><span class="co">#&gt; 20:      B Repeat2  Fold5     4</span></span>
+<span><span class="co">#&gt;       herd     rep   fold     N</span></span>
+<span><span class="co">#&gt;     &lt;char&gt;  &lt;char&gt; &lt;char&gt; &lt;int&gt;</span></span></code></pre></div>
+<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">dat</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span>id <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="st">"i"</span>, <span class="fl">1</span><span class="op">:</span><span class="fl">40</span><span class="op">)</span>, herd <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/rep.html" class="external-link">rep</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"A"</span>, <span class="st">"B"</span><span class="op">)</span>, each <span class="op">=</span> <span class="fl">20</span><span class="op">)</span>,</span>
+<span>                  adg <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">rnorm</a></span><span class="op">(</span><span class="fl">40</span><span class="op">)</span>, bf <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">rnorm</a></span><span class="op">(</span><span class="fl">40</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="va">folds</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/cv_folds.html">cv_folds</a></span><span class="op">(</span><span class="va">dat</span>, id <span class="op">=</span> <span class="st">"id"</span>, by <span class="op">=</span> <span class="st">"herd"</span>, v <span class="op">=</span> <span class="fl">5</span>, seed <span class="op">=</span> <span class="fl">1</span><span class="op">)</span></span>
+<span><span class="co"># single-trait, within herd</span></span>
+<span><span class="fu"><a href="../reference/apply_folds.html">apply_folds</a></span><span class="op">(</span><span class="fu"><a href="../reference/w2l_nest.html">w2l_nest</a></span><span class="op">(</span><span class="va">dat</span>, cols <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"adg"</span>, <span class="st">"bf"</span><span class="op">)</span>, by <span class="op">=</span> <span class="st">"herd"</span><span class="op">)</span>, <span class="va">folds</span><span class="op">)</span></span>
+<span><span class="co">#&gt;       name   herd     rep   fold              train          validate</span></span>
+<span><span class="co">#&gt;     &lt;char&gt; &lt;char&gt;  &lt;char&gt; &lt;char&gt;             &lt;list&gt;            &lt;list&gt;</span></span>
+<span><span class="co">#&gt;  1:    adg      A Repeat1  Fold1 &lt;data.table[16x3]&gt; &lt;data.table[4x3]&gt;</span></span>
+<span><span class="co">#&gt;  2:    adg      A Repeat1  Fold2 &lt;data.table[16x3]&gt; &lt;data.table[4x3]&gt;</span></span>
+<span><span class="co">#&gt;  3:    adg      A Repeat1  Fold3 &lt;data.table[16x3]&gt; &lt;data.table[4x3]&gt;</span></span>
+<span><span class="co">#&gt;  4:    adg      A Repeat1  Fold4 &lt;data.table[16x3]&gt; &lt;data.table[4x3]&gt;</span></span>
+<span><span class="co">#&gt;  5:    adg      A Repeat1  Fold5 &lt;data.table[16x3]&gt; &lt;data.table[4x3]&gt;</span></span>
+<span><span class="co">#&gt;  6:    adg      B Repeat1  Fold1 &lt;data.table[16x3]&gt; &lt;data.table[4x3]&gt;</span></span>
+<span><span class="co">#&gt;  7:    adg      B Repeat1  Fold2 &lt;data.table[16x3]&gt; &lt;data.table[4x3]&gt;</span></span>
+<span><span class="co">#&gt;  8:    adg      B Repeat1  Fold3 &lt;data.table[16x3]&gt; &lt;data.table[4x3]&gt;</span></span>
+<span><span class="co">#&gt;  9:    adg      B Repeat1  Fold4 &lt;data.table[16x3]&gt; &lt;data.table[4x3]&gt;</span></span>
+<span><span class="co">#&gt; 10:    adg      B Repeat1  Fold5 &lt;data.table[16x3]&gt; &lt;data.table[4x3]&gt;</span></span>
+<span><span class="co">#&gt; 11:     bf      A Repeat1  Fold1 &lt;data.table[16x3]&gt; &lt;data.table[4x3]&gt;</span></span>
+<span><span class="co">#&gt; 12:     bf      A Repeat1  Fold2 &lt;data.table[16x3]&gt; &lt;data.table[4x3]&gt;</span></span>
+<span><span class="co">#&gt; 13:     bf      A Repeat1  Fold3 &lt;data.table[16x3]&gt; &lt;data.table[4x3]&gt;</span></span>
+<span><span class="co">#&gt; 14:     bf      A Repeat1  Fold4 &lt;data.table[16x3]&gt; &lt;data.table[4x3]&gt;</span></span>
+<span><span class="co">#&gt; 15:     bf      A Repeat1  Fold5 &lt;data.table[16x3]&gt; &lt;data.table[4x3]&gt;</span></span>
+<span><span class="co">#&gt; 16:     bf      B Repeat1  Fold1 &lt;data.table[16x3]&gt; &lt;data.table[4x3]&gt;</span></span>
+<span><span class="co">#&gt; 17:     bf      B Repeat1  Fold2 &lt;data.table[16x3]&gt; &lt;data.table[4x3]&gt;</span></span>
+<span><span class="co">#&gt; 18:     bf      B Repeat1  Fold3 &lt;data.table[16x3]&gt; &lt;data.table[4x3]&gt;</span></span>
+<span><span class="co">#&gt; 19:     bf      B Repeat1  Fold4 &lt;data.table[16x3]&gt; &lt;data.table[4x3]&gt;</span></span>
+<span><span class="co">#&gt; 20:     bf      B Repeat1  Fold5 &lt;data.table[16x3]&gt; &lt;data.table[4x3]&gt;</span></span>
+<span><span class="co">#&gt;       name   herd     rep   fold              train          validate</span></span>
+<span><span class="co">#&gt;     &lt;char&gt; &lt;char&gt;  &lt;char&gt; &lt;char&gt;             &lt;list&gt;            &lt;list&gt;</span></span>
+<span><span class="co"># single-trait, other herd added to the training set</span></span>
+<span><span class="fu"><a href="../reference/apply_folds.html">apply_folds</a></span><span class="op">(</span><span class="fu"><a href="../reference/w2l_nest.html">w2l_nest</a></span><span class="op">(</span><span class="va">dat</span>, cols <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"adg"</span>, <span class="st">"bf"</span><span class="op">)</span><span class="op">)</span>, <span class="va">folds</span>, ref <span class="op">=</span> <span class="st">"others"</span><span class="op">)</span></span>
+<span><span class="co">#&gt;       name   herd     rep   fold              train          validate</span></span>
+<span><span class="co">#&gt;     &lt;char&gt; &lt;char&gt;  &lt;char&gt; &lt;char&gt;             &lt;list&gt;            &lt;list&gt;</span></span>
+<span><span class="co">#&gt;  1:    adg      A Repeat1  Fold1 &lt;data.table[36x3]&gt; &lt;data.table[4x3]&gt;</span></span>
+<span><span class="co">#&gt;  2:    adg      A Repeat1  Fold2 &lt;data.table[36x3]&gt; &lt;data.table[4x3]&gt;</span></span>
+<span><span class="co">#&gt;  3:    adg      A Repeat1  Fold3 &lt;data.table[36x3]&gt; &lt;data.table[4x3]&gt;</span></span>
+<span><span class="co">#&gt;  4:    adg      A Repeat1  Fold4 &lt;data.table[36x3]&gt; &lt;data.table[4x3]&gt;</span></span>
+<span><span class="co">#&gt;  5:    adg      A Repeat1  Fold5 &lt;data.table[36x3]&gt; &lt;data.table[4x3]&gt;</span></span>
+<span><span class="co">#&gt;  6:    adg      B Repeat1  Fold1 &lt;data.table[36x3]&gt; &lt;data.table[4x3]&gt;</span></span>
+<span><span class="co">#&gt;  7:    adg      B Repeat1  Fold2 &lt;data.table[36x3]&gt; &lt;data.table[4x3]&gt;</span></span>
+<span><span class="co">#&gt;  8:    adg      B Repeat1  Fold3 &lt;data.table[36x3]&gt; &lt;data.table[4x3]&gt;</span></span>
+<span><span class="co">#&gt;  9:    adg      B Repeat1  Fold4 &lt;data.table[36x3]&gt; &lt;data.table[4x3]&gt;</span></span>
+<span><span class="co">#&gt; 10:    adg      B Repeat1  Fold5 &lt;data.table[36x3]&gt; &lt;data.table[4x3]&gt;</span></span>
+<span><span class="co">#&gt; 11:     bf      A Repeat1  Fold1 &lt;data.table[36x3]&gt; &lt;data.table[4x3]&gt;</span></span>
+<span><span class="co">#&gt; 12:     bf      A Repeat1  Fold2 &lt;data.table[36x3]&gt; &lt;data.table[4x3]&gt;</span></span>
+<span><span class="co">#&gt; 13:     bf      A Repeat1  Fold3 &lt;data.table[36x3]&gt; &lt;data.table[4x3]&gt;</span></span>
+<span><span class="co">#&gt; 14:     bf      A Repeat1  Fold4 &lt;data.table[36x3]&gt; &lt;data.table[4x3]&gt;</span></span>
+<span><span class="co">#&gt; 15:     bf      A Repeat1  Fold5 &lt;data.table[36x3]&gt; &lt;data.table[4x3]&gt;</span></span>
+<span><span class="co">#&gt; 16:     bf      B Repeat1  Fold1 &lt;data.table[36x3]&gt; &lt;data.table[4x3]&gt;</span></span>
+<span><span class="co">#&gt; 17:     bf      B Repeat1  Fold2 &lt;data.table[36x3]&gt; &lt;data.table[4x3]&gt;</span></span>
+<span><span class="co">#&gt; 18:     bf      B Repeat1  Fold3 &lt;data.table[36x3]&gt; &lt;data.table[4x3]&gt;</span></span>
+<span><span class="co">#&gt; 19:     bf      B Repeat1  Fold4 &lt;data.table[36x3]&gt; &lt;data.table[4x3]&gt;</span></span>
+<span><span class="co">#&gt; 20:     bf      B Repeat1  Fold5 &lt;data.table[36x3]&gt; &lt;data.table[4x3]&gt;</span></span>
+<span><span class="co">#&gt;       name   herd     rep   fold              train          validate</span></span>
+<span><span class="co">#&gt;     &lt;char&gt; &lt;char&gt;  &lt;char&gt; &lt;char&gt;             &lt;list&gt;            &lt;list&gt;</span></span></code></pre></div>
+</div>
+<div class="section level2">
+<h2 id="five-genomic-prediction-scenarios-in-one-call-cv_scenarios">Five genomic prediction scenarios in one call:
+<code>cv_scenarios()</code><a class="anchor" aria-label="anchor" href="#five-genomic-prediction-scenarios-in-one-call-cv_scenarios"></a>
+</h2>
+<p><code><a href="../reference/cv_scenarios.html">cv_scenarios()</a></code> builds the parameter-estimation data and
+the cross-validation data of five usual scenarios (single- / two-trait,
+within one group / groups combined, and one trait treated as a different
+trait in each group) from one phenotype table and one fold table;
+<code><a href="../reference/export_scenarios.html">export_scenarios()</a></code> writes everything to disk, e.g. as input
+files for ‘ASReml’, ‘DMU’ or ‘HIBLUP’.</p>
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">1</span><span class="op">)</span></span>
+<span><span class="va">dat</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span>id <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="st">"i"</span>, <span class="fl">1</span><span class="op">:</span><span class="fl">60</span><span class="op">)</span>, herd <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/rep.html" class="external-link">rep</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"A"</span>, <span class="st">"B"</span><span class="op">)</span>, each <span class="op">=</span> <span class="fl">30</span><span class="op">)</span>,</span>
+<span>                  sex <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/sample.html" class="external-link">sample</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"M"</span>, <span class="st">"F"</span><span class="op">)</span>, <span class="fl">60</span>, <span class="cn">TRUE</span><span class="op">)</span>,</span>
+<span>                  adg <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">rnorm</a></span><span class="op">(</span><span class="fl">60</span><span class="op">)</span>, bf <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">rnorm</a></span><span class="op">(</span><span class="fl">60</span><span class="op">)</span>, fcr <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">rnorm</a></span><span class="op">(</span><span class="fl">60</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="va">sc</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/cv_scenarios.html">cv_scenarios</a></span><span class="op">(</span><span class="va">dat</span>, cols <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"adg"</span>, <span class="st">"bf"</span>, <span class="st">"fcr"</span><span class="op">)</span>, id <span class="op">=</span> <span class="st">"id"</span>,</span>
+<span>                   group <span class="op">=</span> <span class="st">"herd"</span>, v <span class="op">=</span> <span class="fl">5</span>, repeats <span class="op">=</span> <span class="fl">2</span>, seed <span class="op">=</span> <span class="fl">123</span><span class="op">)</span></span>
+<span><span class="va">sc</span></span>
+<span><span class="co">#&gt; &lt;mintyr_scenarios&gt; 60 individuals, 2 x 5</span></span>
+<span><span class="co">#&gt;   st_sp  param:   6 data sets | cv:   60 train/validate pairs</span></span>
+<span><span class="co">#&gt;   st_mp  param:   3 data sets | cv:   60 train/validate pairs</span></span>
+<span><span class="co">#&gt;   mt_sp  param:   6 data sets | cv:   60 train/validate pairs</span></span>
+<span><span class="co">#&gt;   mt_mp  param:   3 data sets | cv:   60 train/validate pairs</span></span>
+<span><span class="co">#&gt;   mt_bt  param:   3 data sets | cv:   60 train/validate pairs</span></span>
+<span><span class="va">sc</span><span class="op">$</span><span class="va">mt_bt</span><span class="op">$</span><span class="va">cv</span><span class="op">$</span><span class="va">train</span><span class="op">[[</span><span class="fl">1</span><span class="op">]</span><span class="op">]</span></span>
+<span><span class="co">#&gt;         id   herd    sex           A            B</span></span>
+<span><span class="co">#&gt;     &lt;char&gt; &lt;char&gt; &lt;char&gt;       &lt;num&gt;        &lt;num&gt;</span></span>
+<span><span class="co">#&gt;  1:     i1      A      M  1.35867955           NA</span></span>
+<span><span class="co">#&gt;  2:     i2      A      F -0.10278773           NA</span></span>
+<span><span class="co">#&gt;  3:     i3      A      M  0.38767161           NA</span></span>
+<span><span class="co">#&gt;  4:     i4      A      M -0.05380504           NA</span></span>
+<span><span class="co">#&gt;  5:     i5      A      F -1.37705956           NA</span></span>
+<span><span class="co">#&gt;  6:     i6      A      M -0.41499456           NA</span></span>
+<span><span class="co">#&gt;  7:     i7      A      M -0.39428995           NA</span></span>
+<span><span class="co">#&gt;  8:     i9      A      F  1.10002537           NA</span></span>
+<span><span class="co">#&gt;  9:    i10      A      F  0.76317575           NA</span></span>
+<span><span class="co">#&gt; 10:    i11      A      M -0.16452360           NA</span></span>
+<span><span class="co">#&gt; 11:    i12      A      M -0.25336168           NA</span></span>
+<span><span class="co">#&gt; 12:    i13      A      M  0.69696338           NA</span></span>
+<span><span class="co">#&gt; 13:    i14      A      M  0.55666320           NA</span></span>
+<span><span class="co">#&gt; 14:    i15      A      M -0.68875569           NA</span></span>
+<span><span class="co">#&gt; 15:    i17      A      F  0.36458196           NA</span></span>
+<span><span class="co">#&gt; 16:    i18      A      F  0.76853292           NA</span></span>
+<span><span class="co">#&gt; 17:    i19      A      F -0.11234621           NA</span></span>
+<span><span class="co">#&gt; 18:    i20      A      M  0.88110773           NA</span></span>
+<span><span class="co">#&gt; 19:    i21      A      M  0.39810588           NA</span></span>
+<span><span class="co">#&gt; 20:    i23      A      M  0.34111969           NA</span></span>
+<span><span class="co">#&gt; 21:    i25      A      M  1.43302370           NA</span></span>
+<span><span class="co">#&gt; 22:    i26      A      M  1.98039990           NA</span></span>
+<span><span class="co">#&gt; 23:    i28      A      M -1.04413463           NA</span></span>
+<span><span class="co">#&gt; 24:    i29      A      M  0.56971963           NA</span></span>
+<span><span class="co">#&gt; 25:    i31      B      F          NA  2.401617761</span></span>
+<span><span class="co">#&gt; 26:    i32      B      F          NA -0.039240003</span></span>
+<span><span class="co">#&gt; 27:    i33      B      M          NA  0.689739362</span></span>
+<span><span class="co">#&gt; 28:    i34      B      F          NA  0.028002159</span></span>
+<span><span class="co">#&gt; 29:    i35      B      M          NA -0.743273209</span></span>
+<span><span class="co">#&gt; 30:    i36      B      M          NA  0.188792300</span></span>
+<span><span class="co">#&gt; 31:    i37      B      F          NA -1.804958629</span></span>
+<span><span class="co">#&gt; 32:    i38      B      M          NA  1.465554862</span></span>
+<span><span class="co">#&gt; 33:    i39      B      F          NA  0.153253338</span></span>
+<span><span class="co">#&gt; 34:    i40      B      F          NA  2.172611670</span></span>
+<span><span class="co">#&gt; 35:    i41      B      F          NA  0.475509529</span></span>
+<span><span class="co">#&gt; 36:    i42      B      F          NA -0.709946431</span></span>
+<span><span class="co">#&gt; 37:    i43      B      M          NA  0.610726353</span></span>
+<span><span class="co">#&gt; 38:    i44      B      F          NA -0.934097632</span></span>
+<span><span class="co">#&gt; 39:    i45      B      F          NA -1.253633400</span></span>
+<span><span class="co">#&gt; 40:    i46      B      F          NA  0.291446236</span></span>
+<span><span class="co">#&gt; 41:    i47      B      F          NA -0.443291873</span></span>
+<span><span class="co">#&gt; 42:    i48      B      F          NA  0.001105352</span></span>
+<span><span class="co">#&gt; 43:    i49      B      M          NA  0.074341324</span></span>
+<span><span class="co">#&gt; 44:    i50      B      M          NA -0.589520946</span></span>
+<span><span class="co">#&gt; 45:    i51      B      F          NA -0.568668733</span></span>
+<span><span class="co">#&gt; 46:    i52      B      M          NA -0.135178615</span></span>
+<span><span class="co">#&gt; 47:    i53      B      F          NA  1.178086997</span></span>
+<span><span class="co">#&gt; 48:    i54      B      F          NA -1.523566800</span></span>
+<span><span class="co">#&gt; 49:    i55      B      M          NA  0.593946188</span></span>
+<span><span class="co">#&gt; 50:    i56      B      M          NA  0.332950371</span></span>
+<span><span class="co">#&gt; 51:    i57      B      F          NA  1.063099837</span></span>
+<span><span class="co">#&gt; 52:    i58      B      F          NA -0.304183924</span></span>
+<span><span class="co">#&gt; 53:    i59      B      F          NA  0.370018810</span></span>
+<span><span class="co">#&gt; 54:    i60      B      M          NA  0.267098791</span></span>
+<span><span class="co">#&gt;         id   herd    sex           A            B</span></span>
+<span><span class="co">#&gt;     &lt;char&gt; &lt;char&gt; &lt;char&gt;       &lt;num&gt;        &lt;num&gt;</span></span></code></pre></div>
+<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">dat</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span>id <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="st">"i"</span>, <span class="fl">1</span><span class="op">:</span><span class="fl">40</span><span class="op">)</span>, herd <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/rep.html" class="external-link">rep</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"A"</span>, <span class="st">"B"</span><span class="op">)</span>, each <span class="op">=</span> <span class="fl">20</span><span class="op">)</span>,</span>
+<span>                  adg <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">rnorm</a></span><span class="op">(</span><span class="fl">40</span><span class="op">)</span>, bf <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">rnorm</a></span><span class="op">(</span><span class="fl">40</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="va">sc</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/cv_scenarios.html">cv_scenarios</a></span><span class="op">(</span><span class="va">dat</span>, cols <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"adg"</span>, <span class="st">"bf"</span><span class="op">)</span>, id <span class="op">=</span> <span class="st">"id"</span>, group <span class="op">=</span> <span class="st">"herd"</span>,</span>
+<span>                   v <span class="op">=</span> <span class="fl">2</span>, seed <span class="op">=</span> <span class="fl">1</span>, scenarios <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"st_sp"</span>, <span class="st">"mt_bt"</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="va">files</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/export_scenarios.html">export_scenarios</a></span><span class="op">(</span><span class="va">sc</span>, path <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/file.path.html" class="external-link">file.path</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempdir</a></span><span class="op">(</span><span class="op">)</span>, <span class="st">"gblup"</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">files</span><span class="op">)</span></span>
+<span><span class="co">#&gt; [1] "/tmp/RtmpJFZJfd/gblup/st_sp/param_est_data/adg/A/data.txt"           </span></span>
+<span><span class="co">#&gt; [2] "/tmp/RtmpJFZJfd/gblup/st_sp/param_est_data/adg/B/data.txt"           </span></span>
+<span><span class="co">#&gt; [3] "/tmp/RtmpJFZJfd/gblup/st_sp/param_est_data/bf/A/data.txt"            </span></span>
+<span><span class="co">#&gt; [4] "/tmp/RtmpJFZJfd/gblup/st_sp/param_est_data/bf/B/data.txt"            </span></span>
+<span><span class="co">#&gt; [5] "/tmp/RtmpJFZJfd/gblup/st_sp/cv_data/adg/A/Repeat1/Fold1/train.txt"   </span></span>
+<span><span class="co">#&gt; [6] "/tmp/RtmpJFZJfd/gblup/st_sp/cv_data/adg/A/Repeat1/Fold1/validate.txt"</span></span></code></pre></div>
 </div>
   </div>
 

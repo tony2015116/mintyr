@@ -17,7 +17,7 @@
       </button>
       <span class="navbar-brand">
         <a class="navbar-link" href="../index.html">mintyr</a>
-        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="">0.2.2</span>
+        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="">0.2.3</span>
       </span>
     </div>
 
@@ -101,6 +101,18 @@
       <small>Source: <a href="https://github.com/tony2015116/mintyr/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="page-header" data-toc-text="0.2.3" id="mintyr-023">mintyr 0.2.3<a class="anchor" aria-label="anchor" href="#mintyr-023"></a></h2>
+<div class="section level3">
+<h3 id="new-features-0-2-3">New features<a class="anchor" aria-label="anchor" href="#new-features-0-2-3"></a></h3>
+<ul><li>
+<code><a href="../reference/cv_folds.html">cv_folds()</a></code> assigns every <strong>individual</strong> (not every row) to a fold, within each group and independently in each repeat, so that one fold table can be shared by every trait, trait pair and model. All records of an individual stay in the same fold; <code>strata</code> and <code>seed</code> work as in <code><a href="../reference/split_cv.html">split_cv()</a></code>. Repeats are generated one after another, so with the same <code>seed</code> increasing <code>repeats</code> later leaves the existing repeats unchanged.</li>
+<li>
+<code><a href="../reference/apply_folds.html">apply_folds()</a></code> cuts any nested table (<code><a href="../reference/w2l_nest.html">w2l_nest()</a></code>, <code><a href="../reference/c2p_nest.html">c2p_nest()</a></code>, <code><a href="../reference/r2p_nest.html">r2p_nest()</a></code>, …) into training / validation sets with such a fold table, matching rows by ID instead of by position. <code>ref = "others"</code> adds all records of the other groups to every training set (reference population enlarged by another herd / line). Nested rows that differ only in the group are merged, and the group column is kept inside the data.</li>
+<li>
+<code><a href="../reference/cv_scenarios.html">cv_scenarios()</a></code> builds, in one call, the parameter-estimation and cross-validation data of five genomic prediction scenarios (single- / two-trait, one group / groups combined, one trait as a different trait per group), all validated on the same individuals and with the same file layout (covariates and the group column kept, rows with missing phenotypes kept). <code><a href="../reference/export_scenarios.html">export_scenarios()</a></code> writes them to <code>&lt;scenario&gt;/param_est_data/</code> and <code>&lt;scenario&gt;/cv_data/&lt;trait&gt;/&lt;group&gt;/&lt;repeat&gt;/&lt;fold&gt;/</code> with a chosen missing-value code.</li>
+</ul></div>
+</div>
     <div class="section level2">
 <h2 class="page-header" data-toc-text="0.2.2" id="mintyr-022">mintyr 0.2.2<a class="anchor" aria-label="anchor" href="#mintyr-022"></a></h2>
 <div class="section level3">

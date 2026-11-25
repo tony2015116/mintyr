@@ -378,6 +378,7 @@ cv[, .(mean_r = mean(r)), by = .(name, am)]</code></pre>
     <p><b>所有模型用同一批验证个体</b>：按个体建一张折表（<code>by | id | rep | fold</code>），所有性状共用；<code>apply_folds()</code> 按 ID 匹配。<code>ref = "others"</code> 把其他群体全部记录加入训练集。</p>
     <div class="sig"><b><a href="reference/cv_scenarios.html">cv_scenarios</a></b>(data, cols, id, group, folds = NULL, v = 5, repeats = 1, seed = NULL)</div>
     <div class="sig"><b><a href="reference/export_scenarios.html">export_scenarios</a></b>(x, path, dirs = NULL, na = ".")</div>
+    <p><a href="cv-cheatsheet-zh.html">图解这些划分方式 &rarr;</a></p>
     <p>一次生成五个 GBLUP 场景：<code>st_sp</code>、<code>st_mp</code>、<code>mt_sp</code>、<code>mt_mp</code>、<code>mt_bt</code>（单/两性状，群体内/跨群体）。</p>
     <pre><code>folds &lt;- cv_folds(phe, id = "id", by = "herd", v = 5, repeats = 10, seed = 1)
 sc &lt;- cv_scenarios(phe, cols = c("adg", "bf"), id = "id",

@@ -1,0 +1,427 @@
+---
+title: "生成基因组遗传评估数据：参数估计与交叉验证"
+description: >
+  用 cv_folds()、apply_folds()、cv_scenarios() 和 export_scenarios() 一次生成单性状 /
+  多性状、单群体 / 多群体 GBLUP 模型所需的参数估计文件和交叉验证文件，并保证所有模型在同一批个体上验证。
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+```
+
+[English version](genomic-evaluation.html)
+
+比较基因组预测模型时，通常要回答这样几个问题：多性状模型比单性状模型准吗？把另一个场（群体）的数据加入参考群，能不能提高本场的预测准确性？两个场之间同一性状的遗传相关有多大？
+
+回答这些问题需要为每个模型准备两类文件：
+
+- **参数估计数据**：全部记录，用来估计方差组分、遗传力和遗传相关；
+- **交叉验证数据**：每个“重复 × 折”的训练集和验证集，用来计算预测准确性。
+
+mintyr 0.2.3 新增的四个函数把这件事变成三步：
+
+| 步骤 | 函数 | 作用 |
+|---|---|---|
+| 1 | `cv_folds()` | 在每个群体内按**个体**分折，生成一张折表 |
+| 2 | `cv_scenarios()` | 用这张折表一次生成五个场景的参数估计数据和交叉验证数据 |
+| 3 | `export_scenarios()` | 按场景写出 ASReml、DMU、HIBLUP 等软件的输入文件 |
+
+`apply_folds()` 是 `cv_scenarios()` 的基础函数，需要自定义场景时可以直接使用（见[进阶用法](#进阶用法)）。
+
+```{r setup, message = FALSE}
+library(mintyr)
+library(data.table)
+```
+
+## 示例数据
+
+本文用模拟数据演示：两个场（`north`、`south`），三个性状（`adg`、`bf`、`fcr`），固定效应列 `sex` 和 `batch`，以及 400 个 SNP 的基因型。两个场共享同一套 SNP 效应，所以把另一个场加入参考群通常能提高准确性；adg 与 bf 有中等遗传相关；部分性状有缺失。
+
+```{r data}
+set.seed(2026)
+n_snp <- 400
+n     <- c(north = 300, south = 280)
+ids   <- c(sprintf("N%04d", seq_len(n[["north"]])), sprintf("S%04d", seq_len(n[["south"]])))
+
+# 基因型（0/1/2），实际中来自芯片数据；行名为个体 ID
+freq <- runif(n_snp, 0.05, 0.5)
+geno <- sapply(freq, function(p) rbinom(length(ids), 2, p))
+dimnames(geno) <- list(ids, paste0("snp", seq_len(n_snp)))
+Z <- sweep(geno, 2, 2 * freq)                       # 中心化的基因型矩阵
+
+# 真实育种值：按遗传力缩放到表型标准差
+bv <- function(b, h2, sd_p) { g <- drop(Z %*% b); g / sd(g) * sqrt(h2) * sd_p }
+b_adg <- rnorm(n_snp)
+b_bf  <- 0.5 * b_adg + sqrt(0.75) * rnorm(n_snp)   # 与 adg 遗传相关约 0.5
+b_fcr <- rnorm(n_snp)
+
+phe <- data.table(id = ids, herd = rep(names(n), n))
+phe[, sex   := sample(c("M", "F"), .N, replace = TRUE)]
+phe[, batch := paste0(herd, sample(2401:2404, .N, replace = TRUE))]
+phe[, adg := round(900 + 20 * (sex == "M") + 30 * (herd == "south") +
+                     bv(b_adg, 0.30, 80) + rnorm(.N, 0, 80 * sqrt(0.70)), 1)]
+phe[, bf  := round(12 - 0.5 * (sex == "M") + bv(b_bf, 0.40, 2) + rnorm(.N, 0, 2 * sqrt(0.60)), 2)]
+phe[, fcr := round(2.4 + bv(b_fcr, 0.25, 0.2) + rnorm(.N, 0, 0.2 * sqrt(0.75)), 3)]
+
+# 部分性状缺失：同一个体不一定所有性状都有表型
+phe[sample(.N, 40), adg := NA]
+phe[sample(.N, 60), bf  := NA]
+phe[sample(.N, 30), fcr := NA]
+
+phe
+phe[, .N, by = herd]
+```
+
+实际使用时换成自己的表型表即可，要求：
+
+- 每个个体一行（或多行重复记录，见[常见问题](#常见问题)）；
+- 有个体 ID 列，并且 ID 与基因型 / G 矩阵中的 ID 一致；
+- 有一个分组列（群体、场、品系……），每个个体只属于一个组。
+
+## 为什么所有模型要共用一张折表
+
+比较两个模型的准确性，最好让它们在**同一批验证个体**上比较；否则两者的差异里会混入“验证个体不同”带来的随机误差，按折配对比较也就失去了意义。
+
+如果对每个性状分别调用 `nest_cv()`，每个性状会得到各自独立的随机划分：
+
+```{r overlap-demo}
+cv_old <- nest_cv(w2l_nest(phe, cols = c("adg", "bf"), by = "herd"), v = 5, seed = 1)
+v_adg <- cv_old[name == "adg" & herd == "north" & id == "Fold1", validate[[1]]$id]
+v_bf  <- cv_old[name == "bf"  & herd == "north" & id == "Fold1", validate[[1]]$id]
+c(adg_fold1 = length(v_adg), both = length(intersect(v_adg, v_bf)))
+```
+
+同样叫 `Fold1`，adg 的 60 个验证个体中只有 10 个也在 bf 的验证集里。用这样的折去比较“adg 单性状模型”和“adg + bf 两性状模型”，比较的其实是两批不同的个体。
+
+`cv_folds()` 的做法是：先在个体层面划分一次，再让所有性状、所有模型都按个体 ID 去取这张表里的划分。
+
+## 第 1 步：建立折表 `cv_folds()`
+
+```{r folds}
+folds <- cv_folds(phe, id = "id", by = "herd", v = 5, repeats = 10, seed = 123)
+folds
+```
+
+折表每行是“一个个体在一次重复中被分到的验证折”：
+
+- `herd`：分组列，分折在每个组内独立进行；
+- `id`：个体 ID；
+- `rep`：重复编号（`Repeat01` … `Repeat10`）；
+- `fold`：该个体在这次重复中作为验证个体的折（`Fold1` … `Fold5`）。
+
+每次重复里，每个个体恰好出现一次，各折大小最多相差 1：
+
+```{r folds-check}
+folds[, .N, by = .(herd, rep, id)][, all(N == 1L)]
+folds[rep == "Repeat01", .N, by = .(herd, fold)]
+```
+
+不同重复是相互独立的随机划分，同一个体在各次重复中会落在不同的折：
+
+```{r folds-repeats}
+folds[id == "N0001", .(rep, fold)]
+```
+
+### 分层
+
+如果希望某个因素（如性别）在各折中均匀分布，用 `strata`。分层列必须在个体内取值唯一；数值型列会先按分位数分箱：
+
+```{r folds-strata}
+f_sex <- cv_folds(phe, id = "id", by = "herd", v = 5, strata = "sex", seed = 1)
+dcast(f_sex[phe, on = "id", sex := i.sex][herd == "north"], sex ~ fold, value.var = "id", fun.aggregate = length)
+```
+
+### 以后增加重复次数
+
+各次重复依次生成，所以只要 `seed` 不变，增加 `repeats` 不会改变已有重复的划分，已经跑完的结果可以直接沿用：
+
+```{r folds-extend}
+f3 <- cv_folds(phe, id = "id", by = "herd", v = 5, repeats = 3, seed = 123)
+identical(f3$fold, folds$fold[seq_len(nrow(f3))])
+```
+
+注意：重复次数从个位数变成两位数时，标签宽度会变（`Repeat1` → `Repeat01`），划分本身不变。
+
+## 第 2 步：生成五个场景 `cv_scenarios()`
+
+```{r scenarios}
+traits <- c("adg", "bf", "fcr")
+sc <- cv_scenarios(phe, cols = traits, id = "id", group = "herd", folds = folds)
+sc
+```
+
+五个场景分别是：
+
+| 场景 | 模型 | 参数估计数据 | 训练集 | 验证集 |
+|---|---|---|---|---|
+| `st_sp` | 单性状，单群体 | 性状 × 群体 | 目标群体的其余折 | 目标群体的当前折 |
+| `st_mp` | 单性状，两群体合并 | 性状 | 同上 **+ 其他群体全部记录** | 同上 |
+| `mt_sp` | 两性状，单群体 | 性状对 × 群体 | 目标群体的其余折 | 同上 |
+| `mt_mp` | 两性状，两群体合并 | 性状对 | 同上 **+ 其他群体全部记录** | 同上 |
+| `mt_bt` | 同一性状在各群体中视为不同性状（估计群体间遗传相关） | 性状 | 同上 **+ 其他群体全部记录** | 同上 |
+
+每个场景都是一个列表，包含 `param`（参数估计数据）和 `cv`（交叉验证数据）。
+
+### 参数估计数据
+
+```{r param}
+sc$st_sp$param     # 单群体：每个性状 × 群体一份
+sc$st_mp$param     # 两群体：每个性状一份，包含两个群体
+sc$mt_sp$param     # 性状对 × 群体
+head(sc$mt_sp$param$data[[1]])
+```
+
+两性状数据里，两个性状的值在 `value1`、`value2` 两列，对应 `pairs` 中的顺序（例如 `adg-bf` 中 `value1` 是 adg）。缺失表型的行会保留：同一个体可能只有其中一个性状有表型，这正是多性状模型能利用的信息。
+
+### 交叉验证数据
+
+```{r cv}
+sc$st_mp$cv
+```
+
+每行是一个“性状（或性状对）× 被验证的群体 × 重复 × 折”，`train` 和 `validate` 是对应的数据表。`st_mp` 的训练集包含另一个群体的全部记录，验证集只来自目标群体：
+
+```{r cv-check}
+sc$st_mp$cv[1, .(
+  name, herd, rep, fold,
+  n_train          = nrow(train[[1]]),
+  herds_in_train   = paste(unique(train[[1]]$herd), collapse = ", "),
+  n_validate       = nrow(validate[[1]]),
+  herd_in_validate = unique(validate[[1]]$herd)
+)]
+```
+
+### 五个场景的验证个体完全相同
+
+这就是共用一张折表的意义：同一个“群体 × 重复 × 折”，在所有场景、所有性状里验证的都是同一批个体。
+
+```{r same-ids}
+val_ids <- function(cv) {
+  cv[, .(herd, rep, fold,
+         ids = vapply(validate, function(d) paste(sort(d$id), collapse = ","), ""))]
+}
+all_v <- rbindlist(lapply(c("st_sp", "st_mp", "mt_sp", "mt_mp", "mt_bt"),
+                          function(s) val_ids(sc[[s]]$cv)))
+all_v[, uniqueN(ids), by = .(herd, rep, fold)][, all(V1 == 1L)]
+```
+
+### 统一的文件列布局
+
+所有场景的数据都保留全部非性状列（包括分组列 `herd`），列顺序与原始数据一致，只有性状列不同。`mt_bt` 把同一性状按群体拆成两列，个体只在自己所属群体的那一列有值，训练集和验证集的列完全一致：
+
+```{r mt-bt}
+head(sc$mt_bt$cv$train[[1]], 3)
+names(sc$mt_bt$cv$validate[[1]])
+```
+
+如果模型里要用群体作固定效应（`st_mp`、`mt_mp`），直接使用 `herd` 列即可。
+
+### 只生成部分场景
+
+```{r subset, eval = FALSE}
+sc2 <- cv_scenarios(phe, cols = traits, id = "id", group = "herd", folds = folds,
+                    scenarios = c("st_sp", "mt_sp"))
+```
+
+不传 `folds` 时，`cv_scenarios()` 会用 `v`、`repeats`、`strata`、`seed` 自己调用 `cv_folds()`。建议还是像上面那样先单独建好折表：折表本身也是结果的一部分，汇总准确性和以后补充新模型时都要用到。
+
+## 第 3 步：导出文件 `export_scenarios()`
+
+```{r export}
+out <- file.path(tempdir(), "gblup")
+files <- export_scenarios(
+  sc,
+  path = out,
+  dirs = c(st_sp = "2.1.st_sp", st_mp = "2.2.st_mp", mt_sp = "2.3.mt_sp",
+           mt_mp = "2.4.mt_mp", mt_bt = "2.5.mt_bt"),
+  na   = "."
+)
+length(files)
+head(substring(files, nchar(out) + 2), 4)
+tail(substring(files, nchar(out) + 2), 2)
+```
+
+目录结构为：
+
+```
+<path>/<场景目录>/param_est_data/<性状或性状对>[/<群体>]/data.txt
+<path>/<场景目录>/cv_data/<性状或性状对>/<群体>/<重复>/<折>/train.txt
+<path>/<场景目录>/cv_data/<性状或性状对>/<群体>/<重复>/<折>/validate.txt
+```
+
+```{r export-file}
+readLines(file.path(out, "2.5.mt_bt", "cv_data", "adg", "north", "Repeat01", "Fold1", "train.txt"), n = 3)
+```
+
+把折表也保存下来，以后汇总结果、复现或补充新模型都要用：
+
+```{r export-folds}
+fwrite(folds, file.path(out, "cv_folds.txt"), sep = "\t")
+```
+
+### 不同软件的缺失值和表头
+
+`na` 决定缺失值写成什么，其余参数（如 `col.names`）会传给 `data.table::fwrite()`：
+
+| 软件 | 常用写法 |
+|---|---|
+| ASReml（独立版） | `na = "."`（也识别 `NA`、`*`） |
+| HIBLUP | `na = "NA"` |
+| DMU | `na = "-9999", col.names = FALSE`，并且所有列需为数值 |
+
+```{r dmu, eval = FALSE}
+export_scenarios(sc, path = "dmu_runs", na = "-9999", col.names = FALSE)
+```
+
+DMU 要求分类变量和 ID 都是整数编码。可以在 `cv_scenarios()` 之前先加编码列，ID 编码要与系谱 / 基因型文件中的编码一致。
+
+## 第 4 步：汇总预测准确性
+
+模型在各自软件里跑完后，回到 R 里按“场景 × 性状 × 群体 × 重复 × 折”计算准确性。为了让本文可以直接运行，下面用一个简化的 SNP-BLUP（岭回归，在相同假设下与 GBLUP 等价）代替外部软件：先用 `lm()` 校正固定效应，再用训练集估计 SNP 效应，最后计算验证个体的 GEBV 与校正表型的相关。
+
+```{r accuracy}
+snp_blup_r <- function(tr, va, h2) {
+  tr  <- tr[!is.na(value)]
+  va  <- va[!is.na(value)]
+  fe  <- lm(value ~ sex + batch, data = tr)            # 固定效应（batch 已包含场）
+  Zt  <- Z[tr$id, , drop = FALSE]
+  lam <- sum(2 * freq * (1 - freq)) * (1 - h2) / h2
+  b   <- solve(crossprod(Zt) + diag(lam, ncol(Zt)), crossprod(Zt, residuals(fe)))
+  gebv <- drop(Z[va$id, , drop = FALSE] %*% b)
+  cor(gebv, va$value - predict(fe, va))
+}
+h2 <- c(adg = 0.30, bf = 0.40, fcr = 0.25)
+
+fold_r <- function(cv) {
+  cv <- copy(cv)
+  cv[, r := mapply(snp_blup_r, train, validate, h2[name])]
+  cv[, .(name, herd, rep, fold, r)]
+}
+res <- rbind(fold_r(sc$st_sp$cv)[, scenario := "st_sp"],
+             fold_r(sc$st_mp$cv)[, scenario := "st_mp"])
+head(res)
+```
+
+使用外部软件时，把 `snp_blup_r()` 换成按目录读取软件输出的 GEBV，例如：
+
+```{r gebv, eval = FALSE}
+cv <- copy(sc$st_sp$cv)
+cv[, dir := file.path(out, "2.1.st_sp", "cv_data", name, herd, rep, fold)]
+cv[, r := mapply(function(d, va) {
+  g <- fread(file.path(d, "gebv.txt"))          # 假设软件输出 id 和 gebv 两列
+  m <- merge(va, g, by = "id")
+  cor(m$gebv, m$value, use = "complete.obs")    # 常再除以 sqrt(h2) 得到准确性
+}, dir, validate)]
+```
+
+### 先按重复平均，再比较模型
+
+同一次重复内的各折共享大部分训练个体，并不独立。建议先在每次重复内对各折取平均，再报告各次重复的均值 ± 标准差：
+
+```{r summary}
+by_rep <- res[, .(r = mean(r)), by = .(scenario, name, herd, rep)]
+by_rep[, .(mean_r = mean(r), sd_r = sd(r)), by = .(scenario, name, herd)]
+```
+
+比较两个模型时按重复配对，对重复层面的差值做检验：
+
+```{r paired}
+paired <- dcast(by_rep, name + herd + rep ~ scenario, value.var = "r")
+paired[, d := st_mp - st_sp]
+paired[, .(mean_diff = mean(d), se = sd(d) / sqrt(.N), p = t.test(d)$p.value),
+       by = .(name, herd)]
+```
+
+因为所有场景的验证个体相同，这里的配对比较才是有效的。
+
+在这份模拟数据里，加入另一个场后 bf 和 fcr 的准确性明显提高，adg 则没有提高。同一份数据中不同性状的结论不一样，在实际数据里也很常见，所以应当逐个性状、逐个群体报告结果，而不是只看总体平均。报告准确性时常把相关系数再除以 $\sqrt{h^2}$。
+
+## 进阶用法
+
+`cv_scenarios()` 覆盖最常见的五个场景。其他设计可以直接用 `apply_folds()` 和同一张折表组合出来，验证个体依然与上面的五个场景一致。
+
+### 三性状模型
+
+```{r three-traits}
+mt3 <- apply_folds(c2p_nest(phe, cols = traits, pairs_n = 3), folds, ref = "others")
+mt3[1:2]
+names(mt3$train[[1]])
+```
+
+### 只用部分性状或部分群体
+
+```{r subset-data}
+cv_adg_north <- apply_folds(w2l_nest(phe[herd == "north"], cols = "adg"), folds)
+nrow(cv_adg_north)
+```
+
+折表里没有出现在数据中的群体会被自动跳过；数据里有、折表里没有的个体会给出警告并被剔除。
+
+### 掩蔽式交叉验证：一个文件，验证个体表型设为缺失
+
+有些软件更习惯在一份完整数据里把验证个体的表型设为缺失，再用全部个体拟合模型。可以把训练集和验证集合并成一个文件：
+
+```{r masked}
+cv <- copy(sc$st_sp$cv)
+cv[, masked := Map(function(tr, va) rbind(tr, copy(va)[, value := NA]), train, validate)]
+cv$masked[[1]][, .(n = .N, n_missing = sum(is.na(value)))]
+```
+
+```{r masked-export, eval = FALSE}
+export_nest(cv, by = c("name", "herd", "rep", "fold"), cols = "masked",
+            path = "masked_runs", na = ".")
+```
+
+两性状数据把 `value1`、`value2` 同时设为缺失即可。
+
+### 跨群体预测：用一个群体预测另一个群体
+
+完全用 south 场的数据作训练、预测 north 场时，不需要分折：
+
+```{r across}
+across <- w2l_nest(phe, cols = traits)[, .(
+  train    = lapply(data, function(d) d[herd == "south"]),
+  validate = lapply(data, function(d) d[herd == "north"])
+), by = name]
+across
+```
+
+这时两个群体的基因型需要合并到同一个 G 矩阵中。
+
+### 直接在 R 里用 ASReml-R
+
+`out_type = "df"` 会把所有子集返回为 `data.frame`，可以直接交给 `asreml()`：
+
+```{r asreml, eval = FALSE}
+sc_df <- cv_scenarios(phe, cols = traits, id = "id", group = "herd",
+                      folds = folds, scenarios = "st_sp", out_type = "df")
+cv <- sc_df$st_sp$cv
+cv[, r := mapply(function(tr, va) {
+  tr$id <- factor(tr$id, levels = rownames(Ginv))
+  fit <- asreml::asreml(value ~ sex + batch, random = ~ vm(id, Ginv),
+                        data = tr, na.action = asreml::na.method(y = "include"))
+  gebv <- predict(fit, classify = "id")$pvals
+  m <- merge(va, gebv, by = "id")
+  cor(m$predicted.value, m$value, use = "complete.obs")
+}, train, validate)]
+```
+
+## 常见问题
+
+**个体 ID 有什么要求？**
+同一个 ID 只能属于一个群体，否则 `cv_folds()` 会报错并列出这些 ID。ID 要与基因型文件一致；没有基因型的个体在 GBLUP 中无法预测，建议在建折表之前就从表型数据中剔除（一步法 ssGBLUP 除外）。
+
+**有重复记录（同一个体多条记录）怎么办？**
+可以直接使用。`cv_folds()` 按个体分折，同一个体的所有记录总在同一折，不会出现“部分记录在训练集、部分在验证集”的信息泄漏。
+
+**缺失表型会被删掉吗？**
+不会。所有场景都保留缺失表型的行，导出时写成 `na` 指定的代码。计算准确性时用 `use = "complete.obs"` 或先剔除缺失的验证个体。
+
+**结果里为什么是 `rep` / `fold`，而不是 `nest_cv()` 的 `id` / `id2`？**
+因为个体 ID 列本身常常就叫 `id`。导出的目录名仍然是 `Repeat01/Fold1` 这样的形式。
+
+**怎样保证以后能复现同样的划分？**
+给 `cv_folds()` 传 `seed`。它只影响这一次分折，不会改变脚本里其他地方的随机数；同时把折表写到文件里保存。
+
+**能不能先用 `cv_folds()` 建好折表，以后再加新的模型？**
+可以，这正是推荐的做法。新的模型只要用同一张折表调用 `apply_folds()` 或 `cv_scenarios(folds = folds)`，验证个体就与之前所有模型一致。

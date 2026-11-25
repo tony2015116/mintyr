@@ -128,6 +128,7 @@ export_scenarios(sc, path = "gblup_runs", na = ".")
 
 - 结果列为 `rep` / `fold`（不是 `id` / `id2`），个体号列叫 `id` 也没问题。
 - 汇总准确性：每个重复先对各折取平均，再报告各重复的均值 ± SD；模型间按重复配对比较，不要把 50 折当作独立样本。
+- 完整流程（折表、场景、导出、准确性汇总）：https://tony2015116.github.io/mintyr/articles/genomic-evaluation-zh.html
 - `mt_bt` 保留全部协变量，并把性状按群体水平拆成多列（`r2p_nest()` 只保留 ID）。
 
 ### 描述统计

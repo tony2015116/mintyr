@@ -830,7 +830,7 @@ test_that("apply_folds checks and warnings", {
 
 # Five genomic prediction scenarios in one call: `cv_scenarios()`
 
-`cv_scenarios()` builds the parameter-estimation data and the cross-validation data of five usual scenarios (single- / two-trait, within one group / groups combined, and one trait treated as a different trait in each group) from one phenotype table and one fold table; `export_scenarios()` writes everything to disk, e.g. as input files for 'ASReml', 'DMU' or 'HIBLUP'.
+`cv_scenarios()` builds the parameter-estimation data and the cross-validation data of five usual scenarios (single- / two-trait, within one group / groups combined, and one trait treated as a different trait in each group) from one phenotype table and one fold table; `export_scenarios()` writes everything to disk, e.g. as input files for 'ASReml', 'DMU' or 'HIBLUP'. A step-by-step walkthrough, including how to summarise and compare accuracies, is in the article [Genomic evaluation data](https://tony2015116.github.io/mintyr/articles/genomic-evaluation.html).
 
 ```{r function-cv_scenarios}
 #' Build parameter-estimation and cross-validation data for five GBLUP scenarios

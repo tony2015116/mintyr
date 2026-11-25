@@ -71,6 +71,14 @@
       <a href="../articles/utilities.html">Utilities</a>
     </li>
     <li class="divider"></li>
+    <li class="dropdown-header">Genomic evaluation</li>
+    <li>
+      <a href="../articles/genomic-evaluation.html">Genomic evaluation data: parameter estimation and cross-validation</a>
+    </li>
+    <li>
+      <a href="../articles/genomic-evaluation-zh.html">生成基因组遗传评估数据：参数估计与交叉验证</a>
+    </li>
+    <li class="divider"></li>
     <li class="dropdown-header">AI agents</li>
     <li>
       <a href="../articles/agent-skill.html">Use mintyr with AI agents</a>
@@ -461,7 +469,9 @@ the cross-validation data of five usual scenarios (single- / two-trait,
 within one group / groups combined, and one trait treated as a different
 trait in each group) from one phenotype table and one fold table;
 <code><a href="../reference/export_scenarios.html">export_scenarios()</a></code> writes everything to disk, e.g. as input
-files for ‘ASReml’, ‘DMU’ or ‘HIBLUP’.</p>
+files for ‘ASReml’, ‘DMU’ or ‘HIBLUP’. A step-by-step walkthrough,
+including how to summarise and compare accuracies, is in the article <a href="https://tony2015116.github.io/mintyr/articles/genomic-evaluation.html">Genomic
+evaluation data</a>.</p>
 <div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">1</span><span class="op">)</span></span>
 <span><span class="va">dat</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span>id <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="st">"i"</span>, <span class="fl">1</span><span class="op">:</span><span class="fl">60</span><span class="op">)</span>, herd <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/rep.html" class="external-link">rep</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"A"</span>, <span class="st">"B"</span><span class="op">)</span>, each <span class="op">=</span> <span class="fl">30</span><span class="op">)</span>,</span>
@@ -542,12 +552,12 @@ files for ‘ASReml’, ‘DMU’ or ‘HIBLUP’.</p>
 <span>                   v <span class="op">=</span> <span class="fl">2</span>, seed <span class="op">=</span> <span class="fl">1</span>, scenarios <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"st_sp"</span>, <span class="st">"mt_bt"</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="va">files</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/export_scenarios.html">export_scenarios</a></span><span class="op">(</span><span class="va">sc</span>, path <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/file.path.html" class="external-link">file.path</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempdir</a></span><span class="op">(</span><span class="op">)</span>, <span class="st">"gblup"</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">files</span><span class="op">)</span></span>
-<span><span class="co">#&gt; [1] "/tmp/RtmpJFZJfd/gblup/st_sp/param_est_data/adg/A/data.txt"           </span></span>
-<span><span class="co">#&gt; [2] "/tmp/RtmpJFZJfd/gblup/st_sp/param_est_data/adg/B/data.txt"           </span></span>
-<span><span class="co">#&gt; [3] "/tmp/RtmpJFZJfd/gblup/st_sp/param_est_data/bf/A/data.txt"            </span></span>
-<span><span class="co">#&gt; [4] "/tmp/RtmpJFZJfd/gblup/st_sp/param_est_data/bf/B/data.txt"            </span></span>
-<span><span class="co">#&gt; [5] "/tmp/RtmpJFZJfd/gblup/st_sp/cv_data/adg/A/Repeat1/Fold1/train.txt"   </span></span>
-<span><span class="co">#&gt; [6] "/tmp/RtmpJFZJfd/gblup/st_sp/cv_data/adg/A/Repeat1/Fold1/validate.txt"</span></span></code></pre></div>
+<span><span class="co">#&gt; [1] "/tmp/RtmpFdjYtz/gblup/st_sp/param_est_data/adg/A/data.txt"           </span></span>
+<span><span class="co">#&gt; [2] "/tmp/RtmpFdjYtz/gblup/st_sp/param_est_data/adg/B/data.txt"           </span></span>
+<span><span class="co">#&gt; [3] "/tmp/RtmpFdjYtz/gblup/st_sp/param_est_data/bf/A/data.txt"            </span></span>
+<span><span class="co">#&gt; [4] "/tmp/RtmpFdjYtz/gblup/st_sp/param_est_data/bf/B/data.txt"            </span></span>
+<span><span class="co">#&gt; [5] "/tmp/RtmpFdjYtz/gblup/st_sp/cv_data/adg/A/Repeat1/Fold1/train.txt"   </span></span>
+<span><span class="co">#&gt; [6] "/tmp/RtmpFdjYtz/gblup/st_sp/cv_data/adg/A/Repeat1/Fold1/validate.txt"</span></span></code></pre></div>
 </div>
   </div>
 

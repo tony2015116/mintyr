@@ -108,6 +108,28 @@ cv[, r := mapply(function(tr, va) {
 cv[, .(mean_r = mean(r), sd_r = sd(r)), by = .(name, breed)]
 ```
 
+**在同一批个体上比较模型**（mintyr >= 0.2.3；单性状 vs 两性状、单群体 vs 合并群体）：只建一张折表并反复使用，不要对每个性状分别调用 `nest_cv()`（那样各性状的折不同）。
+
+```r
+cv_folds(data, id, by = NULL, v = 5, repeats = 1, strata = NULL, seed = NULL)   # -> by | id | rep | fold
+apply_folds(data, folds, ref = "none", out_type = "dt")   # ref = "others"：训练集加入其他群体全部记录
+cv_scenarios(data, cols, id, group, folds = NULL, v = 5, repeats = 1, seed = NULL,
+             scenarios = c("st_sp", "st_mp", "mt_sp", "mt_mp", "mt_bt"))
+export_scenarios(x, path, dirs = NULL, na = ".")   # <dir>/param_est_data, <dir>/cv_data/<性状>/<群体>/<重复>/<折>/
+```
+
+```r
+folds <- cv_folds(phe, id = "id", by = "herd", v = 5, repeats = 10, seed = 123)
+cv_st <- apply_folds(w2l_nest(phe, cols = c("adg", "bf")), folds)                 # 群体内
+cv_mt <- apply_folds(c2p_nest(phe, cols = c("adg", "bf")), folds, ref = "others") # 加入另一群体
+sc <- cv_scenarios(phe, cols = c("adg", "bf", "fcr"), id = "id", group = "herd", folds = folds)
+export_scenarios(sc, path = "gblup_runs", na = ".")
+```
+
+- 结果列为 `rep` / `fold`（不是 `id` / `id2`），个体号列叫 `id` 也没问题。
+- 汇总准确性：每个重复先对各折取平均，再报告各重复的均值 ± SD；模型间按重复配对比较，不要把 50 折当作独立样本。
+- `mt_bt` 保留全部协变量，并把性状按群体水平拆成多列（`r2p_nest()` 只保留 ID）。
+
 ### 描述统计
 
 ```r

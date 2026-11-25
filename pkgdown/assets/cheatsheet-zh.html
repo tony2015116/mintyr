@@ -235,7 +235,7 @@ footer { margin-top: 8px; color: var(--muted); font-size: 12.5px; display: flex;
   <div class="files"><div class="step">文件</div><div class="fns">.xlsx · .csv · .txt</div></div>
   <div class="io"><div class="step">1 · 导入</div><div class="fns">import_xlsx()<br>import_csv()</div></div>
   <div class="rs"><div class="step">2 · 重塑与嵌套</div><div class="fns">w2l_nest() w2l_split()<br>c2p_nest() r2p_nest()</div></div>
-  <div class="cv"><div class="step">3 · 交叉验证</div><div class="fns">nest_cv()<br>split_cv()</div></div>
+  <div class="cv"><div class="step">3 · 交叉验证</div><div class="fns">nest_cv() split_cv()<br>cv_folds() cv_scenarios()</div></div>
   <div class="st"><div class="step">3 · 描述统计</div><div class="fns">desc_stats() top_perc()<br>format_digits()</div></div>
   <div class="io"><div class="step">4 · 导出</div><div class="fns">export_xlsx() export_nest()<br>export_list()</div></div>
 </section>
@@ -372,6 +372,18 @@ cv[, r := mapply(function(tr, va) {
 }, train, validate)]
 cv[, .(mean_r = mean(r)), by = .(name, am)]</code></pre>
   </div>
+  <div class="fn">
+    <div class="sig"><b><a href="reference/cv_folds.html">cv_folds</a></b>(data, id, by = NULL, v = 5, repeats = 1, strata = NULL, seed = NULL)</div>
+    <div class="sig"><b><a href="reference/apply_folds.html">apply_folds</a></b>(data, folds, ref = "none", out_type = "dt")</div>
+    <p><b>所有模型用同一批验证个体</b>：按个体建一张折表（<code>by | id | rep | fold</code>），所有性状共用；<code>apply_folds()</code> 按 ID 匹配。<code>ref = "others"</code> 把其他群体全部记录加入训练集。</p>
+    <div class="sig"><b><a href="reference/cv_scenarios.html">cv_scenarios</a></b>(data, cols, id, group, folds = NULL, v = 5, repeats = 1, seed = NULL)</div>
+    <div class="sig"><b><a href="reference/export_scenarios.html">export_scenarios</a></b>(x, path, dirs = NULL, na = ".")</div>
+    <p>一次生成五个 GBLUP 场景：<code>st_sp</code>、<code>st_mp</code>、<code>mt_sp</code>、<code>mt_mp</code>、<code>mt_bt</code>（单/两性状，群体内/跨群体）。</p>
+    <pre><code>folds &lt;- cv_folds(phe, id = "id", by = "herd", v = 5, repeats = 10, seed = 1)
+sc &lt;- cv_scenarios(phe, cols = c("adg", "bf"), id = "id",
+                   group = "herd", folds = folds)
+export_scenarios(sc, path = "gblup_runs", na = ".")</code></pre>
+  </div>
 </section>
 
 <!-- ================= STATS ================= -->
@@ -503,7 +515,7 @@ import_xlsx(mintyr_example("xlsx_test1.xlsx"))</code></pre>
 /* 代码块的轻量 R 语法高亮（不依赖外部库）。 */
 (function () {
   var fns = ["import_xlsx","import_csv","export_xlsx","export_nest","export_list","w2l_nest","w2l_split",
-    "c2p_nest","r2p_nest","split_cv","nest_cv","desc_stats","top_perc","format_digits","get_path_info",
+    "c2p_nest","r2p_nest","split_cv","nest_cv","cv_folds","apply_folds","cv_scenarios","export_scenarios","desc_stats","top_perc","format_digits","get_path_info",
     "mintyr_example","mintyr_examples"];
   var fnRe = new RegExp("^(" + fns.join("|") + ")\\b");
   function esc(s) { return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }

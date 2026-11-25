@@ -1,3 +1,28 @@
+# mintyr 0.2.3
+
+## New features
+
+* `cv_folds()` assigns every **individual** (not every row) to a fold, within
+  each group and independently in each repeat, so that one fold table can be
+  shared by every trait, trait pair and model. All records of an individual
+  stay in the same fold; `strata` and `seed` work as in `split_cv()`. Repeats
+  are generated one after another, so with the same `seed` increasing
+  `repeats` later leaves the existing repeats unchanged.
+* `apply_folds()` cuts any nested table (`w2l_nest()`, `c2p_nest()`,
+  `r2p_nest()`, ...) into training / validation sets with such a fold table,
+  matching rows by ID instead of by position. `ref = "others"` adds all
+  records of the other groups to every training set (reference population
+  enlarged by another herd / line). Nested rows that differ only in the group
+  are merged, and the group column is kept inside the data.
+* `cv_scenarios()` builds, in one call, the parameter-estimation and
+  cross-validation data of five genomic prediction scenarios (single- /
+  two-trait, one group / groups combined, one trait as a different trait per
+  group), all validated on the same individuals and with the same file layout
+  (covariates and the group column kept, rows with missing phenotypes kept).
+  `export_scenarios()` writes them to `<scenario>/param_est_data/` and
+  `<scenario>/cv_data/<trait>/<group>/<repeat>/<fold>/` with a chosen
+  missing-value code.
+
 # mintyr 0.2.2
 
 ## Bug fixes

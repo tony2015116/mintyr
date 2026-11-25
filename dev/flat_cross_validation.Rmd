@@ -444,6 +444,668 @@ test_that("nest_cv rejects grouping columns named like CV columns", {
 })
 ```
 
+# Shared folds for comparing models: `cv_folds()` and `apply_folds()`
+
+When several models are compared (single- vs multi-trait, one group vs groups combined, ...), they should be validated on the same individuals. `cv_folds()` assigns every individual to a fold once, within each group and independently in each repeat; `apply_folds()` then cuts any nested table (from `w2l_nest()`, `c2p_nest()`, `r2p_nest()`, ...) into training / validation sets by matching the individual ID, optionally adding all records of the other groups to every training set.
+
+```{r function-cv_folds}
+#' Individual-level cross-validation folds shared across traits and models
+#'
+#' @description
+#' `cv_folds()` assigns every **individual** (not every row) to one of `v`
+#' folds, separately within each group (e.g. herd) and independently in each
+#' repeat. The resulting fold table is meant to be created **once** and then
+#' reused with [apply_folds()] for every trait, trait pair and model, so that
+#' all compared models are validated on exactly the same individuals.
+#'
+#' Repeats are generated one after another (repeat 1 for all groups, then
+#' repeat 2, ...), so with the same `seed` the first repeats do not change
+#' when `repeats` is increased later.
+#'
+#' @param data A `data.frame` or `data.table` with one or more records per
+#'   individual.
+#' @param id Individual ID column (name or index). All records of an
+#'   individual always fall into the same fold.
+#' @param by Optional grouping column(s); folds are built within each group.
+#'   An individual must belong to exactly one group.
+#' @param v Number of folds (>= 2).
+#' @param repeats Number of repeats (>= 1).
+#' @param strata Optional column to stratify on (must be constant within an
+#'   individual). Numeric columns are binned into `breaks` quantile bins and
+#'   strata smaller than `pool` are merged, as in [split_cv()].
+#' @param breaks,pool See [split_cv()].
+#' @param seed Optional seed; the global random number stream is left untouched.
+#'
+#' @return A `data.table` with one row per individual and repeat: the `by`
+#'   column(s), the `id` column, `rep` (`"Repeat01"`, ...) and `fold`
+#'   (`"Fold1"`, ...): the fold in which the individual is validated.
+#'
+#' @seealso [apply_folds()], [cv_scenarios()]
+#' @import data.table
+#' @export
+cv_folds <- function(data, id, by = NULL, v = 5L, repeats = 1L, strata = NULL,
+                     breaks = 4L, pool = 0.1, seed = NULL) {
+  if (!is.data.frame(data))
+    stop("`data` must be a data.frame or data.table.", call. = FALSE)
+  if (nrow(data) == 0L) stop("`data` must not be empty.", call. = FALSE)
+  dt <- data.table::as.data.table(data)
+  id_col <- .resolve_cols(id, names(dt), "id")
+  if (length(id_col) != 1L) stop("`id` must be a single column.", call. = FALSE)
+  by_cols <- setdiff(.resolve_cols(by, names(dt), "by", allow_null = TRUE), id_col)
+  st_col  <- .resolve_cols(strata, names(dt), "strata", allow_null = TRUE)
+  if (length(st_col) > 1L) stop("`strata` must be a single column.", call. = FALSE)
+  v       <- .check_count(v, "v", min = 2L)
+  repeats <- .check_count(repeats, "repeats", min = 1L)
+  .check_reserved(c(id_col, by_cols), c("rep", "fold"), "cv_folds",
+                  "`id` / `by` column(s)", "these names are used for the fold table")
+
+  keys <- unique(dt[, unique(c(by_cols, id_col, st_col)), with = FALSE])
+  if (anyNA(keys[[id_col]]))
+    stop("[ cv_folds ] The `id` column contains NA.", call. = FALSE)
+  if (anyDuplicated(keys[[id_col]])) {
+    bad <- unique(keys[[id_col]][duplicated(keys[[id_col]])])
+    stop("[ cv_folds ] Some individuals belong to more than one `by` group",
+         if (length(st_col)) " or have more than one `strata` value", ": ",
+         paste(utils::head(bad, 5L), collapse = ", "),
+         if (length(bad) > 5L) sprintf(" ... (%d in total)", length(bad)),
+         call. = FALSE)
+  }
+
+  grp <- if (length(by_cols)) {
+    g <- keys[, by_cols, with = FALSE]
+    data.table::set(g, j = ".g", value = 0L)
+    g[, .g := .GRP, by = by_cols][[".g"]]
+  } else rep(1L, nrow(keys))
+  idx <- split(seq_len(nrow(keys)), grp)
+  small <- vapply(idx, length, integer(1L)) < v
+  if (any(small))
+    stop(sprintf("[ cv_folds ] %d group(s) have fewer than v = %d individuals.",
+                 sum(small), v), call. = FALSE)
+  st_list <- if (length(st_col))
+    lapply(idx, function(i) .make_strata(keys[[st_col]][i], breaks, pool))
+
+  assign_all <- function() {
+    f <- matrix(NA_integer_, nrow(keys), repeats)
+    for (r in seq_len(repeats))
+      for (g in seq_along(idx))
+        f[idx[[g]], r] <- .assign_folds(length(idx[[g]]), v,
+                                        if (length(st_col)) st_list[[g]])
+    f
+  }
+  fmat <- .with_seed(seed, assign_all())
+
+  fold_lab <- sprintf(paste0("Fold%0", nchar(v), "d"), seq_len(v))
+  rep_lab  <- sprintf(paste0("Repeat%0", nchar(repeats), "d"), seq_len(repeats))
+  base <- keys[, c(by_cols, id_col), with = FALSE]
+  out <- data.table::rbindlist(lapply(seq_len(repeats), function(r) {
+    b <- data.table::copy(base)
+    data.table::set(b, j = "rep",  value = rep_lab[r])
+    data.table::set(b, j = "fold", value = fold_lab[fmat[, r]])
+    b
+  }))
+  data.table::setattr(out, "cv_id", id_col)
+  data.table::setattr(out, "cv_by", by_cols)
+  out[]
+}
+```
+
+```{r example-cv_folds}
+dat <- data.frame(id = paste0("i", 1:40), herd = rep(c("A", "B"), each = 20),
+                  adg = rnorm(40), bf = rnorm(40))
+folds <- cv_folds(dat, id = "id", by = "herd", v = 5, repeats = 2, seed = 1)
+folds[, .N, by = .(herd, rep, fold)]
+```
+
+```{r tests-cv_folds}
+make_dat <- function(n = 60, seed = 1) {
+  set.seed(seed)
+  data.frame(id = sprintf("i%03d", seq_len(n)),
+             herd = rep(c("A", "B"), length.out = n),
+             sex = sample(c("M", "F"), n, TRUE),
+             adg = rnorm(n), bf = rnorm(n), fcr = rnorm(n),
+             stringsAsFactors = FALSE)
+}
+
+test_that("cv_folds partitions individuals within each group and repeat", {
+  dat <- make_dat()
+  f <- cv_folds(dat, id = "id", by = "herd", v = 5, repeats = 3, seed = 1)
+  expect_equal(names(f), c("herd", "id", "rep", "fold"))
+  expect_equal(nrow(f), 60 * 3)
+  # every individual exactly once per repeat
+  expect_true(all(f[, .N, by = .(id, rep)]$N == 1L))
+  # balanced folds (6 per herd and fold)
+  expect_true(all(f[, .N, by = .(herd, rep, fold)]$N == 6L))
+  # repeats differ
+  r1 <- f[rep == "Repeat1"][order(id)]$fold; r2 <- f[rep == "Repeat2"][order(id)]$fold
+  expect_false(identical(r1, r2))
+})
+
+test_that("cv_folds is reproducible, leaves the global RNG alone, and extends repeats", {
+  dat <- make_dat()
+  set.seed(99); before <- runif(1); set.seed(99)
+  a <- cv_folds(dat, "id", "herd", v = 5, repeats = 2, seed = 7)
+  expect_equal(runif(1), before)
+  b <- cv_folds(dat, "id", "herd", v = 5, repeats = 2, seed = 7)
+  expect_equal(a, b)
+  c10 <- cv_folds(dat, "id", "herd", v = 5, repeats = 3, seed = 7)
+  expect_equal(c10[rep %in% c("Repeat1", "Repeat2")]$fold, a$fold)
+})
+
+test_that("cv_folds keeps repeated records of an individual together", {
+  dat <- make_dat(20)
+  dat2 <- rbind(dat, dat)                           # two records per individual
+  f <- cv_folds(dat2, "id", "herd", v = 2, seed = 1)
+  expect_equal(nrow(f), 20)
+  cv <- apply_folds(w2l_nest(dat2, cols = "adg"), f)
+  expect_true(all(vapply(cv$validate, function(d) all(table(d$id) == 2L), logical(1))))
+})
+
+test_that("cv_folds input checks", {
+  dat <- make_dat(20)
+  bad <- rbind(dat, transform(dat[1, ], herd = "B"))
+  bad$herd[nrow(bad)] <- ifelse(dat$herd[1] == "A", "B", "A")
+  expect_error(cv_folds(bad, "id", "herd", v = 2), "more than one")
+  expect_error(cv_folds(dat, "id", "herd", v = 11), "fewer than")
+  expect_error(cv_folds(dat, "id", v = 1), "v")
+  names(dat)[2] <- "fold"
+  expect_error(cv_folds(dat, "id", "fold"), "must not be named")
+})
+
+test_that("cv_folds stratifies", {
+  dat <- make_dat(80)
+  f <- cv_folds(dat, "id", "herd", v = 4, strata = "sex", seed = 3)
+  tab <- merge(f, dat[, c("id", "sex")], by = "id")[, .N, by = .(herd, fold, sex)]
+  rng <- tab[, diff(range(N)), by = .(herd, sex)]$V1
+  expect_true(all(rng <= 1L))
+})
+```
+
+```{r function-apply_folds}
+#' Apply a shared fold table to any nested data
+#'
+#' @description
+#' `apply_folds()` turns a nested table (from [w2l_nest()], [c2p_nest()],
+#' [r2p_nest()] or built by hand) into training / validation sets using a
+#' fold table from [cv_folds()]. Rows are matched to folds through the
+#' individual ID, so single-trait, multi-trait and across-group models all
+#' get identical validation individuals.
+#'
+#' Nested rows that differ only in the grouping column(s) of the fold table
+#' (e.g. `w2l_nest(..., by = "herd")`) are merged first, and the grouping
+#' column is put back inside the data (right after the ID column), so the
+#' training set of every scenario carries the group as a possible fixed
+#' effect.
+#'
+#' @param data A nested `data.table` / `data.frame` (a list-column named
+#'   `data`, or the first data.frame list-column, is used), or a plain table.
+#' @param folds A fold table from [cv_folds()].
+#' @param ref `"none"`: train on the target group only. `"others"`: also add
+#'   **all** records of the other groups to every training set (reference
+#'   population enlarged by the other groups; they are never validated).
+#' @param out_type `"dt"` (default) or `"df"` for the nested subsets.
+#'
+#' @return A `data.table` with the outer columns of `data`, the grouping
+#'   column(s) of `folds` (the validated group), `rep`, `fold`, and the
+#'   list-columns `train` and `validate`.
+#'
+#' @seealso [cv_folds()], [cv_scenarios()]
+#' @import data.table
+#' @export
+apply_folds <- function(data, folds, ref = "none", out_type = "dt") {
+  ref      <- .check_choice(ref, c("none", "others"), "ref")
+  out_type <- .check_choice(out_type, c("dt", "df"), "out_type")
+  if (!is.data.frame(data)) stop("`data` must be a data.frame or data.table.", call. = FALSE)
+  if (!is.data.frame(folds) || !all(c("rep", "fold") %in% names(folds)))
+    stop("`folds` must be a fold table created by cv_folds().", call. = FALSE)
+  fk <- data.table::as.data.table(folds)
+  key_cols <- setdiff(names(fk), c("rep", "fold"))
+  id_col  <- attr(folds, "cv_id")
+  by_cols <- attr(folds, "cv_by")
+  if (is.null(id_col)) {                 # attributes lost: use the column layout
+    id_col  <- key_cols[length(key_cols)]
+    by_cols <- key_cols[-length(key_cols)]
+  }
+  if (ref == "others" && !length(by_cols))
+    stop("`ref = \"others\"` needs a fold table built with `by`.", call. = FALSE)
+
+  dt <- data.table::as.data.table(data)
+  is_nested <- vapply(dt, function(x) is.list(x) && length(x) > 0L &&
+                        all(vapply(x, is.data.frame, logical(1L))), logical(1L))
+  if (!any(is_nested)) {
+    dt <- data.table::data.table(data = list(dt))
+    is_nested <- c(data = TRUE)
+  }
+  nested_cols <- names(dt)[is_nested]
+  target <- if ("data" %in% nested_cols) "data" else nested_cols[1L]
+  outer  <- names(dt)[!is_nested]
+  .check_reserved(outer, c("rep", "fold", "train", "validate"), "apply_folds",
+                  "Outer column(s)", "these names are used for the result")
+  outer_by <- intersect(by_cols, outer)
+  keep     <- setdiff(outer, outer_by)
+
+  # -- group map: individual -> group (from the fold table) --------------------
+  gmap <- unique(fk[, c(by_cols, id_col), with = FALSE])
+  if (length(by_cols)) {
+    glev <- unique(gmap[, by_cols, with = FALSE])
+    gmap[glev[, .g := .I], on = by_cols, .g := i..g]
+  } else {
+    glev <- data.table::data.table(.g = 1L)
+    gmap[, .g := 1L]
+  }
+  reps  <- unique(fk$rep)
+  folds_lab <- sort(unique(fk$fold))
+  fwide <- lapply(reps, function(r) fk[rep == r])
+
+  # -- merge rows that differ only in the grouping column(s) -------------------
+  units <- if (length(keep)) dt[, list(.rows = list(.I)), by = keep]
+           else data.table::data.table(.rows = list(seq_len(nrow(dt))))
+  take <- if (out_type == "df") function(d, i) data.table::setDF(d[i]) else function(d, i) d[i]
+
+  res <- lapply(seq_len(nrow(units)), function(u) {
+    rows <- units$.rows[[u]]
+    d <- data.table::rbindlist(lapply(rows, function(i) {
+      x <- data.table::copy(data.table::as.data.table(dt[[target]][[i]]))
+      add <- setdiff(outer_by, names(x))
+      if (length(add)) {
+        for (b in add) data.table::set(x, j = b, value = dt[[b]][i])
+        nm  <- setdiff(names(x), add)
+        pos <- match(id_col, nm)
+        if (!is.na(pos))
+          data.table::setcolorder(x, c(nm[seq_len(pos)], add, nm[-seq_len(pos)]))
+      }
+      x
+    }), use.names = TRUE, fill = TRUE)
+    if (!id_col %in% names(d))
+      stop(sprintf("[ apply_folds ] ID column '%s' not found in the nested data.", id_col),
+           call. = FALSE)
+
+    m  <- match(as.character(d[[id_col]]), as.character(gmap[[id_col]]))
+    if (anyNA(m))
+      warning(sprintf("[ apply_folds ] %d record(s) whose ID is not in `folds` were dropped.",
+                      sum(is.na(m))), call. = FALSE)
+    g_row <- gmap$.g[m]
+    for (b in intersect(by_cols, names(d))) {     # group column inside the data
+      bad <- !is.na(m) & as.character(d[[b]]) != as.character(gmap[[b]][m])
+      if (any(bad, na.rm = TRUE))
+        stop(sprintf("[ apply_folds ] Column '%s' in the data disagrees with `folds` for %d record(s).",
+                     b, sum(bad, na.rm = TRUE)), call. = FALSE)
+    }
+
+    meta <- if (length(keep)) units[u, keep, with = FALSE] else NULL
+    out <- list(); k <- 0L
+    for (g in glev$.g) {
+      in_g <- which(g_row == g)
+      if (!length(in_g)) next
+      other <- if (ref == "others") which(!is.na(g_row) & g_row != g) else integer(0)
+      for (r in seq_along(reps)) {
+        fr <- fwide[[r]]
+        f_row <- fr$fold[match(as.character(d[[id_col]][in_g]), as.character(fr[[id_col]]))]
+        for (f in folds_lab) {
+          k <- k + 1L
+          out[[k]] <- data.table::data.table(
+            .g = g, rep = reps[r], fold = f,
+            train    = list(take(d, c(in_g[f_row != f], other))),
+            validate = list(take(d, in_g[f_row == f])))
+        }
+      }
+    }
+    out <- data.table::rbindlist(out)
+    if (length(by_cols)) {
+      out <- glev[out, on = ".g"]
+      data.table::setcolorder(out, c(by_cols, "rep", "fold"))
+    }
+    out[, .g := NULL]
+    if (!is.null(meta)) out <- cbind(meta[rep(1L, nrow(out))], out)
+    out
+  })
+  data.table::rbindlist(res, use.names = TRUE)
+}
+```
+
+```{r example-apply_folds}
+dat <- data.frame(id = paste0("i", 1:40), herd = rep(c("A", "B"), each = 20),
+                  adg = rnorm(40), bf = rnorm(40))
+folds <- cv_folds(dat, id = "id", by = "herd", v = 5, seed = 1)
+# single-trait, within herd
+apply_folds(w2l_nest(dat, cols = c("adg", "bf"), by = "herd"), folds)
+# single-trait, other herd added to the training set
+apply_folds(w2l_nest(dat, cols = c("adg", "bf")), folds, ref = "others")
+```
+
+```{r tests-apply_folds}
+make_dat <- function(n = 60, seed = 1) {
+  set.seed(seed)
+  data.frame(id = sprintf("i%03d", seq_len(n)),
+             herd = rep(c("A", "B"), length.out = n),
+             sex = sample(c("M", "F"), n, TRUE),
+             adg = rnorm(n), bf = rnorm(n), fcr = rnorm(n),
+             stringsAsFactors = FALSE)
+}
+
+test_that("apply_folds gives identical validation individuals for any nesting", {
+  dat <- make_dat()
+  f <- cv_folds(dat, "id", "herd", v = 5, repeats = 2, seed = 1)
+  ids <- function(cv) vapply(cv$validate, function(d) paste(sort(d$id), collapse = ","), "")
+  key <- function(cv) paste(cv$herd, cv$rep, cv$fold)
+  st  <- apply_folds(w2l_nest(dat, cols = c("adg", "bf"), by = "herd"), f)
+  mt  <- apply_folds(c2p_nest(dat, cols = c("adg", "bf", "fcr")), f, ref = "others")
+  ref <- tapply(ids(st), key(st), unique)
+  expect_true(all(lengths(ref) == 1L))
+  expect_equal(as.vector(unlist(ref[key(mt)])), ids(mt))
+})
+
+test_that("apply_folds: ref = 'none' vs 'others' and group column put back", {
+  dat <- make_dat()
+  f <- cv_folds(dat, "id", "herd", v = 5, seed = 1)
+  a <- apply_folds(w2l_nest(dat, cols = "adg", by = "herd"), f, ref = "none")
+  b <- apply_folds(w2l_nest(dat, cols = "adg", by = "herd"), f, ref = "others")
+  expect_equal(nrow(a), 2 * 5)
+  expect_equal(names(a$train[[1]])[1:2], c("id", "herd"))   # inserted after id
+  expect_true(all(vapply(seq_len(nrow(a)), function(i)
+    nrow(a$train[[i]]) + nrow(a$validate[[i]]) == 30, logical(1))))
+  expect_true(all(vapply(seq_len(nrow(b)), function(i)
+    nrow(b$train[[i]]) == nrow(a$train[[i]]) + 30, logical(1))))
+  expect_true(all(vapply(seq_len(nrow(b)), function(i)
+    all(b$validate[[i]]$herd == b$herd[i]), logical(1))))
+  expect_true(all(vapply(seq_len(nrow(a)), function(i)
+    !length(intersect(a$train[[i]]$id, a$validate[[i]]$id)), logical(1))))
+})
+
+test_that("apply_folds checks and warnings", {
+  dat <- make_dat()
+  f <- cv_folds(dat[dat$id != "i001", ], "id", "herd", v = 5, seed = 1)
+  expect_warning(apply_folds(w2l_nest(dat, cols = "adg"), f), "not in `folds`")
+  f0 <- cv_folds(dat, "id", v = 5, seed = 1)
+  expect_error(apply_folds(w2l_nest(dat, cols = "adg"), f0, ref = "others"), "by")
+  dat2 <- dat; dat2$herd[1] <- ifelse(dat$herd[1] == "A", "B", "A")
+  f1 <- cv_folds(dat, "id", "herd", v = 5, seed = 1)
+  expect_error(apply_folds(w2l_nest(dat2, cols = "adg"), f1), "disagrees")
+  # works when the fold table lost its attributes
+  f2 <- data.table::as.data.table(as.data.frame(f1))
+  expect_equal(nrow(apply_folds(w2l_nest(dat, cols = "adg"), f2)), 10)
+  expect_s3_class(apply_folds(w2l_nest(dat, cols = "adg"), f1, out_type = "df")$train[[1]],
+                  "data.frame")
+})
+```
+
+# Five genomic prediction scenarios in one call: `cv_scenarios()`
+
+`cv_scenarios()` builds the parameter-estimation data and the cross-validation data of five usual scenarios (single- / two-trait, within one group / groups combined, and one trait treated as a different trait in each group) from one phenotype table and one fold table; `export_scenarios()` writes everything to disk, e.g. as input files for 'ASReml', 'DMU' or 'HIBLUP'.
+
+```{r function-cv_scenarios}
+#' Build parameter-estimation and cross-validation data for five GBLUP scenarios
+#'
+#' @description
+#' One call builds, from a single phenotype table, the data for the usual
+#' comparison of genomic prediction models across traits and groups (herds,
+#' lines, ...), all validated on the **same individuals** via one fold table:
+#'
+#' | scenario | model | parameter data | training set |
+#' |---|---|---|---|
+#' | `st_sp` | single-trait, single group | trait x group | target group |
+#' | `st_mp` | single-trait, groups combined | trait | target group + all other groups |
+#' | `mt_sp` | two-trait, single group | trait pair x group | target group |
+#' | `mt_mp` | two-trait, groups combined | trait pair | target group + all other groups |
+#' | `mt_bt` | one trait treated as a different trait in each group | trait | target group + all other groups |
+#'
+#' Every data file keeps all non-trait columns (including `group`) in their
+#' original order, and rows with missing phenotypes are kept, so the file
+#' layout is identical across scenarios.
+#'
+#' @param data Phenotype table, one row per individual (or per record).
+#' @param cols Trait columns (names or indices).
+#' @param id Individual ID column.
+#' @param group A single grouping column (e.g. `"test_herd"`).
+#' @param folds Optional fold table from [cv_folds()]; created from `v`,
+#'   `repeats`, `strata` and `seed` when `NULL`.
+#' @inheritParams cv_folds
+#' @param scenarios Scenarios to build (default: all five).
+#' @param out_type `"dt"` or `"df"` for the nested subsets.
+#'
+#' @return A list of class `mintyr_scenarios`: `folds`, and for each scenario
+#'   a list with `param` (nested data for parameter estimation) and `cv`
+#'   (output of [apply_folds()]). Write it out with [export_scenarios()].
+#'
+#' @seealso [cv_folds()], [apply_folds()], [export_scenarios()]
+#' @import data.table
+#' @export
+cv_scenarios <- function(data, cols, id, group, folds = NULL, v = 5L, repeats = 1L,
+                         strata = NULL, seed = NULL,
+                         scenarios = c("st_sp", "st_mp", "mt_sp", "mt_mp", "mt_bt"),
+                         out_type = "dt") {
+  if (!is.data.frame(data)) stop("`data` must be a data.frame or data.table.", call. = FALSE)
+  dt <- data.table::as.data.table(data)
+  cols   <- .resolve_cols(cols, names(dt), "cols")
+  id_col <- .resolve_cols(id, names(dt), "id")
+  grp    <- .resolve_cols(group, names(dt), "group")
+  if (length(id_col) != 1L || length(grp) != 1L)
+    stop("`id` and `group` must each be a single column.", call. = FALSE)
+  if (any(c(id_col, grp) %in% cols))
+    stop("`cols` must not contain the `id` or `group` column.", call. = FALSE)
+  if (anyNA(dt[[grp]])) stop("The `group` column contains NA.", call. = FALSE)
+  all_sc <- c("st_sp", "st_mp", "mt_sp", "mt_mp", "mt_bt")
+  bad <- setdiff(scenarios, all_sc)
+  if (length(bad) || !length(scenarios))
+    stop("`scenarios` must be a subset of ", paste0("\"", all_sc, "\"", collapse = ", "),
+         call. = FALSE)
+  if (any(c("mt_sp", "mt_mp") %in% scenarios) && length(cols) < 2L)
+    stop("Two-trait scenarios need at least two `cols`.", call. = FALSE)
+
+  if (is.null(folds)) {
+    folds <- cv_folds(dt, id = id_col, by = grp, v = v, repeats = repeats,
+                      strata = strata, seed = seed)
+  } else if (!identical(attr(folds, "cv_by") %||% setdiff(names(folds), c(id_col, "rep", "fold")), grp)) {
+    stop("`folds` must be built with `by = \"", grp, "\"`.", call. = FALSE)
+  }
+
+  st  <- if (any(c("st_sp", "st_mp") %in% scenarios)) w2l_nest(dt, cols = cols)
+  mt  <- if (any(c("mt_sp", "mt_mp") %in% scenarios)) c2p_nest(dt, cols = cols)
+  out <- list(folds = folds)
+  if ("st_sp" %in% scenarios)
+    out$st_sp <- list(param = .split_nest(st, grp, out_type),
+                      cv = apply_folds(st, folds, "none", out_type))
+  if ("st_mp" %in% scenarios)
+    out$st_mp <- list(param = .as_out(st, out_type),
+                      cv = apply_folds(st, folds, "others", out_type))
+  if ("mt_sp" %in% scenarios)
+    out$mt_sp <- list(param = .split_nest(mt, grp, out_type),
+                      cv = apply_folds(mt, folds, "none", out_type))
+  if ("mt_mp" %in% scenarios)
+    out$mt_mp <- list(param = .as_out(mt, out_type),
+                      cv = apply_folds(mt, folds, "others", out_type))
+  if ("mt_bt" %in% scenarios) {
+    bt <- .bt_nest(dt, cols, grp)
+    out$mt_bt <- list(param = .as_out(bt, out_type),
+                      cv = apply_folds(bt, folds, "others", out_type))
+  }
+  structure(out, class = c("mintyr_scenarios", "list"))
+}
+
+#' @export
+print.mintyr_scenarios <- function(x, ...) {
+  f <- x$folds
+  cat(sprintf("<mintyr_scenarios> %d individuals, %s x %s\n",
+              data.table::uniqueN(f[[attr(f, "cv_id") %||% names(f)[length(names(f)) - 2L]]]),
+              data.table::uniqueN(f$rep), data.table::uniqueN(f$fold)))
+  for (s in setdiff(names(x), "folds"))
+    cat(sprintf("  %-6s param: %3d data sets | cv: %4d train/validate pairs\n",
+                s, nrow(x[[s]]$param), nrow(x[[s]]$cv)))
+  invisible(x)
+}
+
+# -- internal helpers ----------------------------------------------------------
+
+`%||%` <- function(a, b) if (is.null(a)) b else a
+
+#' Convert the nested subsets of a nested table to the requested class
+#' @noRd
+.as_out <- function(nested, out_type) {
+  if (out_type == "df")
+    nested[, data := lapply(data, function(d) data.table::setDF(data.table::copy(d)))]
+  nested
+}
+
+#' Split every nested subset by `group`, keeping the group column inside
+#' @noRd
+.split_nest <- function(nested, group, out_type) {
+  outer <- names(nested)[!vapply(nested, is.list, logical(1L))]
+  res <- lapply(seq_len(nrow(nested)), function(i) {
+    d  <- data.table::as.data.table(nested$data[[i]])
+    lv <- unique(d[[group]])
+    o  <- nested[rep(i, length(lv)), outer, with = FALSE]
+    data.table::set(o, j = group, value = lv)
+    data.table::set(o, j = "data", value = lapply(lv, function(l) d[d[[group]] == l]))
+    o
+  })
+  .as_out(data.table::rbindlist(res), out_type)
+}
+
+#' One trait as a different trait per group: all non-trait columns are kept
+#' and the trait is spread into one column per group level.
+#' @noRd
+.bt_nest <- function(dt, cols, group) {
+  lv <- as.character(unique(dt[[group]]))
+  covs <- setdiff(names(dt), cols)
+  clash <- intersect(lv, covs)
+  if (length(clash))
+    stop("Group level(s) clash with existing column names: ",
+         paste(clash, collapse = ", "), call. = FALSE)
+  g <- as.character(dt[[group]])
+  data.table::data.table(
+    name = cols,
+    data = lapply(cols, function(tr) {
+      d <- dt[, covs, with = FALSE]
+      for (l in lv) {
+        x <- dt[[tr]]
+        x[g != l] <- NA
+        data.table::set(d, j = l, value = x)
+      }
+      d
+    }))
+}
+utils::globalVariables(c(".g", "i..g", "data"))
+```
+
+```{r example-cv_scenarios}
+set.seed(1)
+dat <- data.frame(id = paste0("i", 1:60), herd = rep(c("A", "B"), each = 30),
+                  sex = sample(c("M", "F"), 60, TRUE),
+                  adg = rnorm(60), bf = rnorm(60), fcr = rnorm(60))
+sc <- cv_scenarios(dat, cols = c("adg", "bf", "fcr"), id = "id",
+                   group = "herd", v = 5, repeats = 2, seed = 123)
+sc
+sc$mt_bt$cv$train[[1]]
+```
+
+```{r tests-cv_scenarios}
+make_dat <- function(n = 60, seed = 1) {
+  set.seed(seed)
+  data.frame(id = sprintf("i%03d", seq_len(n)),
+             herd = rep(c("A", "B"), length.out = n),
+             sex = sample(c("M", "F"), n, TRUE),
+             adg = rnorm(n), bf = rnorm(n), fcr = rnorm(n),
+             stringsAsFactors = FALSE)
+}
+
+test_that("cv_scenarios builds five scenarios with a common layout", {
+  dat <- make_dat()
+  dat$adg[1:5] <- NA
+  sc <- cv_scenarios(dat, cols = c("adg", "bf", "fcr"), id = "id", group = "herd",
+                     v = 5, repeats = 2, seed = 1)
+  expect_s3_class(sc, "mintyr_scenarios")
+  expect_equal(names(sc), c("folds", "st_sp", "st_mp", "mt_sp", "mt_mp", "mt_bt"))
+  expect_equal(vapply(sc[-1], function(s) nrow(s$cv), 1), rep(c(3, 3, 3, 3, 3) * 2 * 5 * 2, 1),
+               ignore_attr = TRUE)
+  expect_equal(nrow(sc$st_sp$param), 6); expect_equal(nrow(sc$mt_mp$param), 3)
+  # NA rows kept
+  expect_equal(nrow(sc$st_mp$param$data[[1]]), 60)
+  # mt_bt: one column per herd, covariates kept, same columns in train/validate
+  bt <- sc$mt_bt$cv
+  expect_true(all(c("sex", "herd", "A", "B") %in% names(bt$train[[1]])))
+  expect_identical(names(bt$train[[1]]), names(bt$validate[[1]]))
+  v1 <- bt$validate[[1]]; expect_true(all(is.na(v1[[setdiff(c("A", "B"), bt$herd[1])]])))
+  # same columns in parameter and CV files of the single-group scenario
+  expect_identical(names(sc$st_sp$param$data[[1]]), names(sc$st_sp$cv$train[[1]]))
+  expect_output(print(sc), "mintyr_scenarios")
+  expect_error(cv_scenarios(dat, cols = "adg", id = "id", group = "herd", scenarios = "mt_sp"),
+               "at least two")
+})
+```
+
+```{r function-export_scenarios}
+#' Write the output of cv_scenarios() to disk
+#'
+#' Writes `<path>/<dir>/param_est_data/...` and `<path>/<dir>/cv_data/...`
+#' for every scenario with [export_nest()], e.g.
+#' `cv_data/adg/nls/Repeat01/Fold1/train.txt`.
+#'
+#' @param x Output of [cv_scenarios()].
+#' @param path Root folder.
+#' @param dirs Optional named character vector of folder names per scenario,
+#'   e.g. `c(st_sp = "2.1.st_sp")`; scenario names are used otherwise.
+#' @param na Missing-value code written to the files (default `"."`).
+#' @inheritParams export_nest
+#' @return The written file paths, invisibly.
+#' @export
+export_scenarios <- function(x, path = tempdir(), dirs = NULL, na = ".",
+                             file_type = "txt", quote = FALSE, ...) {
+  if (!inherits(x, "mintyr_scenarios"))
+    stop("`x` must be the output of cv_scenarios().", call. = FALSE)
+  grp <- attr(x$folds, "cv_by")
+  files <- character(0)
+  for (s in setdiff(names(x), "folds")) {
+    d <- if (!is.null(dirs) && !is.na(dirs[s])) dirs[[s]] else s
+    p <- x[[s]]$param
+    pby <- names(p)[!vapply(p, is.list, logical(1L))]
+    files <- c(files, suppressMessages(export_nest(
+      p, by = pby, cols = "data", path = file.path(path, d, "param_est_data"),
+      file_type = file_type, na = na, quote = quote, ...)))
+    cv <- x[[s]]$cv
+    cby <- names(cv)[!vapply(cv, is.list, logical(1L))]
+    files <- c(files, suppressMessages(export_nest(
+      cv, by = cby, cols = c("train", "validate"), path = file.path(path, d, "cv_data"),
+      file_type = file_type, na = na, quote = quote, ...)))
+  }
+  invisible(files)
+}
+```
+
+```{r example-export_scenarios}
+dat <- data.frame(id = paste0("i", 1:40), herd = rep(c("A", "B"), each = 20),
+                  adg = rnorm(40), bf = rnorm(40))
+sc <- cv_scenarios(dat, cols = c("adg", "bf"), id = "id", group = "herd",
+                   v = 2, seed = 1, scenarios = c("st_sp", "mt_bt"))
+files <- export_scenarios(sc, path = file.path(tempdir(), "gblup"))
+head(files)
+```
+
+```{r tests-export_scenarios}
+make_dat <- function(n = 60, seed = 1) {
+  set.seed(seed)
+  data.frame(id = sprintf("i%03d", seq_len(n)),
+             herd = rep(c("A", "B"), length.out = n),
+             sex = sample(c("M", "F"), n, TRUE),
+             adg = rnorm(n), bf = rnorm(n), fcr = rnorm(n),
+             stringsAsFactors = FALSE)
+}
+
+test_that("export_scenarios writes all files with the missing-value code", {
+  dat <- make_dat(20); dat$adg[1] <- NA
+  sc <- cv_scenarios(dat, cols = c("adg", "bf"), id = "id", group = "herd",
+                     v = 2, seed = 1, scenarios = c("st_sp", "mt_bt"))
+  p <- file.path(tempdir(), "sc_test"); unlink(p, recursive = TRUE)
+  files <- export_scenarios(sc, path = p, dirs = c(st_sp = "2.1.st_sp"))
+  expect_true(all(file.exists(files)))
+  expect_true(dir.exists(file.path(p, "2.1.st_sp", "cv_data")))
+  expect_true(dir.exists(file.path(p, "mt_bt", "param_est_data")))
+  expect_equal(sum(grepl("cv_data", files)), 2 * (2 * 2 * 2 * 2))  # 2 scenarios x 2 traits x 2 herds x 2 folds x {train, validate}
+  txt <- readLines(file.path(p, "2.1.st_sp", "param_est_data", "adg",
+                             dat$herd[1], "data.txt"))
+  expect_true(any(grepl("\t\\.$", txt)))
+  expect_false(any(grepl("\tNA", txt)))
+})
+```
+
 ```{r development-inflate, eval=FALSE}
 # Run in the console. After the first inflate of every flat,
 # fusen::inflate_all() rebuilds the whole package in one go.

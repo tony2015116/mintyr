@@ -77,6 +77,10 @@ reference:
   contents:
   - split_cv
   - nest_cv
+  - cv_folds
+  - apply_folds
+  - cv_scenarios
+  - export_scenarios
 - title: Descriptive statistics
   desc: Group summaries, totals, report-ready text and top / bottom X%.
   contents:

@@ -101,6 +101,8 @@ export_nest(nested, path = file.path(tempdir(), "by_trait"))
 | Function | What it does |
 |---|---|
 | `split_cv()` / `nest_cv()` | Repeated, optionally stratified k-fold CV for a list of tables or a nested table; returns fold indices and (optionally) the subsets |
+| `cv_folds()` / `apply_folds()` | One individual-level fold table per group, shared by every trait and model; cut any nested table into train / validate by ID, optionally adding the other groups to the training set |
+| `cv_scenarios()` / `export_scenarios()` | Parameter-estimation and CV data for five genomic prediction scenarios (single- / two-trait, within / across groups) in one call, written as software input files |
 | `top_perc()` | Statistics of the top / bottom X% per variable and group |
 | `format_digits()` | Format numeric columns for reports (decimals, percentages) |
 | `get_path_info()` | Extract file names or path segments, cross-platform |

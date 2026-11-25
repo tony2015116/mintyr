@@ -108,6 +108,28 @@ cv[, r := mapply(function(tr, va) {
 cv[, .(mean_r = mean(r), sd_r = sd(r)), by = .(name, breed)]
 ```
 
+**Comparing models on the same individuals** (mintyr >= 0.2.3; single- vs two-trait, one herd vs herds combined): build one fold table and reuse it, instead of calling `nest_cv()` per trait (folds would differ between traits).
+
+```r
+cv_folds(data, id, by = NULL, v = 5, repeats = 1, strata = NULL, seed = NULL)   # -> by | id | rep | fold
+apply_folds(data, folds, ref = "none", out_type = "dt")   # ref = "others": add all other groups to train
+cv_scenarios(data, cols, id, group, folds = NULL, v = 5, repeats = 1, seed = NULL,
+             scenarios = c("st_sp", "st_mp", "mt_sp", "mt_mp", "mt_bt"))
+export_scenarios(x, path, dirs = NULL, na = ".")   # <dir>/param_est_data, <dir>/cv_data/<trait>/<group>/<rep>/<fold>/
+```
+
+```r
+folds <- cv_folds(phe, id = "id", by = "herd", v = 5, repeats = 10, seed = 123)
+cv_st <- apply_folds(w2l_nest(phe, cols = c("adg", "bf")), folds)                 # within herd
+cv_mt <- apply_folds(c2p_nest(phe, cols = c("adg", "bf")), folds, ref = "others") # + other herd
+sc <- cv_scenarios(phe, cols = c("adg", "bf", "fcr"), id = "id", group = "herd", folds = folds)
+export_scenarios(sc, path = "gblup_runs", na = ".")
+```
+
+- Results use `rep` / `fold` (not `id` / `id2`), so an animal ID column called `id` is fine.
+- Summarise accuracy per repeat (mean over its folds), then mean ± SD over repeats; compare models paired by repeat, not as 50 independent folds.
+- `mt_bt` keeps all covariates and puts the trait in one column per group level (`r2p_nest()` keeps only the ID).
+
 ### Descriptive statistics
 
 ```r

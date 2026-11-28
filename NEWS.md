@@ -2,14 +2,12 @@
 
 ## New features
 
-* New HIBLUP shell scripts in `inst/hiblup/` (`system.file("hiblup", package =
-  "mintyr")`) run the files written by `export_scenarios()` end to end:
-  relationship matrix, full-data variance components, and cross-validation
-  with fixed variance components (`--mme`) or per-fold REML. Column positions
-  and priors are read from the files, and the model (fixed effects,
-  interactions, covariates, random effects, G x E, GBLUP / PBLUP / ssGBLUP,
-  dominance, two or more traits) is set in one `config.sh`. Tested with
-  HIBLUP 1.7.0. New article "用 HIBLUP 运行五个场景" (Chinese).
+* New article "用 HIBLUP 运行五个场景" (Chinese) with HIBLUP shell scripts that
+  run the files written by `export_scenarios()` end to end: relationship
+  matrix, full-data variance components, and cross-validation with fixed
+  variance components (`--mme`) or per-fold REML. The scripts live in the
+  `hiblup/` folder of the GitHub repository and are not part of the installed
+  package, so they can be updated between releases. Tested with HIBLUP 1.7.0.
 * `cv_folds()` assigns every **individual** (not every row) to a fold, within
   each group and independently in each repeat, so that one fold table can be
   shared by every trait, trait pair and model. All records of an individual

@@ -5,6 +5,12 @@
 die() { echo "[ERROR] $*" >&2; exit 1; }
 log() { echo "[$(date '+%F %T')] $*"; }
 
+# 需要 bash 4.3 及以上（关联数组、local -n）。macOS 自带 bash 3.2：
+# 先 brew install bash，再用新装的 bash 运行脚本；Windows 请在 WSL 中运行
+if (( BASH_VERSINFO[0] < 4 || (BASH_VERSINFO[0] == 4 && BASH_VERSINFO[1] < 3) )); then
+  die "需要 bash 4.3 及以上，当前是 ${BASH_VERSION}（macOS：brew install bash；Windows：使用 WSL）"
+fi
+
 # ---- 场景登记（config.sh 中调用）--------------------------------------------
 declare -A SC_DIR SC_TYPE SC_STRIP SC_FILE SC_FROM
 SC_ORDER=()

@@ -1,0 +1,371 @@
+---
+title: "用 HIBLUP 运行五个场景：参数估计与交叉验证脚本"
+description: >
+  把 export_scenarios() 导出的文件直接交给 HIBLUP：先用全部记录估计方差组分，
+  再用 --mme 或逐折 REML 完成交叉验证，最后回到 R 汇总预测准确性。支持随机效应、
+  G×E、系谱 / 一步法、显性、多性状和自定义交叉验证设计。
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+script <- function(f) readLines(system.file("hiblup", f, package = "mintyr"))
+```
+
+上一篇：[生成基因组遗传评估数据：参数估计与交叉验证](genomic-evaluation-zh.html)
+
+[上一篇文章](genomic-evaluation-zh.html)用 `cv_scenarios()` 和 `export_scenarios()` 为五个场景写出了参数估计数据和交叉验证数据。本文给出一套配套的 [HIBLUP](https://www.hiblup.com/tutorials) Shell 脚本，把这些文件直接跑完：
+
+| 步骤 | 脚本 | HIBLUP 命令 | 输入 | 输出 |
+|---|---|---|---|---|
+| 0 | `0.make_xrm.sh` | `--make-xrm` | 基因型和 / 或系谱 | `geno.GA.bin` 等关系矩阵 |
+| 1 | `1.param_est.sh` | `--single-trait` / `--multi-trait` | `param_est_data/**/data.txt` | `param_est_res/**/fit.vars` 等 |
+| 2 | `2.cross_validate.sh` | `--mme`（或逐折 REML） | `cv_data/**/train.txt` + 第 1 步的方差组分 | `cv_res/**/fit*.rand` |
+| 3 | 回到 R | — | `fit*.rand` + `validate.txt` | 预测准确性 |
+
+这套脚本有四个特点：
+
+- **只改一个文件。** 路径、模型和场景都在 `config.sh` 中设置，三个运行脚本不用改。
+- **不用手写列号。** 脚本读取每个文件的表头，按列名（`value`、`sex`、`litter`……）算出 `--pheno-pos`、`--dcovar`、`--rand` 等参数的列号。
+- **不用手抄方差组分。** 交叉验证直接从第 1 步的 `.vars`、`.covars` 中读取先验值，按 HIBLUP 要求的顺序排好，随机效应、显性和多性状都适用。
+- **遍历目录而不是写死循环。** 有多少性状、群体、重复、折，就跑多少，目录名与 mintyr 的输出完全一致。
+
+## 准备：导出 HIBLUP 格式的文件
+
+```{r export, eval = FALSE}
+library(mintyr)
+library(data.table)
+
+folds <- cv_folds(phe, id = "id", by = "herd", v = 5, repeats = 10, seed = 123)
+sc    <- cv_scenarios(phe, cols = c("adg", "bf", "fcr"), id = "id",
+                      group = "herd", folds = folds)
+
+export_scenarios(
+  sc,
+  path = "~/gblup",                                   # 对应 config.sh 中的 ROOT
+  dirs = c(st_sp = "2.1.st_sp", st_mp = "2.2.st_mp", mt_sp = "2.3.mt_sp",
+           mt_mp = "2.4.mt_mp", mt_bt = "2.5.mt_bt"), # 对应 config.sh 中的场景目录
+  na   = "NA",
+  eol  = "\n"                                         # 在 Windows 上导出时必须加
+)
+fwrite(folds, "~/gblup/cv_folds.txt", sep = "\t")
+```
+
+- `na = "NA"`：HIBLUP 把 `NA`、`.`、`-` 等都识别为缺失，用 `NA` 最直观。
+- `eol = "\n"`：`fwrite()` 在 Windows 上默认写 `\r\n` 换行。在 Windows 上导出、到 Linux 服务器上运行时，加上它就不需要再用 `sed` 清理换行符。
+- 表型文件第一列是个体 ID，必须与基因型 `.fam` 或系谱中的 ID 一致。验证个体不在 `train.txt` 中，但 HIBLUP 会为关系矩阵中的所有个体输出 GEBV，其中也包括验证个体。
+- 模型中要用到的列（固定效应、窝、年龄……）在 `cv_scenarios()` 之前加到 `phe` 里即可，所有场景都会原样保留这些列。
+
+## 获取脚本
+
+脚本随 mintyr 一起安装，复制到服务器上的工作目录即可：
+
+```{r copy, eval = FALSE}
+dir.create("~/gblup/scripts", recursive = TRUE)
+file.copy(list.files(system.file("hiblup", package = "mintyr"), full.names = TRUE),
+          "~/gblup/scripts")
+```
+
+```
+scripts/
+├── config.sh            # 用户设置：路径、关系矩阵、模型、场景、运行选项
+├── lib.sh               # 公共函数（一般不需要修改）
+├── 0.make_xrm.sh        # 计算关系矩阵
+├── 1.param_est.sh       # 全量参数估计
+└── 2.cross_validate.sh  # 交叉验证
+```
+
+## config.sh：所有设置都在这里
+
+```{bash config, eval = FALSE, code = script("config.sh")}
+```
+
+下面按需求说明各部分的用法。
+
+### 模型效应：`effects()`
+
+`effects()` 对每个场景的每个性状各调用一次，返回某类效应用到的列名。默认设置是所有模型都只有固定效应 `sex batch`：
+
+```bash
+effects() {
+  case "$2" in
+    dcovar) echo "sex batch" ;;
+    qcovar) echo "" ;;
+    rand)   echo "" ;;
+    gxe)    echo "" ;;
+  esac
+}
+```
+
+用 `case "$1:$3"`（“场景:性状”）就能让不同场景、不同性状使用不同的模型。下面这个例子把常见需求都写在了一起：
+
+```bash
+effects() {
+  case "$2" in
+    dcovar) case "$1:$3" in
+              st_mp:*|mt_mp:*) echo "herd sex batch" ;;  # 合并群体时加群体效应
+              *:fcr)           echo "sex" ;;             # fcr 只校正性别
+              *)               echo "sex:batch" ;;       # 性别 × 批次交互
+            esac ;;
+    qcovar) case "$3" in adg) echo "age" ;; esac ;;      # 只有 adg 校正日龄
+    rand)   case "$3" in fcr) ;; *) echo "litter" ;; esac ;;  # 除 fcr 外加窝效应
+    gxe)    case "$1" in st_mp|mt_mp) echo "herd:A" ;; esac ;; # 群体 × 加性遗传
+  esac
+}
+```
+
+脚本据此生成的命令（列号由表头自动换算）：
+
+```
+# st_sp，adg：交互、协变量、窝效应
+hiblup --single-trait --pheno .../adg/north/data.txt --pheno-pos 7 \
+       --dcovar 3:4 --qcovar 6 --rand 5 --xrm xrm/geno.GA ...
+# mt_mp，adg-fcr：两个性状各一组，没有的效应写 0
+hiblup --mme --pheno .../adg-fcr/north/Repeat01/Fold1/train.txt --pheno-pos 7 8 \
+       --dcovar 2,3,4 2,3,4 --qcovar 6 0 --rand 5 0 \
+       --rand-gxe 2:xrm/geno.GA 2:xrm/geno.GA --xrm xrm/geno.GA ...
+```
+
+几点说明：
+
+- **交互项**用冒号连接，如 `sex:batch`，对应 HIBLUP 的 `--dcovar 3:4`；随机效应的交互同理。
+- **群体效应**只能在合并群体的场景（`st_mp`、`mt_mp`）中加：单群体场景里群体只有一个水平。示例数据的 `batch` 已经嵌套了场，不需要另外加 `herd`。
+- **多性状模型**中各性状可以有不同的效应，某个性状没有这类效应时脚本自动写 `0`。`mt_sp`、`mt_mp` 的性状名来自性状对名称（`adg-bf` → adg、bf）。`mt_bt` 的性状名是目录名（如 adg），第 4 个参数是群体列名（如 north），可以按群体设置效应。
+- **重复记录模型**需要拟合永久环境效应，在 `rand` 中写个体 ID 列名（如 `id`）即可，对应 HIBLUP 的 `--rand 1`。
+- **G×E**写成 `环境列:A`（加性）或 `环境列:D`（显性），对应 HIBLUP 的 `--rand-gxe`。
+
+### 遗传关系：GBLUP、PBLUP、ssGBLUP 与显性
+
+| 设置 | 模型 | 第 0 步生成 |
+|---|---|---|
+| 只填 `BFILE` | GBLUP | `geno.GA` |
+| 只填 `PEDIGREE` | PBLUP | `geno.PA` |
+| `BFILE` 和 `PEDIGREE` 都填 | 一步法 ssGBLUP | `geno.HA` |
+| 加 `XRM_DOM=1` | 同时拟合显性效应 | 另加 `geno.GD` / `PD` / `HD` |
+| 填 `XRM_FILES` | 使用已有的关系矩阵，跳过第 0 步 | — |
+
+计算 H 矩阵时的 `--alpha`（默认 0.05）、大样本时的 `--step` 等参数写在 `MAKE_XRM_ARGS` 中。一步法中只有系谱、没有基因型的个体也在 H 矩阵中，同样会得到 GEBV。
+
+### 场景
+
+每个 `scenario` 行登记一个场景：
+
+| 字段 | 含义 |
+|---|---|
+| 名称 | 命令行和 `effects()` 中使用的名字 |
+| 目录 | `ROOT` 下的场景目录，与 `export_scenarios(dirs = ...)` 一致 |
+| 类型 | `st` 单性状（列 `value`）；`mt` 多性状（列 `value1`、`value2`……，三性状及以上也可以）；`bt` 同一性状在各群体视为不同性状（以群体水平命名的列，自动加 `--ignore-cove`） |
+| 层级 | `cv_data` 下的路径去掉末尾几层，得到对应的参数估计路径：单群体场景“性状/群体/重复/折”去掉 2 层，得到“性状/群体”；合并群体场景去掉 3 层，得到“性状” |
+| CV 文件 | `train`（默认）或 `masked` |
+| 先验来源 | 用哪个场景的全量参数估计结果，默认就是本场景 |
+
+五个标准场景已经登记好，进阶场景见[后文](#进阶场景)。
+
+## 第 0 步：计算关系矩阵
+
+```{bash xrm, eval = FALSE, code = script("0.make_xrm.sh")}
+```
+
+关系矩阵只需要算一次。之后所有参数估计和全部交叉验证都用 `--xrm` 读取，不必每次重新构建。
+
+## 第 1 步：全量参数估计
+
+```{bash param, eval = FALSE, code = script("1.param_est.sh")}
+```
+
+脚本按文件里的性状列数自动选择 `--single-trait` 或 `--multi-trait`。HIBLUP 默认会估计多性状模型的残差协方差，只有 `bt` 类型（`mt_bt`）加 `--ignore-cove`：同一个体只在自己所属群体的那一列有表型，两列之间不存在残差协方差。
+
+`fit.vars` 中是各方差组分和遗传力，多性状模型的 `fit.covars` 中是遗传协方差、遗传相关和残差协方差。
+
+## 第 2 步：交叉验证
+
+```{bash cv, eval = FALSE, code = script("2.cross_validate.sh")}
+```
+
+### 两种方式
+
+| `CV_MODE` | 做法 | 需要第 1 步 | 速度 |
+|---|---|---|---|
+| `fixed`（默认） | 方差组分固定为全量估计值，用 `--mme` 直接解混合模型方程组 | 是 | 快，不存在收敛问题 |
+| `reml` | 每一折在训练集上重新估计方差组分 | 否 | 约为 `fixed` 的几十倍 |
+
+`fixed` 是常见做法，但验证个体的表型参与了方差组分的估计，准确性会略微偏高。论文审稿要求严格时，用 `CV_MODE=reml bash 2.cross_validate.sh` 重新跑一遍即可。
+
+### 先验值是怎样排列的
+
+HIBLUP 1.7 的 `.vars`、`.covars` 用表头中的性状列名作为行名前缀，例如：
+
+```
+Item                 Var        Item                    COVar
+value1_location      4.33       value1:value2_geno.GA   32.21
+value1_dam           4.24       value1:value2_geno.GD   12.99
+value1_geno.GA      51.27       value1:value2_e          0.51
+value1_geno.GD      19.85
+value1_e            21.62
+value2_dam           8.94
+...
+```
+
+脚本按下面的规则把它们排成先验值：
+
+- `--vc-priors`：每个性状一组，组内顺序与 `.vars` 中该性状各行的顺序相同，即“环境随机效应、G×E、遗传效应、残差”；
+- `--covc-priors`：每个关系矩阵一组（按 `--xrm` 的顺序），残差一组放最后。组内按下三角、逐列排列：`1:2`、`1:3`、`2:3`……；
+- `bt` 类型带 `--ignore-cove`，**不能**给残差那一组，否则 HIBLUP 会报错。
+
+这样排出的先验值与 HIBLUP 官方示例 `5.0 Solve MME.sh` 中的写法一致。有一种情况需要单独处理：REML 有时会把某个方差（常见的是随机效应）估计到边界 0，而 `--mme` 不接受为 0 的方差先验，会报 “unqualified prior variances”。脚本会把这类方差换成该性状方差总和的 1e-6，并在日志中给出 `[WARN]` 提示。
+
+每个参数文件第一次被用到时，日志里会打印实际使用的先验值，方便核对（下面第二个性状的 0.000115 就是被替换的 0）：
+
+```
+[2026-11-28 05:53:43] mt_sp | adg-fcr/south | vc-priors: 10.3007,27.2864,65.0608,6.34094 0.000115,57.4769,30.3438,27.267 | covc-priors: 25.787 8.52038
+```
+
+`R2=1` 时加 `--r2`，`.rand` 中每个效应会多出 `_SE`、`_PEV`、`_R2`（可靠性）三列。
+
+## 运行：全部或部分
+
+```bash
+cd ~/gblup/scripts
+bash 0.make_xrm.sh
+bash 1.param_est.sh                    # 所有已导出的场景
+bash 2.cross_validate.sh
+nohup bash 2.cross_validate.sh > cv.log 2>&1 &    # 放到后台运行
+```
+
+不写场景名时，脚本只运行 `ROOT` 下已经导出的场景，所以只导出部分场景时也可以直接运行。只做某一部分分析时：
+
+| 需求 | 做法 |
+|---|---|
+| 只做某几个场景 | `bash 1.param_est.sh st_sp mt_sp`，第 2 步同样写场景名 |
+| 只要遗传力和遗传相关 | 只跑第 0、1 步 |
+| 只做交叉验证，不要第 1 步 | `CV_MODE=reml bash 2.cross_validate.sh` |
+| 只跑某些性状 | `ONLY_TRAITS="adg adg-*" bash 2.cross_validate.sh`（按目录名匹配，可用通配符） |
+| 只跑某个群体 | `ONLY_GROUPS="north" bash 2.cross_validate.sh` |
+| 多个场景并行 | `bash 2.cross_validate.sh st_sp & bash 2.cross_validate.sh mt_sp &`，并相应减少 `THREADS` |
+
+几点说明：
+
+- 运行选项都可以像上面这样在命令行临时覆盖，不必改 `config.sh`。
+- `SKIP_DONE=1` 时，已经有结果的数据集会被跳过。程序中断后重新运行同一条命令，就会从断点继续。
+- 修改模型后要重新运行时，删掉对应的 `param_est_res`、`cv_res` 目录，或者用 `SKIP_DONE=0` 运行。
+
+结果目录与数据目录一一对应，每个结果目录里都有 `hiblup.log`。HIBLUP 出错时，脚本会打印日志的最后 20 行并停止。
+
+```
+<ROOT>/<场景目录>/param_est_res/<性状或性状对>[/<群体>]/fit.vars, fit.covars, ...
+<ROOT>/<场景目录>/cv_res/<性状或性状对>/<群体>/<重复>/<折>/fit*.rand, hiblup.log
+```
+
+## 进阶场景
+
+[上一篇的进阶用法](genomic-evaluation-zh.html)中的设计都可以用 `export_nest()` 写成同样的目录结构，再在 `config.sh` 中登记一行即可运行。`config.sh` 里已经写好了下面三个场景，去掉行首的 `#` 就能用。
+
+### 三性状模型
+
+```{r mt3, eval = FALSE}
+mt3p <- c2p_nest(phe, cols = c("adg", "bf", "fcr"), pairs_n = 3)
+export_nest(mt3p, by = "pairs", cols = "data", na = "NA", eol = "\n",
+            path = "~/gblup/2.6.mt3/param_est_data")
+mt3 <- apply_folds(mt3p, folds, ref = "others")
+export_nest(mt3, by = c("pairs", "herd", "rep", "fold"), cols = c("train", "validate"),
+            na = "NA", eol = "\n", path = "~/gblup/2.6.mt3/cv_data")
+```
+
+```bash
+scenario mt3     2.6.mt3      mt   3    train
+```
+
+### 掩蔽式交叉验证
+
+一个文件里同时包含训练和验证个体，验证个体的表型设为缺失。方差组分借用 `st_sp` 的结果，所以不需要导出 `param_est_data`：
+
+```{r masked, eval = FALSE}
+cv <- copy(sc$st_sp$cv)
+cv[, masked := Map(function(tr, va) rbind(tr, copy(va)[, value := NA]), train, validate)]
+export_nest(cv, by = c("name", "herd", "rep", "fold"), cols = "masked",
+            na = "NA", eol = "\n", path = "~/gblup/3.1.st_mask/cv_data")
+```
+
+```bash
+scenario st_mask 3.1.st_mask  st   2    masked  st_sp
+```
+
+### 跨群体预测
+
+用 south 场预测 north 场，不分折，方差组分借用 `st_mp`（合并群体）的结果：
+
+```{r across, eval = FALSE}
+across <- w2l_nest(phe, cols = c("adg", "bf", "fcr"))[, .(
+  train    = lapply(data, function(d) d[herd == "south"]),
+  validate = lapply(data, function(d) d[herd == "north"])
+), by = name]
+export_nest(across, by = "name", cols = c("train", "validate"),
+            na = "NA", eol = "\n", path = "~/gblup/3.2.across/cv_data")
+```
+
+```bash
+scenario across  3.2.across   st   0    train   st_mp
+```
+
+借用其他场景先验的场景，模型必须与先验来源相同，否则先验值的个数对不上。所以这类场景调用 `effects()` 时传入的是先验来源的场景名（上例中分别是 `st_sp` 和 `st_mp`），不需要单独设置。
+
+## 第 3 步：回到 R 汇总准确性
+
+结果文件的命名：
+
+| 模型 | `.rand` 文件 | 验证集中的观测值列 |
+|---|---|---|
+| 单性状 | `fit.rand` | `value` |
+| 多性状（`mt_sp`、`mt_mp`、三性状） | 每个性状一个：`fit.value1.rand`、`fit.value2.rand`…… | `value1`、`value2`…… |
+| `mt_bt` | 每个群体一个：`fit.north.rand`、`fit.south.rand` | 被验证群体的那一列 |
+
+`.rand` 第一列是个体 ID，名称以 `.GA`、`.HA` 或 `.PA` 结尾的列是加性育种值。拟合了 G×E 时还有一列 `herd:….GA`，取值时要跳过。下面的函数读取每一折的 GEBV，与验证集的表型求相关，再先在重复内平均、最后在重复间汇总：
+
+```{r accuracy, eval = FALSE}
+read_gebv <- function(file) {
+  g <- fread(file)
+  a <- grep("^[^:]*\\.(GA|HA|PA)$", names(g))[1]   # 加性育种值列（跳过 G×E 列）
+  data.table(id = as.character(g[[1]]), gebv = g[[a]])
+}
+
+cv_accuracy <- function(cv, res_dir, target = "value") {
+  key <- intersect(c("name", "pairs"), names(cv))[1]   # 单性状为 name，多性状为 pairs
+  cv  <- copy(cv)
+  cv[, r := mapply(function(k, h, rp, fd, va) {
+    col  <- if (target == "herd") h else target        # mt_bt：取被验证群体那一列
+    file <- if (col == "value") "fit.rand" else paste0("fit.", col, ".rand")
+    m <- merge(va, read_gebv(file.path(res_dir, k, h, rp, fd, file)), by = "id")
+    cor(m$gebv, m[[col]], use = "complete.obs")
+  }, get(key), as.character(herd), rep, fold, validate)]
+  cv[, .(r = mean(r)), by = c(key, "herd", "rep")][        # 先在重复内平均
+     , .(mean_r = mean(r), sd_r = sd(r)), by = c(key, "herd")]
+}
+
+root <- "~/gblup"
+cv_accuracy(sc$st_sp$cv, file.path(root, "2.1.st_sp", "cv_res"))
+cv_accuracy(sc$mt_sp$cv, file.path(root, "2.3.mt_sp", "cv_res"), target = "value1")
+cv_accuracy(sc$mt_bt$cv, file.path(root, "2.5.mt_bt", "cv_res"), target = "herd")
+cv_accuracy(sc$st_sp$cv, file.path(root, "3.1.st_mask", "cv_res"))   # 掩蔽式
+```
+
+`target = "value1"` 评价性状对中第一个性状的准确性，评价第二个性状写 `"value2"`。跨群体预测不分折，结果在 `cv_res/<性状>/fit.rand`，直接与 `validate.txt` 合并即可。
+
+拟合了显性效应时，GEBV 一般只取加性列；要预测总遗传值时，把加性列和显性列（`.GD` 等）相加。
+
+后面的配对比较与[上一篇](genomic-evaluation-zh.html)的第 4 步完全相同。因为所有场景共用一张折表，各场景的结果可以按“性状 × 群体 × 重复”逐一配对比较。
+
+## 常见问题
+
+**日志中出现 `[WARN] ... 方差为 0` 是什么意思？**
+全量 REML 把这个方差组分估计到了 0，说明该效应在这份数据中几乎不起作用。脚本已经把先验换成极小的正值，交叉验证可以正常进行。如果某个效应在多数数据集中都估计为 0，可以考虑从 `effects()` 中去掉它。
+
+**`--threads` 还是 `--thread`？**
+HIBLUP 1.7 两种写法都接受，脚本默认用 `--threads`（`THREADS_FLAG`）。
+
+**提示表头中没有某一列？**
+`effects()` 和 `GROUP` 中写的是列名，要与导出文件的表头完全一致（区分大小写）。可以用 `head -1 data.txt | tr '\t' '\n' | cat -n` 查看列名和列号。
+
+**还需要其他 HIBLUP 参数怎么办？**
+写在 `PARAM_EXTRA`（第 1 步）或 `CV_EXTRA`（第 2 步）中，例如大数据量时用 `CV_EXTRA=(--pcg)`。
+
+**这套脚本测试过哪些情况？**
+用 HIBLUP 1.7.0（Linux）在官方 demo 数据和一套带系谱的模拟数据上，跑通了本文的全部场景和模型：GBLUP、PBLUP、ssGBLUP、加性 + 显性、窝效应、交互项、协变量、G×E、单性状 / 两性状 / 三性状、`--ignore-cove`、掩蔽式、跨群体、`reml` 模式和 `--r2`。验证方法是：用脚本从 `.vars`、`.covars` 读出的先验在全量数据上解 `--mme`，得到的 GEBV 与 REML 自己输出的 GEBV 一致（差异只来自先验值的小数位数）。说明先验值的个数和顺序都是对的。换用其他版本的 HIBLUP 时，先用 `ONLY_TRAITS` 只跑一个性状，对照日志里打印的先验值和 `fit.vars` 确认一次。

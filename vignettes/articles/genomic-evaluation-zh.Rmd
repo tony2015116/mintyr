@@ -253,6 +253,8 @@ tail(substring(files, nchar(out) + 2), 2)
 readLines(file.path(out, "2.5.mt_bt", "cv_data", "adg", "north", "Repeat01", "Fold1", "train.txt"), n = 3)
 ```
 
+导出的文件可以直接用 HIBLUP 运行，配套的参数估计和交叉验证脚本见[用 HIBLUP 运行五个场景](hiblup-zh.html)。
+
 把折表也保存下来，以后汇总结果、复现或补充新模型都要用：
 
 ```{r export-folds}

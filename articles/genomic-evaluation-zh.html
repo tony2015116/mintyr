@@ -80,6 +80,9 @@
     <li>
       <a href="../articles/genomic-evaluation-zh.html">生成基因组遗传评估数据：参数估计与交叉验证</a>
     </li>
+    <li>
+      <a href="../articles/hiblup-zh.html">用 HIBLUP 运行五个场景：参数估计与交叉验证脚本</a>
+    </li>
     <li class="divider"></li>
     <li class="dropdown-header">AI agents</li>
     <li>
@@ -604,6 +607,7 @@ adg）。缺失表型的行会保留：同一个体可能只有其中一个性�
 <span><span class="co">#&gt; [1] "id\therd\tsex\tbatch\tnorth\tsouth"  </span></span>
 <span><span class="co">#&gt; [2] "N0001\tnorth\tF\tnorth2404\t961.3\t."</span></span>
 <span><span class="co">#&gt; [3] "N0002\tnorth\tF\tnorth2404\t934.9\t."</span></span></code></pre></div>
+<p>导出的文件可以直接用 HIBLUP 运行，配套的参数估计和交叉验证脚本见<a href="hiblup-zh.html">用 HIBLUP 运行五个场景</a>。</p>
 <p>把折表也保存下来，以后汇总结果、复现或补充新模型都要用：</p>
 <div class="sourceCode" id="cb19"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/pkg/data.table/man/fwrite.html" class="external-link">fwrite</a></span><span class="op">(</span><span class="va">folds</span>, <span class="fu"><a href="https://rdrr.io/r/base/file.path.html" class="external-link">file.path</a></span><span class="op">(</span><span class="va">out</span>, <span class="st">"cv_folds.txt"</span><span class="op">)</span>, sep <span class="op">=</span> <span class="st">"\t"</span><span class="op">)</span></span></code></pre></div>

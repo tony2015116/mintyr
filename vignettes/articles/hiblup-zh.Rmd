@@ -8,7 +8,15 @@ description: >
 
 ```{r, include = FALSE}
 knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
-script <- function(f) readLines(system.file("hiblup", f, package = "mintyr"))
+# 脚本在仓库的 hiblup/ 目录中（不随 R 包安装），构建网站时从仓库中读取
+repo_root <- function(d = getwd()) {
+  while (!file.exists(file.path(d, "DESCRIPTION"))) {
+    if (dirname(d) == d) stop("cannot find the repository root (DESCRIPTION)")
+    d <- dirname(d)
+  }
+  d
+}
+script <- function(f) readLines(file.path(repo_root(), "hiblup", f))
 ```
 
 上一篇：[生成基因组遗传评估数据：参数估计与交叉验证](genomic-evaluation-zh.html)
@@ -57,13 +65,34 @@ fwrite(folds, "~/gblup/cv_folds.txt", sep = "\t")
 
 ## 获取脚本
 
-脚本随 mintyr 一起安装，复制到服务器上的工作目录即可：
+脚本放在 mintyr 的 GitHub 仓库的 [`hiblup/`](https://github.com/tony2015116/mintyr/tree/main/hiblup) 目录中，不随 R 包安装，这样脚本可以随时更新，不受 R 包发版的限制。在运行 HIBLUP 的服务器上下载到工作目录：
 
-```{r copy, eval = FALSE}
-dir.create("~/gblup/scripts", recursive = TRUE)
-file.copy(list.files(system.file("hiblup", package = "mintyr"), full.names = TRUE),
-          "~/gblup/scripts")
+```bash
+mkdir -p ~/gblup/scripts && cd ~/gblup/scripts
+base=https://raw.githubusercontent.com/tony2015116/mintyr/main/hiblup
+for f in config.sh lib.sh 0.make_xrm.sh 1.param_est.sh 2.cross_validate.sh; do
+  curl -fsSLO "$base/$f"
+done
 ```
+
+服务器不能访问 GitHub 时，可以先在本地用 R 下载，再上传到服务器：
+
+```{r download, eval = FALSE}
+dest <- "~/gblup/scripts"
+dir.create(dest, recursive = TRUE, showWarnings = FALSE)
+base <- "https://raw.githubusercontent.com/tony2015116/mintyr/main/hiblup"
+for (f in c("config.sh", "lib.sh", "0.make_xrm.sh", "1.param_est.sh", "2.cross_validate.sh"))
+  download.file(file.path(base, f), file.path(dest, f), mode = "wb")  # wb：保留 Linux 换行
+```
+
+运行环境要求：
+
+- Linux 或 macOS，bash 4.3 及以上，以及 awk；
+- macOS 自带的 bash 是 3.2，先用 `brew install bash` 装新版，再用新装的 bash 运行；
+- Windows 上请在 WSL 中运行；
+- 版本太低时，脚本会直接提示并停止。
+
+脚本已用 HIBLUP 1.7.0 测试。
 
 ```
 scripts/
